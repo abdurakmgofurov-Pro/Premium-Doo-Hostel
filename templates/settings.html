@@ -1,0 +1,86 @@
+{% extends "base.html" %}
+{% block title %}{{ t('nav.settings') }}{% endblock %}
+{% block content %}
+<div class="card">
+  <h2>{{ t('settings.title') }}</h2>
+  <form class="form-grid" method="post" action="/settings/save">
+    <div class="field full"><label>{{ t('settings.client_id') }}</label><input type="text" name="api_client_id" value="{{cfg.api_client_id}}" required></div>
+    <div class="field full"><label>{{ t('settings.client_secret') }}</label><input type="text" name="api_client_secret" value="{{cfg.api_client_secret}}" required></div>
+    <div class="field"><label>{{ t('settings.property_id') }}</label><input type="text" name="property_id" value="{{cfg.property_id}}" required></div>
+    <div class="field"><label>{{ t('settings.refresh_minutes') }}</label><input type="number" name="refresh_minutes" value="{{cfg.refresh_minutes}}" required></div>
+    <div class="field"><button class="btn primary" type="submit">{{ t('settings.save') }}</button></div>
+  </form>
+  <div class="empty" style="margin-top:.8rem">
+    {{ t('settings.help') }}
+  </div>
+</div>
+
+<div class="card">
+  <h2>{{ t('settings.opening_balance_title') }}</h2>
+  <p style="color:var(--ink-secondary);font-size:.85rem;margin-bottom:.9rem">{{ t('settings.opening_balance_note') }}</p>
+  <form class="form-grid" method="post" action="/settings/opening-balance">
+    <div class="field full"><label>{{ t('settings.opening_date') }}</label><input type="date" name="opening_date" value="{{opening_date}}" required></div>
+    <div class="field full" style="font-size:.78rem;font-weight:700;color:var(--accent-light);text-transform:uppercase;letter-spacing:.05em">{{ t('cash.source_kassa') }}</div>
+    <div class="field"><label>{{ t('settings.opening_uzs') }}</label><input type="text" inputmode="decimal" class="money-input" name="opening_kassa_uzs" value="{{opening_kassa_uzs|money}}" required></div>
+    <div class="field"><label>{{ t('settings.opening_usd') }}</label><input type="text" inputmode="decimal" class="money-input" name="opening_kassa_usd" value="{{opening_kassa_usd|money}}" required></div>
+    <div class="field full" style="font-size:.78rem;font-weight:700;color:var(--accent-light);text-transform:uppercase;letter-spacing:.05em;margin-top:.4rem">{{ t('cash.source_bank') }}</div>
+    <div class="field"><label>{{ t('settings.opening_uzs') }}</label><input type="text" inputmode="decimal" class="money-input" name="opening_bank_uzs" value="{{opening_bank_uzs|money}}" required></div>
+    <div class="field"><label>{{ t('settings.opening_usd') }}</label><input type="text" inputmode="decimal" class="money-input" name="opening_bank_usd" value="{{opening_bank_usd|money}}" required></div>
+    <div class="field full"><button class="btn primary" type="submit">{{ t('settings.save_opening') }}</button></div>
+  </form>
+</div>
+
+<div class="card">
+  <h2>{{ t('settings.exchange_rate_title') }}</h2>
+  <p style="color:var(--ink-secondary);font-size:.85rem;margin-bottom:.9rem">{{ t('settings.exchange_rate_moved') }}</p>
+  <a class="btn primary" href="/exchange-rate">{{ t('nav.exchange_rate') }}</a>
+</div>
+
+<div class="card">
+  <h2>{{ t('settings.charter_title') }}</h2>
+  <form class="form-grid" method="post" action="/settings/charter-capital">
+    <div class="field"><label>{{ t('settings.charter_uzs') }}</label><input type="text" inputmode="decimal" class="money-input" name="charter_uzs" value="{{charter_uzs|money}}" required></div>
+    <div class="field"><label>{{ t('settings.charter_usd') }}</label><input type="text" inputmode="decimal" class="money-input" name="charter_usd" value="{{charter_usd|money}}" required></div>
+    <div class="field"><button class="btn primary" type="submit">{{ t('settings.charter_save') }}</button></div>
+  </form>
+</div>
+
+<div class="card">
+  <h2>{{ t('settings.assets_title') }}</h2>
+  <form class="form-grid" method="post" action="/settings/fixed-asset/add">
+    <div class="field full"><label>{{ t('settings.asset_name') }}</label><input type="text" name="name" required></div>
+    <div class="field"><label>{{ t('settings.asset_value') }}</label><input type="text" inputmode="decimal" class="money-input" name="value" required></div>
+    <div class="field"><label>{{ t('settings.asset_currency') }}</label>
+      <select name="currency"><option value="UZS">UZS</option><option value="USD">USD</option></select>
+    </div>
+    <div class="field"><label>{{ t('settings.asset_date') }}</label><input type="date" name="purchase_date" value="{{today}}" required></div>
+    <div class="field"><button class="btn primary" type="submit">{{ t('settings.asset_add') }}</button></div>
+  </form>
+  <div class="overflow-x" style="margin-top:1rem">
+    {% if fixed_assets %}
+    <table class="data-table">
+      <thead><tr>
+        <th>{{ t('settings.asset_name') }}</th><th>{{ t('settings.asset_date') }}</th>
+        <th class="num">{{ t('settings.asset_value') }}</th><th></th>
+      </tr></thead>
+      <tbody>
+        {% for a in fixed_assets %}
+        <tr>
+          <td>{{a.name}}</td>
+          <td>{{a.purchase_date}}</td>
+          <td class="num">{{ a.value|money }} {{a.currency}}</td>
+          <td>
+            <form method="post" action="/settings/fixed-asset/{{a.id}}/delete" data-confirm="{{ t('settings.asset_delete_confirm') }}">
+              <button class="btn danger" type="submit">{{ t('settings.asset_delete') }}</button>
+            </form>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <div class="empty">{{ t('settings.assets_empty') }}</div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

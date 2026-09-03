@@ -1,0 +1,462 @@
+{% extends "base.html" %}
+{% block title %}{{ t('nav.sklad') }}{% endblock %}
+{% block head %}
+<style>
+  .balance-row { display: grid; grid-template-columns: repeat(1, 1fr); gap: 1rem; margin-bottom: 1.6rem; max-width: 320px; }
+  .balance-card { background: var(--bg-surface); border: 1px solid var(--border); border-radius: var(--radius);
+    box-shadow: var(--shadow); padding: 1.2rem 1.3rem; }
+  .balance-card .label { font-size: .74rem; color: var(--ink-secondary); margin-bottom: .5rem; }
+  .balance-card .value { font-size: 1.25rem; font-weight: 700; font-family: "IBM Plex Mono", monospace; }
+  .bar-edit-details summary { cursor: pointer; font-size: .8rem; color: var(--accent-light); font-weight: 600; list-style: none; }
+  .bar-edit-details summary::-webkit-details-marker { display: none; }
+  .bar-edit-details[open] summary { margin-bottom: .3rem; }
+  .row-actions { display: flex; flex-direction: column; gap: .4rem; align-items: flex-start; }
+
+  .sklad-tabs { display: flex; gap: .5rem; flex-wrap: wrap; margin-bottom: 1.2rem; }
+  .sklad-tabs button { padding: .5rem 1rem; border-radius: 10px; font-size: .84rem; font-weight: 600;
+    color: var(--ink-secondary); background: var(--bg-surface-2); border: 1px solid var(--border); cursor: pointer; }
+  .sklad-tabs button.active { background: linear-gradient(135deg, var(--accent), var(--accent-deep)); color: #fff; border-color: transparent; }
+  .tab-panel { display: none; }
+  .tab-panel.active { display: block; }
+
+  .filter-bar { display: flex; gap: .6rem; flex-wrap: wrap; align-items: center; margin-bottom: 1rem; }
+  .filter-bar input[type=text] { flex: 1 1 240px; }
+  .filter-bar select { flex: 0 0 auto; }
+  .filter-bar input, .filter-bar select { font-family: inherit; font-size: .85rem; padding: .5rem .65rem; border-radius: 9px;
+    border: 1px solid var(--border); background: var(--bg-surface-2); color: var(--ink-primary); outline: none; }
+  .filter-count { font-size: .78rem; color: var(--ink-secondary); margin-left: auto; white-space: nowrap; }
+
+  .icon-btn { background: none; border: 1px solid var(--border); border-radius: 7px; color: var(--ink-secondary);
+    width: 28px; height: 28px; cursor: pointer; font-size: .85rem; line-height: 1; }
+  .icon-btn:hover { color: var(--bad); border-color: var(--bad); }
+
+  dialog#intakeModal { border: 1px solid var(--border); border-radius: var(--radius); background: var(--bg-surface);
+    box-shadow: var(--shadow); color: var(--ink-primary); padding: 1.4rem; width: min(720px, 92vw); max-width: 100%;
+    max-height: 88vh; overflow-y: auto; overflow-x: hidden; box-sizing: border-box; }
+  dialog#intakeModal::backdrop { background: rgba(0,0,0,.55); }
+  .modal-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.1rem; }
+  .modal-head h2 { margin: 0; font-size: 1.15rem; }
+  .modal-close-btn { background: none; border: none; color: var(--ink-secondary); font-size: 1.3rem; cursor: pointer; line-height: 1; }
+  .modal-footer { display: flex; align-items: center; justify-content: flex-end; gap: .7rem; margin-top: 1.2rem; padding-top: 1rem; border-top: 1px solid var(--border); flex-wrap: wrap; }
+  .modal-hint { font-size: .78rem; color: var(--ink-secondary); margin-right: auto; }
+
+  #intakeRows { display: flex; flex-direction: column; gap: .6rem; margin-bottom: .8rem; }
+  .intake-row { display: flex; gap: .6rem; align-items: flex-end; flex-wrap: wrap; }
+  .intake-row .field { min-width: 0; }
+  .intake-row .field.grow { flex: 1 1 240px; min-width: 0; }
+  .intake-row .field.qty { width: 100px; flex: 0 0 auto; }
+  .intake-remove-btn { background: none; border: 1px solid var(--border); border-radius: 9px; color: var(--ink-secondary);
+    width: 38px; height: 38px; flex: 0 0 auto; cursor: pointer; font-size: .9rem; line-height: 1; }
+  .intake-remove-btn:hover { color: var(--bad); border-color: var(--bad); }
+  .intake-remove-btn:disabled { opacity: .3; cursor: default; }
+  .modal-total { font-size: 1rem; font-weight: 700; font-family: "IBM Plex Mono", monospace; margin: .8rem 0; }
+
+  .product-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: .8rem; }
+  .product-card { background: var(--bg-surface-2); border: 1px solid var(--border); border-radius: 12px; padding: .9rem 1rem; }
+  .product-card .pc-name { font-weight: 700; font-size: .92rem; margin-bottom: .1rem; }
+  .product-card .pc-unit { font-size: .72rem; color: var(--ink-muted); margin-bottom: .7rem; }
+  .product-card .pc-stats { display: grid; grid-template-columns: 1fr 1fr; gap: .4rem .6rem; font-size: .78rem; margin-bottom: .7rem; }
+  .product-card .pc-stats .k { color: var(--ink-secondary); }
+  .product-card .pc-stats .v { font-weight: 600; font-family: "IBM Plex Mono", monospace; text-align: right; }
+  .product-card .pc-stock { font-size: .95rem; font-weight: 700; color: var(--accent-light); margin-bottom: .7rem; }
+  .product-card .row-actions { flex-direction: row; flex-wrap: wrap; gap: .5rem; }
+
+  @media (max-width: 520px) {
+    dialog#intakeModal { padding: 1rem; }
+    .modal-footer { justify-content: stretch; }
+    .modal-footer button { flex: 1 1 auto; }
+    .modal-hint { flex-basis: 100%; margin-right: 0; margin-bottom: .3rem; }
+    .filter-bar { flex-direction: column; align-items: stretch; }
+    .filter-count { margin-left: 0; }
+  }
+</style>
+{% endblock %}
+{% block content %}
+  <div style="display:flex;align-items:flex-end;justify-content:space-between;flex-wrap:wrap;gap:1rem;margin-bottom:1.4rem;">
+    <div>
+      <h1 style="font-size:1.55rem">{{ t('nav.sklad') }}</h1>
+      <p style="color:var(--ink-secondary);font-size:.9rem;margin-top:.3rem">{{ t('sklad.subtitle') }}</p>
+    </div>
+    <div style="display:flex;gap:.6rem;flex-wrap:wrap">
+      {% if can_create and products %}
+      <button type="button" class="btn primary" id="openIntakeBtn">{{ t('sklad.add_intake_btn') }}</button>
+      {% endif %}
+      <a class="btn" href="/bar">{{ t('sklad.go_to_bar') }}</a>
+    </div>
+  </div>
+
+  <div class="balance-row">
+    <div class="balance-card">
+      <div class="label">{{ t('bar.stock_value') }}</div>
+      <div class="value">{{ to_display(stock_value.UZS, stock_value.USD, rate)|money }} {{ display_currency }}</div>
+    </div>
+  </div>
+  {% if not rate %}<div class="note" style="margin-bottom:1rem">{{ t('reports.no_rate_note') }}</div>{% endif %}
+
+  <div class="sklad-tabs">
+    <button type="button" class="tab-btn active" data-tab="products">{{ t('sklad.tab_products') }}</button>
+    <button type="button" class="tab-btn" data-tab="intake">{{ t('sklad.tab_intake') }}</button>
+  </div>
+
+  <div class="tab-panel active" id="tab-products">
+    <div class="card">
+      <h2>{{ t('bar.products_title') }}</h2>
+      {% if products %}
+      <div class="product-grid">
+        {% for p in products %}
+        <div class="product-card">
+          <div class="pc-name">{{p.name}}</div>
+          <div class="pc-unit">{{p.unit}} · {{p.currency}}</div>
+          <div class="pc-stock">{{ t('bar.stock') }}: {{ p.stock_qty|qty }}</div>
+          <div class="pc-stats">
+            <div class="k">{{ t('bar.cost_price') }}</div><div class="v">{{ p.cost_price|money }}</div>
+            <div class="k">{{ t('bar.sale_price') }}</div><div class="v">{{ p.sale_price|money }}</div>
+            <div class="k">{{ t('bar.margin') }}</div><div class="v">{% if p.cost_price %}{{ "%.0f"|format((p.sale_price - p.cost_price) / p.cost_price * 100) }}%{% else %}{{ t('common.dash') }}{% endif %}</div>
+          </div>
+          {% if can_edit or can_delete %}
+          <div class="row-actions">
+            {% if can_edit %}
+            <details class="bar-edit-details">
+              <summary>{{ t('bar.edit') }}</summary>
+              <form method="post" action="/bar/product/{{p.id}}/edit" class="form-grid" style="grid-template-columns:1fr 1fr;min-width:0">
+                <div class="field full"><label>{{ t('bar.product_name') }}</label><input type="text" name="name" value="{{p.name}}" required></div>
+                <div class="field"><label>{{ t('bar.unit') }}</label><input type="text" name="unit" value="{{p.unit}}" required></div>
+                <div class="field"><label>{{ t('bar.currency') }}</label>
+                  <select name="currency">
+                    <option value="UZS" {{ 'selected' if p.currency=='UZS' else '' }}>UZS</option>
+                    <option value="USD" {{ 'selected' if p.currency=='USD' else '' }}>USD</option>
+                  </select>
+                </div>
+                <div class="field"><label>{{ t('bar.cost_price') }}</label><input type="text" inputmode="decimal" class="money-input" name="cost_price" value="{{p.cost_price|money}}" required></div>
+                <div class="field"><label>{{ t('bar.margin_percent') }}</label><input type="text" inputmode="decimal" class="money-input margin-pct-input" value="{% if p.cost_price %}{{ "%.2f"|format((p.sale_price - p.cost_price) / p.cost_price * 100) }}{% endif %}" placeholder="%"></div>
+                <div class="field"><label>{{ t('bar.sale_price') }}</label><input type="text" inputmode="decimal" class="money-input" name="sale_price" value="{{p.sale_price|money}}" required></div>
+                <div class="field full"><button class="btn primary" type="submit">{{ t('bar.save') }}</button></div>
+              </form>
+            </details>
+            {% endif %}
+            {% if can_delete %}
+            <form method="post" action="/bar/product/{{p.id}}/delete" data-confirm="{{ t('bar.delete_product_confirm') }}">
+              <button class="btn danger" type="submit">{{ t('bar.delete') }}</button>
+            </form>
+            {% endif %}
+          </div>
+          {% endif %}
+        </div>
+        {% endfor %}
+      </div>
+      {% else %}
+      <div class="empty">{{ t('bar.products_empty') }}</div>
+      {% endif %}
+    </div>
+
+    {% if can_create %}
+    <div class="card">
+      <h2>{{ t('bar.add_product_title') }}</h2>
+      <form class="form-grid" method="post" action="/bar/product/add">
+        <div class="field full"><label>{{ t('bar.product_name') }}</label><input type="text" name="name" required></div>
+        <div class="field"><label>{{ t('bar.unit') }}</label><input type="text" name="unit" value="dona" required></div>
+        <div class="field"><label>{{ t('bar.currency') }}</label>
+          <select name="currency"><option value="UZS">UZS</option><option value="USD">USD</option></select>
+        </div>
+        <div class="field"><label>{{ t('bar.cost_price') }}</label><input type="text" inputmode="decimal" class="money-input" name="cost_price" required></div>
+        <div class="field"><label>{{ t('bar.margin_percent') }}</label><input type="text" inputmode="decimal" class="money-input margin-pct-input" placeholder="%"></div>
+        <div class="field"><label>{{ t('bar.sale_price') }}</label><input type="text" inputmode="decimal" class="money-input" name="sale_price" required></div>
+        <div class="field"><button class="btn primary" type="submit">{{ t('bar.add_product_submit') }}</button></div>
+      </form>
+    </div>
+    {% endif %}
+  </div>
+
+  <div class="tab-panel" id="tab-intake">
+    <div class="card">
+      <div style="display:flex;align-items:flex-end;justify-content:space-between;flex-wrap:wrap;gap:1rem;margin-bottom:1rem;">
+        <h2 style="margin:0">{{ t('sklad.history_title') }}</h2>
+        <div style="display:flex;gap:.6rem;flex-wrap:wrap;align-items:center">
+          {% include "_period_filter.html" %}
+          <form method="get" id="productFilterForm" class="period-select">
+            <input type="hidden" name="year" value="{{ year or '' }}">
+            <input type="hidden" name="month" value="{{ month or '' }}">
+            <select name="product_id" onchange="document.getElementById('productFilterForm').submit()">
+              <option value="">{{ t('bar.filter_all_products') }}</option>
+              {% for p in products %}
+              <option value="{{p.id}}" {{ 'selected' if product_id == p.id else '' }}>{{p.name}}</option>
+              {% endfor %}
+            </select>
+          </form>
+        </div>
+      </div>
+
+      {% if rows %}
+      <div class="filter-bar">
+        <input type="text" id="fltSearch" placeholder="{{ t('sklad.filter_search') }}">
+        <select id="fltProduct">
+          <option value="">{{ t('sklad.filter_product') }}: {{ t('sklad.filter_all') }}</option>
+          {% for pname in rows | map(attribute='product_name') | unique %}
+          <option value="{{pname}}">{{pname}}</option>
+          {% endfor %}
+        </select>
+        <select id="fltPayType">
+          <option value="">{{ t('sklad.filter_pay_type') }}: {{ t('sklad.filter_all') }}</option>
+          <option value="kassa">{{ t('cash.source_kassa') }}</option>
+          <option value="bank">{{ t('cash.source_bank') }}</option>
+        </select>
+        <span class="filter-count" id="fltCount"></span>
+      </div>
+      {% endif %}
+
+      <div class="overflow-x">
+        {% if rows %}
+        <table class="data-table" id="intakeTable">
+          <thead><tr>
+            <th>{{ t('bar.th_date') }}</th><th>{{ t('bar.th_product') }}</th>
+            <th>{{ t('sklad.th_supplier') }}</th><th>{{ t('sklad.th_pay_type') }}</th>
+            <th>{{ t('tx.th_status') }}</th>
+            <th class="num">{{ t('bar.th_qty') }}</th><th class="num">{{ t('bar.th_unit_price') }}</th>
+            <th class="num">{{ t('bar.th_amount') }}</th>
+            {% if can_delete %}<th></th>{% endif %}
+          </tr></thead>
+          <tbody>
+            {% for r in rows %}
+            <tr data-product="{{r.product_name}}" data-source="{{r.source}}">
+              <td>{{r.date}}</td>
+              <td>{{r.product_name}}</td>
+              <td>{{ r.counterparty or t('common.dash') }}</td>
+              <td>{{ t('cash.source_kassa') if r.source=='kassa' else t('cash.source_bank') }}</td>
+              <td><span class="tag {{'income' if r.status=='paid' else 'expense'}}">{{ t('common.paid') if r.status=='paid' else t('common.unpaid') }}</span></td>
+              <td class="num">{{ r.qty|qty }}</td>
+              <td class="num">{{ r.unit_price|money }} {{r.currency}}</td>
+              <td class="num">{{ r.amount|money }} {{r.currency}}</td>
+              {% if can_delete %}
+              <td>
+                {% if is_date_locked(r.date) %}
+                <span class="tag role-custom">🔒</span>
+                {% else %}
+                <form method="post" action="/bar/{{r.id}}/delete" data-confirm="{{ t('bar.delete_confirm') }}">
+                  <button class="icon-btn" type="submit" title="{{ t('bar.delete') }}">✕</button>
+                </form>
+                {% endif %}
+              </td>
+              {% endif %}
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+        {% else %}
+        <div class="empty">{{ t('sklad.empty') }}</div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  {% if can_create and products %}
+  <dialog id="intakeModal">
+    <div class="modal-head">
+      <h2>{{ t('sklad.modal_title') }}</h2>
+      <button type="button" class="modal-close-btn" id="closeIntakeBtn">✕</button>
+    </div>
+    <form method="post" action="/bar/restock" id="intakeForm" class="form-grid">
+      <div class="field"><label>{{ t('bar.date') }}</label><input type="date" name="date" required value="{{today}}"></div>
+      <div class="field"><label>{{ t('sklad.supplier') }}</label><input type="text" name="counterparty" id="intakeCounterparty"></div>
+      <div class="field"><label>{{ t('sklad.pay_status') }}</label>
+        <select name="status" id="intakeStatus">
+          <option value="paid">{{ t('common.paid') }}</option>
+          <option value="unpaid">{{ t('common.unpaid') }}</option>
+        </select>
+      </div>
+      <div class="field" id="intakePayTypeField"><label>{{ t('sklad.pay_type') }}</label>
+        <select name="source" id="intakeSource">
+          <option value="kassa">{{ t('cash.source_kassa') }}</option>
+          <option value="bank">{{ t('cash.source_bank') }}</option>
+        </select>
+      </div>
+
+      <div class="field full">
+        <div id="intakeRows">
+          <div class="intake-row">
+            <div class="field grow"><label>{{ t('bar.product') }}</label>
+              <select name="product_id[]">
+                {% for p in products %}
+                <option value="{{p.id}}" data-price="{{p.cost_price}}" data-currency="{{p.currency}}">{{p.name}} ({{p.unit}}) — {{ t('bar.stock') }}: {{ p.stock_qty|qty }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="field qty"><label>{{ t('bar.qty') }}</label><input type="number" step="0.01" min="0.01" name="qty[]" value="1" required></div>
+            <button type="button" class="intake-remove-btn" disabled>✕</button>
+          </div>
+        </div>
+        <button type="button" class="btn" id="addIntakeRowBtn">{{ t('sklad.add_more_row') }}</button>
+        <div class="modal-total" id="intakeTotal"></div>
+      </div>
+
+      <div class="modal-footer" style="grid-column:1/-1">
+        <span class="modal-hint">{{ t('sklad.fill_row_hint') }}</span>
+        <button type="button" class="btn" id="cancelIntakeBtn">{{ t('sklad.cancel') }}</button>
+        <button type="submit" class="btn primary">{{ t('sklad.restock_submit') }}</button>
+      </div>
+    </form>
+  </dialog>
+  {% endif %}
+{% endblock %}
+{% block scripts %}
+<script>
+(function () {
+  function raw(el) {
+    if (!el) return NaN;
+    var v = (el.value || "").replace(/\s/g, "");
+    return v === "" ? NaN : parseFloat(v);
+  }
+  function fmtMoney(n) {
+    if (!isFinite(n)) return "";
+    var parts = n.toFixed(2).split(".");
+    parts[0] = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, " ");
+    return parts.join(".");
+  }
+  function fmtPct(n) {
+    if (!isFinite(n)) return "";
+    return (Math.round(n * 100) / 100).toString();
+  }
+  document.addEventListener("input", function (e) {
+    var el = e.target;
+    var form = el.closest ? el.closest("form") : null;
+    if (!form) return;
+    var cost = form.querySelector("[name=cost_price]");
+    var sale = form.querySelector("[name=sale_price]");
+    var pct = form.querySelector(".margin-pct-input");
+    if (!cost || !sale || !pct) return;
+    var c = raw(cost);
+    if (el === pct) {
+      var p = raw(pct);
+      if (isFinite(c) && c > 0 && isFinite(p)) sale.value = fmtMoney(c * (1 + p / 100));
+    } else if (el === cost) {
+      var p2 = raw(pct);
+      if (isFinite(c) && c > 0 && isFinite(p2)) sale.value = fmtMoney(c * (1 + p2 / 100));
+    } else if (el === sale) {
+      var s = raw(sale);
+      if (isFinite(c) && c > 0 && isFinite(s)) pct.value = fmtPct((s - c) / c * 100);
+    }
+  });
+})();
+
+// Tabs
+(function () {
+  var btns = document.querySelectorAll(".tab-btn");
+  btns.forEach(function (btn) {
+    btn.addEventListener("click", function () {
+      btns.forEach(function (b) { b.classList.remove("active"); });
+      document.querySelectorAll(".tab-panel").forEach(function (p) { p.classList.remove("active"); });
+      btn.classList.add("active");
+      document.getElementById("tab-" + btn.getAttribute("data-tab")).classList.add("active");
+    });
+  });
+})();
+
+// Intake history filters
+(function () {
+  var table = document.getElementById("intakeTable");
+  if (!table) return;
+  var search = document.getElementById("fltSearch");
+  var fltProduct = document.getElementById("fltProduct");
+  var fltPayType = document.getElementById("fltPayType");
+  var countEl = document.getElementById("fltCount");
+  var rows = table.querySelectorAll("tbody tr");
+
+  function applyFilters() {
+    var q = (search.value || "").toLowerCase();
+    var prod = fltProduct.value;
+    var pay = fltPayType.value;
+    var visible = 0;
+    rows.forEach(function (row) {
+      var matchesSearch = !q || row.textContent.toLowerCase().indexOf(q) !== -1;
+      var matchesProduct = !prod || row.getAttribute("data-product") === prod;
+      var matchesPay = !pay || row.getAttribute("data-source") === pay;
+      var show = matchesSearch && matchesProduct && matchesPay;
+      row.style.display = show ? "" : "none";
+      if (show) visible++;
+    });
+    countEl.textContent = "{{ t('sklad.showing_count').replace('{total}', (rows|length)|string) }}".replace("{n}", visible);
+  }
+
+  search.addEventListener("input", applyFilters);
+  fltProduct.addEventListener("change", applyFilters);
+  fltPayType.addEventListener("change", applyFilters);
+  applyFilters();
+})();
+
+// Intake modal
+(function () {
+  var modal = document.getElementById("intakeModal");
+  var openBtn = document.getElementById("openIntakeBtn");
+  var closeBtn = document.getElementById("closeIntakeBtn");
+  var cancelBtn = document.getElementById("cancelIntakeBtn");
+  var container = document.getElementById("intakeRows");
+  var addBtn = document.getElementById("addIntakeRowBtn");
+  var totalEl = document.getElementById("intakeTotal");
+  if (!modal || !openBtn) return;
+
+  function fmtMoney(n) {
+    var parts = n.toFixed(2).split(".");
+    parts[0] = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, " ");
+    return parts.join(".");
+  }
+
+  function updateRemoveButtons() {
+    var rows = container.querySelectorAll(".intake-row");
+    rows.forEach(function (row) {
+      row.querySelector(".intake-remove-btn").disabled = rows.length <= 1;
+    });
+  }
+
+  function computeTotal() {
+    var totals = {};
+    container.querySelectorAll(".intake-row").forEach(function (row) {
+      var select = row.querySelector("select[name='product_id[]']");
+      var qtyInput = row.querySelector("input[name='qty[]']");
+      var opt = select.options[select.selectedIndex];
+      if (!opt) return;
+      var price = parseFloat(opt.getAttribute("data-price")) || 0;
+      var currency = opt.getAttribute("data-currency") || "UZS";
+      var qty = parseFloat(qtyInput.value) || 0;
+      totals[currency] = (totals[currency] || 0) + price * qty;
+    });
+    var parts = [];
+    Object.keys(totals).forEach(function (cur) {
+      if (totals[cur]) parts.push(fmtMoney(totals[cur]) + " " + cur);
+    });
+    totalEl.textContent = "{{ t('bar.cart_total') }}: " + (parts.length ? parts.join(" + ") : "0");
+  }
+
+  var statusSelect = document.getElementById("intakeStatus");
+  var payTypeField = document.getElementById("intakePayTypeField");
+  function updatePayTypeVisibility() {
+    var unpaid = statusSelect.value === "unpaid";
+    payTypeField.style.display = unpaid ? "none" : "";
+  }
+  statusSelect.addEventListener("change", updatePayTypeVisibility);
+
+  openBtn.addEventListener("click", function () { modal.showModal(); computeTotal(); updatePayTypeVisibility(); });
+  closeBtn.addEventListener("click", function () { modal.close(); });
+  cancelBtn.addEventListener("click", function () { modal.close(); });
+
+  addBtn.addEventListener("click", function () {
+    var rows = container.querySelectorAll(".intake-row");
+    var clone = rows[rows.length - 1].cloneNode(true);
+    clone.querySelector("input[name='qty[]']").value = 1;
+    clone.querySelector(".intake-remove-btn").disabled = false;
+    container.appendChild(clone);
+    updateRemoveButtons();
+    computeTotal();
+  });
+
+  container.addEventListener("click", function (e) {
+    if (e.target.classList.contains("intake-remove-btn") && !e.target.disabled) {
+      e.target.closest(".intake-row").remove();
+      updateRemoveButtons();
+      computeTotal();
+    }
+  });
+
+  container.addEventListener("input", computeTotal);
+  container.addEventListener("change", computeTotal);
+})();
+</script>
+{% endblock %}

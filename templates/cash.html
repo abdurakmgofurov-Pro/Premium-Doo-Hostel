@@ -1,0 +1,393 @@
+{% extends "base.html" %}
+{% block title %}{{ t('nav.cash') }}{% endblock %}
+{% block head %}
+<style>
+  .filter-tabs { display: flex; gap: .4rem; margin-bottom: 1rem; }
+  .filter-tabs a { padding: .4rem .9rem; border-radius: 999px; font-size: .8rem; font-weight: 600;
+    text-decoration: none; color: var(--ink-secondary); background: var(--bg-surface-2); border: 1px solid var(--border); }
+  .filter-tabs a.active { background: var(--accent-tint); color: var(--accent-light); border-color: transparent; }
+  .btn.disabled { opacity: .4; pointer-events: none; }
+  #searchForm input[type=text] {
+    font-family: inherit; font-size: .88rem; padding: .55rem .65rem; border-radius: 9px;
+    border: 1px solid var(--border); background: var(--bg-surface-2); color: var(--ink-primary);
+    outline: none; transition: border-color .15s ease, box-shadow .15s ease; min-width: 0;
+  }
+  #searchForm input[type=text]:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-tint); }
+  #searchForm input[type=text]::placeholder { color: var(--ink-muted); }
+  dialog#cashEditModal, dialog#cashAddModal { border: 1px solid var(--border); border-radius: var(--radius); background: var(--bg-surface);
+    box-shadow: var(--shadow); color: var(--ink-primary); padding: 1.4rem; width: min(480px, 94vw); box-sizing: border-box; }
+  dialog#cashAddModal { width: min(760px, 94vw); }
+  dialog#cashEditModal::backdrop, dialog#cashAddModal::backdrop { background: rgba(0,0,0,.55); }
+  .modal-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.1rem; }
+  .modal-head h2 { margin: 0; font-size: 1.15rem; }
+  .modal-close-btn { background: none; border: none; color: var(--ink-secondary); font-size: 1.3rem; cursor: pointer; line-height: 1; }
+  .row-actions { display: flex; gap: .4rem; }
+</style>
+{% endblock %}
+{% block content %}
+  {% set qs_common = ('year='~year~'&' if year) ~ ('month='~month~'&' if month) ~ ('source='~(source|urlencode)~'&' if source) ~ ('category='~(category|urlencode)~'&' if category) ~ ('counterparty='~(counterparty|urlencode)~'&' if counterparty) ~ ('per_page='~per_page~'&' if per_page and per_page != '50') ~ ('q='~(search|urlencode)~'&' if search) %}
+  {% set qs_base_full = qs_common ~ ('type='~ttype if ttype) %}
+  {% set qs_no_search = ('year='~year~'&' if year) ~ ('month='~month~'&' if month) ~ ('source='~(source|urlencode)~'&' if source) ~ ('category='~(category|urlencode)~'&' if category) ~ ('counterparty='~(counterparty|urlencode)~'&' if counterparty) ~ ('per_page='~per_page~'&' if per_page and per_page != '50') ~ ('type='~ttype if ttype) %}
+  <div style="display:flex;align-items:flex-end;justify-content:space-between;flex-wrap:wrap;gap:1rem;margin-bottom:1.6rem;">
+    <div>
+      <h1 style="font-size:1.55rem">{{ t('cash.title') }}</h1>
+      <p style="color:var(--ink-secondary);font-size:.9rem;margin-top:.3rem">{{ t('cash.subtitle') }}</p>
+    </div>
+    <div style="display:flex;gap:.6rem;flex-wrap:wrap;align-items:center">
+      {% include "_period_filter.html" %}
+      <form method="get" id="sourceFilterForm" class="period-select">
+        <input type="hidden" name="year" value="{{ year or '' }}">
+        <input type="hidden" name="month" value="{{ month or '' }}">
+        {% if ttype %}<input type="hidden" name="type" value="{{ ttype }}">{% endif %}
+        {% if category %}<input type="hidden" name="category" value="{{ category }}">{% endif %}
+        {% if counterparty %}<input type="hidden" name="counterparty" value="{{ counterparty }}">{% endif %}
+        {% if per_page and per_page != '50' %}<input type="hidden" name="per_page" value="{{ per_page }}">{% endif %}
+        {% if search %}<input type="hidden" name="q" value="{{ search }}">{% endif %}
+        <select name="source" onchange="document.getElementById('sourceFilterForm').submit()">
+          <option value="">{{ t('cash.filter_all_sources') }}</option>
+          {% for src_key, src_label in sources %}
+          <option value="{{src_key}}" {{ 'selected' if source == src_key else '' }}>{{ t('cash.source_kassa') if src_key == 'kassa' else t('cash.source_bank') }}</option>
+          {% endfor %}
+        </select>
+      </form>
+      <form method="get" id="categoryFilterForm" class="period-select">
+        <input type="hidden" name="year" value="{{ year or '' }}">
+        <input type="hidden" name="month" value="{{ month or '' }}">
+        {% if ttype %}<input type="hidden" name="type" value="{{ ttype }}">{% endif %}
+        {% if source %}<input type="hidden" name="source" value="{{ source }}">{% endif %}
+        {% if counterparty %}<input type="hidden" name="counterparty" value="{{ counterparty }}">{% endif %}
+        {% if per_page and per_page != '50' %}<input type="hidden" name="per_page" value="{{ per_page }}">{% endif %}
+        {% if search %}<input type="hidden" name="q" value="{{ search }}">{% endif %}
+        <select name="category" onchange="document.getElementById('categoryFilterForm').submit()">
+          <option value="">{{ t('cash.filter_all_categories') }}</option>
+          {% for sec_key, sec_label in sections %}
+          <optgroup label="{{ t_cash_section(sec_key) }}">
+            {% for c in categories if c.section == sec_key %}
+            <option value="{{c.name}}" {{ 'selected' if category == c.name else '' }}>{{c.code}} — {{ t_cash_cat(c.name) }}</option>
+            {% endfor %}
+          </optgroup>
+          {% endfor %}
+        </select>
+      </form>
+      {% if counterparties %}
+      <form method="get" id="cpFilterForm" class="period-select">
+        <input type="hidden" name="year" value="{{ year or '' }}">
+        <input type="hidden" name="month" value="{{ month or '' }}">
+        {% if ttype %}<input type="hidden" name="type" value="{{ ttype }}">{% endif %}
+        {% if source %}<input type="hidden" name="source" value="{{ source }}">{% endif %}
+        {% if category %}<input type="hidden" name="category" value="{{ category }}">{% endif %}
+        {% if per_page and per_page != '50' %}<input type="hidden" name="per_page" value="{{ per_page }}">{% endif %}
+        {% if search %}<input type="hidden" name="q" value="{{ search }}">{% endif %}
+        <select name="counterparty" onchange="document.getElementById('cpFilterForm').submit()">
+          <option value="">{{ t('cash.filter_all_counterparties') }}</option>
+          {% for cp in counterparties %}
+          <option value="{{cp}}" {{ 'selected' if counterparty == cp else '' }}>{{cp}}</option>
+          {% endfor %}
+        </select>
+      </form>
+      {% endif %}
+      <a class="btn" href="/cash/export?{{ qs_base_full }}">↓ {{ t('cash.export_btn') }}</a>
+      {% if can_create %}<a class="btn" href="/cash/import">↑ {{ t('cash.import_btn') }}</a>{% endif %}
+      {% if can_create %}<button type="button" class="btn primary" id="openCashAddBtn">+ {{ t('cash.add_title') }}</button>{% endif %}
+    </div>
+  </div>
+
+  {% set kassa_disp = to_display(bal_kassa_uzs, bal_kassa_usd, rate) %}
+  {% set bank_disp = to_display(bal_bank_uzs, bal_bank_usd, rate) %}
+  {% set total_disp = kassa_disp + bank_disp %}
+  <div class="kpi-row">
+    <div class="kpi">
+      <div class="kpi-top"><div class="label">{{ t('cash.balance_kassa') }}</div>
+        <div class="kpi-icon indigo"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2.5" y="6.5" width="19" height="13" rx="2"/><path d="M16.5 3H6a2 2 0 0 0-2 2v1.5"/><circle cx="17" cy="13" r="1.4"/></svg></div></div>
+      <div class="value">{{ kassa_disp|money }} {{ display_currency }}</div>
+    </div>
+    <div class="kpi">
+      <div class="kpi-top"><div class="label">{{ t('cash.balance_bank') }}</div>
+        <div class="kpi-icon cyan"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18"/><path d="M4 21V10"/><path d="M20 21V10"/><path d="M2 10l10-6 10 6"/><path d="M8 21v-6h8v6"/></svg></div></div>
+      <div class="value">{{ bank_disp|money }} {{ display_currency }}</div>
+    </div>
+    <div class="kpi">
+      <div class="kpi-top"><div class="label">{{ t('cash.balance_total') }}</div>
+        <div class="kpi-icon green"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 17l6-6 4 4 6-8"/><path d="M14 7h6v6"/></svg></div></div>
+      <div class="value good">{{ total_disp|money }} {{ display_currency }}</div>
+      {% if rate %}
+      <div class="sub">{{ t('cash.combined_note') }} (1$ = {{ rate|money }})</div>
+      {% endif %}
+    </div>
+  </div>
+  {% if not rate %}
+  <div class="note" style="margin-bottom:1rem">{{ t('reports.no_rate_note') }}</div>
+  {% if current_user.role == 'super_admin' %}
+  <form method="post" action="/exchange-rate/add" class="form-grid" style="margin-bottom:1.6rem;max-width:420px">
+    <input type="hidden" name="date" value="{{ today }}">
+    <div class="field"><label>{{ t('rate.value') }}</label><input type="text" inputmode="decimal" class="money-input" name="rate" required></div>
+    <div class="field"><button class="btn primary" type="submit">{{ t('rate.save') }}</button></div>
+  </form>
+  {% endif %}
+  {% endif %}
+
+  {% if total_disp and total_disp > 0 %}
+  <div class="card">
+    <h2>{{ t('cash.composition_title') }}</h2>
+    <div class="comp-bar">
+      <span style="width:{{ kassa_disp / total_disp * 100 }}%;background:var(--accent)"></span>
+      <span style="width:{{ bank_disp / total_disp * 100 }}%;background:#22d3ee"></span>
+    </div>
+    <div class="comp-legend">
+      <div class="comp-item"><span class="comp-dot" style="background:var(--accent)"></span>{{ t('cash.balance_kassa') }} ({{ (kassa_disp / total_disp * 100)|round(0, 'common') }}%)</div>
+      <div class="comp-item"><span class="comp-dot" style="background:#22d3ee"></span>{{ t('cash.balance_bank') }} ({{ (bank_disp / total_disp * 100)|round(0, 'common') }}%)</div>
+    </div>
+  </div>
+  {% endif %}
+
+  {% if can_create %}
+  <dialog id="cashAddModal">
+    <div class="modal-head">
+      <h2>{{ t('cash.add_title') }}</h2>
+      <button type="button" class="modal-close-btn" id="closeCashAddBtn">✕</button>
+    </div>
+    <form class="form-grid" method="post" action="/cash/add" id="cashAddForm">
+      <div class="field"><label>{{ t('cash.date') }}</label><input type="date" name="date" required value="{{today}}"></div>
+      <div class="field"><label>{{ t('cash.type') }}</label>
+        <select id="cashTypeSelect">
+          <option value="income">{{ t('cash.filter_income') }}</option>
+          <option value="expense">{{ t('cash.filter_expense') }}</option>
+        </select>
+      </div>
+      <div class="field"><label>{{ t('cash.source') }}</label>
+        <select name="source">
+          <option value="kassa">{{ t('cash.source_kassa') }}</option>
+          <option value="bank">{{ t('cash.source_bank') }}</option>
+        </select>
+      </div>
+      <div class="field field.full" style="grid-column: span 2" id="incomeCatField"><label>{{ t('cash.category') }} *</label>
+        <select name="category" id="incomeCatSelect">
+          {% for sec_key, sec_label in sections %}
+          <optgroup label="{{ t_cash_section(sec_key) }}">
+            {% for c in categories if c.section == sec_key and c.type == 'income' %}
+            <option value="{{c.name}}">{{c.code}} — {{ t_cash_cat(c.name) }}</option>
+            {% endfor %}
+          </optgroup>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="field field.full" style="grid-column: span 2;display:none" id="expenseCatField"><label>{{ t('cash.category') }} *</label>
+        <select name="category" id="expenseCatSelect" disabled>
+          {% for sec_key, sec_label in sections %}
+          <optgroup label="{{ t_cash_section(sec_key) }}">
+            {% for c in categories if c.section == sec_key and c.type == 'expense' %}
+            <option value="{{c.name}}">{{c.code}} — {{ t_cash_cat(c.name) }}</option>
+            {% endfor %}
+          </optgroup>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="field field.full" style="grid-column: span 2;display:none" id="forma2Field"><label>{{ t('cash.forma2_category') }}</label>
+        <select name="forma2_category" id="forma2Select" disabled>
+          <option value="">{{ t('cash.forma2_category_none') }}</option>
+          {% for group_key, group_label in forma2_groups %}
+          <optgroup label="{{ t_group(group_key) }}">
+            {% for c in forma2_expense_categories if c.group == group_key %}
+            <option value="{{c.name}}">{{ t_cat(c.name) }}</option>
+            {% endfor %}
+          </optgroup>
+          {% endfor %}
+        </select>
+        <div class="note" style="margin-top:.3rem;font-size:.76rem">{{ t('cash.forma2_category_note') }}</div>
+      </div>
+      <div class="field"><label>{{ t('cash.amount') }}</label><input type="text" inputmode="decimal" class="money-input" name="amount" required></div>
+      <div class="field"><label>{{ t('cash.currency') }}</label>
+        <select name="currency"><option value="UZS">UZS</option><option value="USD">USD</option></select>
+      </div>
+      <div class="field"><label>{{ t('cash.counterparty') }}</label><input type="text" name="counterparty"></div>
+      <div class="field"><label>{{ t('cash.note_label') }}</label><input type="text" name="note_label" placeholder="{{ t('cash.note_label_placeholder') }}"></div>
+      <div class="field full"><label>{{ t('cash.description') }}</label><input type="text" name="description"></div>
+      <div class="field"><button class="btn primary" type="submit">{{ t('cash.submit') }}</button></div>
+    </form>
+  </dialog>
+  {% endif %}
+
+  <div class="card">
+    <h2>{{ t('cash.all_title') }}</h2>
+    <div class="filter-tabs">
+      <a href="?{{ qs_common }}" class="{{ 'active' if not ttype else '' }}">{{ t('cash.filter_all') }}</a>
+      <a href="?{{ qs_common }}type=income" class="{{ 'active' if ttype=='income' else '' }}">{{ t('cash.filter_income') }}</a>
+      <a href="?{{ qs_common }}type=expense" class="{{ 'active' if ttype=='expense' else '' }}">{{ t('cash.filter_expense') }}</a>
+    </div>
+    <div style="display:flex;gap:.8rem;flex-wrap:wrap;align-items:center;justify-content:space-between;margin-bottom:.8rem">
+      <form method="get" id="searchForm" style="display:flex;gap:.4rem;flex:1 1 320px;max-width:420px">
+        <input type="hidden" name="year" value="{{ year or '' }}">
+        <input type="hidden" name="month" value="{{ month or '' }}">
+        {% if ttype %}<input type="hidden" name="type" value="{{ ttype }}">{% endif %}
+        {% if source %}<input type="hidden" name="source" value="{{ source }}">{% endif %}
+        {% if category %}<input type="hidden" name="category" value="{{ category }}">{% endif %}
+        {% if counterparty %}<input type="hidden" name="counterparty" value="{{ counterparty }}">{% endif %}
+        {% if per_page and per_page != '50' %}<input type="hidden" name="per_page" value="{{ per_page }}">{% endif %}
+        <input type="text" name="q" value="{{ search }}" placeholder="{{ t('cash.search_placeholder') }}" style="flex:1">
+        <button type="submit" class="btn">{{ t('cash.search_btn') }}</button>
+        {% if search %}<a class="btn" href="?{{ qs_no_search }}">✕</a>{% endif %}
+      </form>
+      <form method="get" id="perPageForm" class="period-select">
+        <input type="hidden" name="year" value="{{ year or '' }}">
+        <input type="hidden" name="month" value="{{ month or '' }}">
+        {% if ttype %}<input type="hidden" name="type" value="{{ ttype }}">{% endif %}
+        {% if source %}<input type="hidden" name="source" value="{{ source }}">{% endif %}
+        {% if category %}<input type="hidden" name="category" value="{{ category }}">{% endif %}
+        {% if counterparty %}<input type="hidden" name="counterparty" value="{{ counterparty }}">{% endif %}
+        {% if search %}<input type="hidden" name="q" value="{{ search }}">{% endif %}
+        <label style="font-size:.78rem;color:var(--ink-muted);align-self:center">{{ t('cash.per_page_label') }}</label>
+        <select name="per_page" onchange="document.getElementById('perPageForm').submit()">
+          {% for opt in ['25','50','100','200','all'] %}
+          <option value="{{opt}}" {{ 'selected' if per_page == opt else '' }}>{{ t('cash.per_page_all') if opt == 'all' else opt }}</option>
+          {% endfor %}
+        </select>
+      </form>
+    </div>
+    {% if search %}<div class="note" style="margin-bottom:.6rem;font-size:.8rem">{{ t('cash.search_active').replace('{q}', search) }}</div>{% endif %}
+    {% if total_rows %}<div class="note" style="margin-bottom:.6rem;font-size:.8rem">{{ t('cash.showing_of').replace('{shown}', rows|length|string).replace('{total}', total_rows|string) }}</div>{% endif %}
+    <div class="overflow-x">
+      {% if rows %}
+      <table class="data-table" id="cashTable">
+        <thead><tr>
+          <th>{{ t('cash.th_date') }}</th><th>{{ t('cash.th_type') }}</th><th>{{ t('cash.th_source') }}</th>
+          <th>{{ t('cash.th_category') }}</th><th>{{ t('cash.th_counterparty') }}</th><th>{{ t('cash.th_amount') }}</th>
+          {% if can_delete %}<th></th>{% endif %}
+        </tr></thead>
+        <tbody>
+          {% for r in rows %}
+          <tr>
+            <td>{{r.date}}</td>
+            <td><span class="tag {{'income' if r.type=='income' else 'expense'}}">{{ t('common.income') if r.type=='income' else t('common.expense') }}</span></td>
+            <td>{{ t('cash.source_kassa') if r.source=='kassa' else t('cash.source_bank') }}</td>
+            <td>
+              {% if r.note_label %}<div style="font-weight:600">{{ r.note_label }}</div>
+              <div style="font-size:.76rem;color:var(--ink-muted)">{{ r.category|t_cash_cat }}</div>
+              {% else %}{{ r.category|t_cash_cat }}{% endif %}
+              {% if r.transaction_id %}<span class="tag" style="font-size:.65rem;margin-left:.3rem">→ Forma 2</span>{% endif %}
+            </td>
+            <td>{{ r.counterparty or t('common.dash') }}</td>
+            <td class="num">{{ r.amount|money }} {{r.currency}}</td>
+            {% if can_delete %}
+            <td>
+              {% if is_date_locked(r.date) %}
+              <span class="tag role-custom">🔒</span>
+              {% else %}
+              <div class="row-actions">
+                {% if can_create %}
+                <button type="button" class="btn cash-edit-btn"
+                  data-id="{{r.id}}" data-date="{{r.date}}" data-source="{{r.source}}"
+                  data-amount="{{r.amount}}" data-currency="{{r.currency}}"
+                  data-counterparty="{{r.counterparty or ''}}" data-note-label="{{r.note_label or ''}}"
+                  data-description="{{r.description or ''}}">✎</button>
+                {% endif %}
+                <form method="post" action="/cash/{{r.id}}/delete" data-confirm="{{ t('cash.delete_confirm') }}">
+                  <button class="btn danger" type="submit">{{ t('cash.delete') }}</button>
+                </form>
+              </div>
+              {% endif %}
+            </td>
+            {% endif %}
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      {% else %}
+      <div class="empty">{{ t('cash.empty') }}</div>
+      {% endif %}
+    </div>
+    {% if total_pages and total_pages > 1 %}
+    {% set qs_page = qs_base_full ~ ('&' if qs_base_full and not qs_base_full.endswith('&') else '') %}
+    <div style="display:flex;align-items:center;justify-content:center;gap:.5rem;margin-top:1.2rem;flex-wrap:wrap">
+      <a class="btn {{ 'disabled' if page <= 1 else '' }}" href="?{{ qs_page }}page={{ page-1 }}">‹ {{ t('cash.page_prev') }}</a>
+      <span style="font-size:.85rem;color:var(--ink-secondary)">{{ t('cash.page_of').replace('{page}', page|string).replace('{total}', total_pages|string) }}</span>
+      <a class="btn {{ 'disabled' if page >= total_pages else '' }}" href="?{{ qs_page }}page={{ page+1 }}">{{ t('cash.page_next') }} ›</a>
+    </div>
+    {% endif %}
+  </div>
+
+  {% if can_create %}
+  <dialog id="cashEditModal">
+    <div class="modal-head">
+      <h2>{{ t('cash.edit_title') }}</h2>
+      <button type="button" class="modal-close-btn" id="closeCashEditBtn">✕</button>
+    </div>
+    <form method="post" id="cashEditForm" class="form-grid" style="grid-template-columns:1fr 1fr">
+      <div class="field"><label>{{ t('cash.date') }}</label><input type="date" name="date" id="editDate" required></div>
+      <div class="field"><label>{{ t('cash.source') }}</label>
+        <select name="source" id="editSource">
+          <option value="kassa">{{ t('cash.source_kassa') }}</option>
+          <option value="bank">{{ t('cash.source_bank') }}</option>
+        </select>
+      </div>
+      <div class="field"><label>{{ t('cash.amount') }}</label><input type="text" inputmode="decimal" class="money-input" name="amount" id="editAmount" required></div>
+      <div class="field"><label>{{ t('cash.currency') }}</label>
+        <select name="currency" id="editCurrency"><option value="UZS">UZS</option><option value="USD">USD</option></select>
+      </div>
+      <div class="field"><label>{{ t('cash.counterparty') }}</label><input type="text" name="counterparty" id="editCounterparty"></div>
+      <div class="field"><label>{{ t('cash.note_label') }}</label><input type="text" name="note_label" id="editNoteLabel"></div>
+      <div class="field full"><label>{{ t('cash.description') }}</label><input type="text" name="description" id="editDescription"></div>
+      <div class="field"><button class="btn primary" type="submit">{{ t('cash.save') }}</button></div>
+    </form>
+  </dialog>
+  {% endif %}
+{% endblock %}
+{% block scripts %}
+{% if can_create %}
+<script>
+(function () {
+  var modal = document.getElementById("cashEditModal");
+  if (!modal) return;
+  var form = document.getElementById("cashEditForm");
+  document.querySelectorAll(".cash-edit-btn").forEach(function (btn) {
+    btn.addEventListener("click", function () {
+      form.action = "/cash/" + btn.getAttribute("data-id") + "/edit";
+      document.getElementById("editDate").value = btn.getAttribute("data-date");
+      document.getElementById("editSource").value = btn.getAttribute("data-source");
+      document.getElementById("editAmount").value = btn.getAttribute("data-amount");
+      document.getElementById("editCurrency").value = btn.getAttribute("data-currency");
+      document.getElementById("editCounterparty").value = btn.getAttribute("data-counterparty");
+      document.getElementById("editNoteLabel").value = btn.getAttribute("data-note-label");
+      document.getElementById("editDescription").value = btn.getAttribute("data-description");
+      modal.showModal();
+    });
+  });
+  document.getElementById("closeCashEditBtn").addEventListener("click", function () { modal.close(); });
+})();
+</script>
+<script>
+(function () {
+  var modal = document.getElementById("cashAddModal");
+  var openBtn = document.getElementById("openCashAddBtn");
+  if (!modal || !openBtn) return;
+  openBtn.addEventListener("click", function () { modal.showModal(); });
+  document.getElementById("closeCashAddBtn").addEventListener("click", function () { modal.close(); });
+})();
+</script>
+{% endif %}
+<script>
+(function () {
+  var typeSelect = document.getElementById("cashTypeSelect");
+  if (!typeSelect) return;
+  var incomeField = document.getElementById("incomeCatField");
+  var expenseField = document.getElementById("expenseCatField");
+  var incomeSelect = document.getElementById("incomeCatSelect");
+  var expenseSelect = document.getElementById("expenseCatSelect");
+  var forma2Field = document.getElementById("forma2Field");
+  var forma2Select = document.getElementById("forma2Select");
+
+  function sync() {
+    var isExpense = typeSelect.value === "expense";
+    incomeField.style.display = isExpense ? "none" : "";
+    incomeSelect.disabled = isExpense;
+    expenseField.style.display = isExpense ? "" : "none";
+    expenseSelect.disabled = !isExpense;
+    forma2Field.style.display = isExpense ? "" : "none";
+    forma2Select.disabled = !isExpense;
+    if (!isExpense) forma2Select.value = "";
+  }
+
+  typeSelect.addEventListener("change", sync);
+  sync();
+})();
+</script>
+{% endblock %}

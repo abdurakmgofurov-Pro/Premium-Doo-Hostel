@@ -1,0 +1,35 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+
+# Maxfiy ma'lumotlar (hech qachon commit qilinmasin)
+config.json
+secret_key.txt
+
+# Ma'lumotlar bazasi (haqiqiy biznes ma'lumotlari)
+data.db
+data_backup_*.db
+*.db
+
+# Avtomatik generatsiya qilinadigan hisobotlar (moliyaviy ma'lumot bor)
+reports/
+
+# Log fayllar
+*.log
+run_log.txt
+run_out.log
+app_run.log
+server_out*.log
+
+# Claude Code lokal sozlamalari
+.claude/settings.local.json
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Virtual environment
+venv/
+.venv/
+env/

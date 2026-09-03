@@ -1,0 +1,18 @@
+<form method="get" class="period-select" id="periodForm">
+  {% if category is defined and category %}<input type="hidden" name="category" value="{{ category }}">{% endif %}
+  {% if ttype is defined and ttype %}<input type="hidden" name="type" value="{{ ttype }}">{% endif %}
+  {% if counterparty is defined and counterparty %}<input type="hidden" name="counterparty" value="{{ counterparty }}">{% endif %}
+  {% if per_page is defined and per_page and per_page != '50' %}<input type="hidden" name="per_page" value="{{ per_page }}">{% endif %}
+  {% if search is defined and search %}<input type="hidden" name="q" value="{{ search }}">{% endif %}
+  <select name="month" onchange="document.getElementById('periodForm').submit()">
+    <option value="">{{ t('period.all_time') }}</option>
+    {% for mnum in range(1, 13) %}
+    <option value="{{ mnum }}" {{ 'selected' if month == mnum else '' }}>{{ mnum | t_month }}</option>
+    {% endfor %}
+  </select>
+  <select name="year" onchange="document.getElementById('periodForm').submit()">
+    {% for y in years %}
+    <option value="{{ y }}" {{ 'selected' if (year or years[0]) == y else '' }}>{{ y }}</option>
+    {% endfor %}
+  </select>
+</form>

@@ -1,0 +1,83 @@
+{% extends "base.html" %}
+{% block title %}{{ t('tx.import_title') }}{% endblock %}
+{% block head %}
+<style>
+  .catmap-row { display: flex; align-items: center; gap: .8rem; padding: .6rem 0; border-bottom: 1px solid var(--border); flex-wrap: wrap; }
+  .catmap-row:last-child { border-bottom: none; }
+  .catmap-row .cm-name { flex: 1 1 260px; font-weight: 600; font-size: .88rem; min-width: 0; }
+  .catmap-row select { flex: 1 1 280px; min-width: 0; }
+  .import-badge { font-size: .7rem; font-weight: 700; padding: .15rem .5rem; border-radius: 999px; }
+  .import-badge.new { background: var(--good-bg); color: var(--good); }
+  .import-badge.dup { background: var(--bad-bg); color: var(--bad); }
+</style>
+{% endblock %}
+{% block content %}
+  <div style="display:flex;align-items:flex-end;justify-content:space-between;flex-wrap:wrap;gap:1rem;margin-bottom:1.4rem;">
+    <div>
+      <h1 style="font-size:1.55rem">{{ t('tx.import_preview_title') }}</h1>
+      <p style="color:var(--ink-secondary);font-size:.9rem;margin-top:.3rem">
+        {{ t('tx.import_summary_line').replace('{new}', new_count|string).replace('{dup}', dup_count|string) }}
+      </p>
+    </div>
+    <a class="btn" href="/transactions/import">{{ t('tx.import_back') }}</a>
+  </div>
+
+  <form method="post" action="/transactions/import/commit">
+    <input type="hidden" name="upload_id" value="{{upload_id}}">
+
+    <div class="card">
+      <h2>{{ t('tx.import_map_title') }}</h2>
+      <div class="note" style="margin-bottom:.8rem">{{ t('tx.import_map_note') }}</div>
+      {% for raw_cat in unique_categories %}
+      <div class="catmap-row">
+        <div class="cm-name">{{ raw_cat }}</div>
+        <select name="catmap__{{loop.index0}}">
+          {% for group_key, group_label in forma2_groups %}
+          <optgroup label="{{ t_group(group_key) }}">
+            {% for c in categories if c.group == group_key %}
+            <option value="{{c.name}}" {% if c.name == "Boshqa operatsion xarajat" %}selected{% endif %}>{{ t_cat(c.name) }}</option>
+            {% endfor %}
+          </optgroup>
+          {% endfor %}
+        </select>
+      </div>
+      {% endfor %}
+    </div>
+
+    <div class="card">
+      <h2>{{ t('tx.import_rows_title') }}</h2>
+      <div class="overflow-x">
+        <table class="data-table">
+          <thead><tr>
+            <th>{{ t('tx.th_date') }}</th><th>{{ t('tx.import_col_category_raw') }}</th>
+            <th>{{ t('tx.th_description') }}</th><th>{{ t('tx.th_counterparty') }}</th>
+            <th class="num">{{ t('tx.th_amount') }}</th><th>{{ t('tx.import_col_payment_method') }}</th><th></th>
+          </tr></thead>
+          <tbody>
+            {% for r in rows %}
+            <tr>
+              <td>{{r.date}}</td>
+              <td>{{r.category_raw}}</td>
+              <td>{{r.name or t('common.dash')}}</td>
+              <td>{{r.counterparty or t('common.dash')}}</td>
+              <td class="num">{{r.amount|money}} {{r.currency}}</td>
+              <td>{{r.payment_method or t('common.dash')}}</td>
+              <td>
+                {% if r.already_imported %}
+                <span class="import-badge dup">{{ t('tx.import_badge_dup') }}</span>
+                {% else %}
+                <span class="import-badge new">{{ t('tx.import_badge_new') }}</span>
+                {% endif %}
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="btn-row">
+      <button class="btn primary" type="submit">{{ t('tx.import_commit_btn') }}</button>
+    </div>
+  </form>
+{% endblock %}

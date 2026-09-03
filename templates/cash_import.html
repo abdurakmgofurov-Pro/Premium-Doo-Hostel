@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% block title %}{{ t('cash.import_title') }}{% endblock %}
+{% block content %}
+  <div style="display:flex;align-items:flex-end;justify-content:space-between;flex-wrap:wrap;gap:1rem;margin-bottom:1.4rem;">
+    <div>
+      <h1 style="font-size:1.55rem">{{ t('cash.import_title') }}</h1>
+      <p style="color:var(--ink-secondary);font-size:.9rem;margin-top:.3rem">{{ t('cash.import_subtitle') }}</p>
+    </div>
+    <a class="btn" href="/cash">{{ t('tx.import_back') }}</a>
+  </div>
+
+  <div class="card" style="max-width:640px">
+    <h2>{{ t('tx.import_upload_label') }}</h2>
+    <form method="post" action="/cash/import/preview" enctype="multipart/form-data" class="form-grid">
+      <div class="field full">
+        <input type="file" name="file" accept=".xlsx" required>
+      </div>
+      <div class="field full"><button class="btn primary" type="submit">{{ t('tx.import_upload_submit') }}</button></div>
+    </form>
+    <div class="note" style="margin-top:.8rem">{{ t('tx.import_note') }}</div>
+  </div>
+{% endblock %}

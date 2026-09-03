@@ -1,0 +1,111 @@
+{% extends "base.html" %}
+{% block title %}{{ t('nav.users') }}{% endblock %}
+{% block head %}
+<style>
+  dialog#userEditModal { border: 1px solid var(--border); border-radius: var(--radius); background: var(--bg-surface);
+    box-shadow: var(--shadow); color: var(--ink-primary); padding: 1.4rem; width: min(480px, 94vw); max-width: 100%;
+    box-sizing: border-box; }
+  dialog#userEditModal::backdrop { background: rgba(0,0,0,.55); }
+  .modal-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.1rem; }
+  .modal-head h2 { margin: 0; font-size: 1.15rem; }
+  .modal-close-btn { background: none; border: none; color: var(--ink-secondary); font-size: 1.3rem; cursor: pointer; line-height: 1; }
+  .row-actions { display: flex; gap: .5rem; }
+  #userEditForm input[type=checkbox] { width: auto; min-width: auto; max-width: none; padding: 0;
+    border-radius: 3px; background: none; }
+</style>
+{% endblock %}
+{% block content %}
+<div class="card">
+  <h2>{{ t('users.add_title') }}</h2>
+  <form class="form-grid" method="post" action="/users/add">
+    <div class="field"><label>{{ t('users.username') }}</label><input type="text" name="username" required></div>
+    <div class="field"><label>{{ t('users.password') }}</label><input type="text" name="password" required></div>
+    <div class="field"><label>{{ t('users.full_name') }}</label><input type="text" name="full_name"></div>
+    <div class="field"><label>{{ t('users.role') }}</label>
+      <select name="role_id" required>
+        {% for r in roles %}
+        <option value="{{r.id}}">{{ r.name }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="field"><button class="btn primary" type="submit">{{ t('users.submit') }}</button></div>
+  </form>
+</div>
+
+<div class="card">
+  <h2>{{ t('users.all_title') }}</h2>
+  <div class="overflow-x">
+    <table class="data-table">
+      <thead><tr><th>{{ t('users.th_login') }}</th><th>{{ t('users.th_name') }}</th><th>{{ t('users.th_role') }}</th><th>{{ t('users.th_status') }}</th><th></th></tr></thead>
+      <tbody>
+        {% for usr in users %}
+        <tr>
+          <td>{{usr.username}}</td>
+          <td>{{usr.full_name or t('common.dash')}}</td>
+          <td><span class="tag role-{{ 'super_admin' if usr.role == 'super_admin' else 'custom' }}">
+            {% if usr.role == 'super_admin' %}{{ t('role.super_admin') }}{% else %}{{ usr.role_name or t('common.dash') }}{% endif %}
+          </span></td>
+          <td>{{ t('users.active') if usr.is_active else t('users.inactive') }}</td>
+          <td>
+            {% if usr.role != 'super_admin' %}
+            <div class="row-actions">
+              <button type="button" class="btn user-edit" data-user-id="{{usr.id}}">{{ t('users.edit') }}</button>
+              <form method="post" action="/users/{{usr.id}}/delete" data-confirm="{{ t('users.delete_confirm') }}">
+                <button class="btn danger" type="submit">{{ t('users.delete') }}</button>
+              </form>
+            </div>
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<dialog id="userEditModal">
+  <div class="modal-head">
+    <h2 id="userEditTitle">{{ t('users.edit_title') }}</h2>
+    <button type="button" class="modal-close-btn" id="closeUserEditBtn">✕</button>
+  </div>
+  <form method="post" id="userEditForm" class="form-grid" style="grid-template-columns:1fr">
+    <div class="field"><label>{{ t('users.full_name') }}</label><input type="text" name="full_name" id="editFullName"></div>
+    <div class="field"><label>{{ t('users.role') }}</label>
+      <select name="role_id" id="editRoleId" required>
+        {% for r in roles %}
+        <option value="{{r.id}}">{{ r.name }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="field"><label>{{ t('users.password_optional') }}</label><input type="text" name="password" id="editPassword"></div>
+    <div class="field"><label><input type="checkbox" name="is_active" id="editIsActive" style="width:auto;display:inline-block;margin-right:.4rem"> {{ t('users.active') }}</label></div>
+    <div class="field"><button class="btn primary" type="submit">{{ t('users.save') }}</button></div>
+  </form>
+</dialog>
+{% endblock %}
+{% block scripts %}
+<script id="usersData" type="application/json">{{ users | tojson }}</script>
+<script>
+(function () {
+  var USERS = JSON.parse(document.getElementById("usersData").textContent);
+  var modal = document.getElementById("userEditModal");
+  var form = document.getElementById("userEditForm");
+
+  document.querySelectorAll(".user-edit").forEach(function (btn) {
+    btn.addEventListener("click", function () {
+      var id = parseInt(btn.getAttribute("data-user-id"), 10);
+      var u = USERS.filter(function (x) { return x.id === id; })[0];
+      if (!u) return;
+      form.action = "/users/" + id + "/edit";
+      document.getElementById("editFullName").value = u.full_name || "";
+      document.getElementById("editRoleId").value = u.role_id || "";
+      document.getElementById("editPassword").value = "";
+      document.getElementById("editIsActive").checked = !!u.is_active;
+      modal.showModal();
+    });
+  });
+
+  document.getElementById("closeUserEditBtn").addEventListener("click", function () { modal.close(); });
+})();
+</script>
+{% endblock %}

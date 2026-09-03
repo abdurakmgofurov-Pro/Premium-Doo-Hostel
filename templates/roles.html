@@ -1,0 +1,200 @@
+{% extends "base.html" %}
+{% block title %}{{ t('roles.title') }}{% endblock %}
+{% block head %}
+<style>
+  .role-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 1rem; }
+  .role-card { background: var(--bg-surface); border: 1px solid var(--border); border-radius: var(--radius);
+    box-shadow: var(--shadow); padding: 1.2rem 1.3rem; display: flex; flex-direction: column; gap: .8rem; }
+  .role-card .rc-top { display: flex; align-items: flex-start; justify-content: space-between; gap: .6rem; }
+  .role-card .rc-name { font-weight: 700; font-size: 1.02rem; }
+  .role-card .rc-desc { font-size: .82rem; color: var(--ink-secondary); min-height: 1.2em; }
+  .role-card .rc-actions { display: flex; gap: .4rem; flex-shrink: 0; }
+  .role-card .rc-actions button { background: none; border: 1px solid var(--border); border-radius: 8px;
+    width: 30px; height: 30px; color: var(--ink-secondary); cursor: pointer; font-size: .85rem; }
+  .role-card .rc-actions button:hover { color: var(--accent-light); border-color: var(--accent); }
+  .role-card .rc-actions button.rc-del:hover { color: var(--bad); border-color: var(--bad); }
+  .role-card .rc-count { display: flex; align-items: baseline; gap: .4rem; }
+  .role-card .rc-count b { font-size: 1.4rem; font-family: "IBM Plex Mono", monospace; }
+  .role-card .rc-count span { font-size: .78rem; color: var(--ink-muted); }
+
+  dialog#roleModal { border: 1px solid var(--border); border-radius: var(--radius); background: var(--bg-surface);
+    box-shadow: var(--shadow); color: var(--ink-primary); padding: 1.4rem; width: min(760px, 94vw); max-width: 100%;
+    max-height: 88vh; overflow-y: auto; overflow-x: hidden; box-sizing: border-box; }
+  dialog#roleModal::backdrop { background: rgba(0,0,0,.55); }
+  .modal-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.1rem; }
+  .modal-head h2 { margin: 0; font-size: 1.15rem; }
+  .modal-close-btn { background: none; border: none; color: var(--ink-secondary); font-size: 1.3rem; cursor: pointer; line-height: 1; }
+
+  .matrix-row { border: 1px solid var(--border); border-radius: 12px; padding: .8rem 1rem; margin-bottom: .7rem; }
+  .matrix-row .mr-head { display: flex; align-items: center; gap: .6rem; font-weight: 700; font-size: .9rem; margin-bottom: .6rem; }
+  .matrix-row .mr-actions { display: flex; gap: .5rem; flex-wrap: wrap; }
+  /* form.form-grid input{width:100%;padding:...} tarqatiladigan qoida
+     matn maydonlari uchun mo'ljallangan — checkboxlarga tegmasligi kerak. */
+  #roleForm input[type=checkbox] { width: auto; min-width: auto; max-width: none; padding: 0;
+    border-radius: 3px; background: none; }
+  .matrix-row label.mr-chip { display: inline-flex; align-items: center; gap: .35rem; font-size: .8rem; font-weight: 500;
+    text-transform: none; letter-spacing: normal;
+    padding: .35rem .7rem; border-radius: 8px; background: var(--bg-surface-2); border: 1px solid var(--border);
+    cursor: pointer; color: var(--ink-secondary); }
+  .matrix-row label.mr-chip:has(input:disabled) { opacity: .35; cursor: not-allowed; }
+  .matrix-row label.mr-chip:has(input:checked) { background: var(--accent-tint); color: var(--accent-light); border-color: transparent; }
+
+  .modal-footer { display: flex; align-items: center; justify-content: space-between; gap: .8rem; margin-top: 1rem;
+    padding-top: 1rem; border-top: 1px solid var(--border); flex-wrap: wrap; }
+  .modal-footer .mf-count { font-size: .85rem; color: var(--ink-secondary); }
+  .modal-footer .mf-count b { color: var(--ink-primary); }
+  .modal-footer .mf-btns { display: flex; gap: .6rem; margin-left: auto; }
+</style>
+{% endblock %}
+{% block content %}
+  <div style="display:flex;align-items:flex-end;justify-content:space-between;flex-wrap:wrap;gap:1rem;margin-bottom:1.4rem;">
+    <div>
+      <h1 style="font-size:1.55rem">{{ t('roles.title') }}</h1>
+      <p style="color:var(--ink-secondary);font-size:.9rem;margin-top:.3rem">{{ t('roles.subtitle') }}</p>
+    </div>
+    <button type="button" class="btn primary" id="newRoleBtn">{{ t('roles.add_btn') }}</button>
+  </div>
+
+  <div class="role-grid">
+    {% for r in roles %}
+    <div class="role-card">
+      <div class="rc-top">
+        <div>
+          <div class="rc-name">{{ r.name }}</div>
+          <div class="rc-desc">{{ r.description or '' }}</div>
+        </div>
+        <div class="rc-actions">
+          <button type="button" class="rc-edit" data-role-id="{{ r.id }}" title="{{ t('roles.edit') }}">✎</button>
+          {% if not r.is_system %}
+          <form method="post" action="/roles/{{r.id}}/delete" data-confirm="{{ t('roles.delete_confirm') }}">
+            <button type="submit" class="rc-del" title="{{ t('users.delete') }}">✕</button>
+          </form>
+          {% endif %}
+        </div>
+      </div>
+      <div class="rc-count"><b>{{ r.perm_count }}</b><span>{{ t('roles.card_perm_count') }}</span></div>
+    </div>
+    {% endfor %}
+  </div>
+
+  <dialog id="roleModal">
+    <div class="modal-head">
+      <h2 id="roleModalTitle">{{ t('roles.modal_title_new') }}</h2>
+      <button type="button" class="modal-close-btn" id="closeRoleModalBtn">✕</button>
+    </div>
+    <form method="post" id="roleForm" class="form-grid" action="/roles/add" style="grid-template-columns:1fr 1fr">
+      <div class="field"><label>{{ t('roles.name') }}</label><input type="text" name="name" id="roleNameInput" required></div>
+      <div class="field"><label>{{ t('roles.description') }}</label><input type="text" name="description" id="roleDescInput"></div>
+
+      <div class="field full">
+        <div style="font-size:.78rem;text-transform:uppercase;letter-spacing:.05em;color:var(--ink-muted);font-weight:700;margin-bottom:.6rem">
+          {{ t('roles.matrix_title') }}
+        </div>
+        {% for m in modules %}
+        <div class="matrix-row" data-module="{{ m.key }}">
+          <div class="mr-head">
+            <input type="checkbox" class="mr-select-all" data-module="{{ m.key }}">
+            {{ t('roles.module_' + m.key) }}
+          </div>
+          <div class="mr-actions">
+            {% for a in actions %}
+            <label class="mr-chip">
+              <input type="checkbox" name="perm__{{m.key}}__{{a}}" class="mr-action"
+                data-module="{{ m.key }}" {% if a not in m.actions %}disabled{% endif %}>
+              {{ t('roles.action_' + a) }}
+            </label>
+            {% endfor %}
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+
+      <div class="modal-footer" style="grid-column:1/-1">
+        <div class="mf-count">{{ t('roles.selected_count') }}: <b id="selectedCount">0</b></div>
+        <div class="mf-btns">
+          <button type="button" class="btn" id="cancelRoleBtn">{{ t('roles.cancel') }}</button>
+          <button type="submit" class="btn primary">{{ t('roles.save') }}</button>
+        </div>
+      </div>
+    </form>
+  </dialog>
+{% endblock %}
+{% block scripts %}
+<script id="rolesData" type="application/json">{{ roles | tojson }}</script>
+<script>
+(function () {
+  var ROLES = JSON.parse(document.getElementById("rolesData").textContent);
+  var modal = document.getElementById("roleModal");
+  var form = document.getElementById("roleForm");
+  var title = document.getElementById("roleModalTitle");
+  var nameInput = document.getElementById("roleNameInput");
+  var descInput = document.getElementById("roleDescInput");
+  var countEl = document.getElementById("selectedCount");
+  var allActionBoxes = Array.prototype.slice.call(document.querySelectorAll(".mr-action"));
+  var allSelectAllBoxes = Array.prototype.slice.call(document.querySelectorAll(".mr-select-all"));
+
+  function updateCount() {
+    countEl.textContent = allActionBoxes.filter(function (b) { return b.checked; }).length;
+  }
+
+  function resetForm() {
+    form.reset();
+    allActionBoxes.forEach(function (b) { b.checked = false; });
+    allSelectAllBoxes.forEach(function (b) { b.checked = false; });
+    updateCount();
+  }
+
+  function openForNew() {
+    resetForm();
+    title.textContent = "{{ t('roles.modal_title_new') }}";
+    form.action = "/roles/add";
+    modal.showModal();
+  }
+
+  function openForEdit(role) {
+    resetForm();
+    title.textContent = "{{ t('roles.modal_title_edit') }}: " + role.name;
+    form.action = "/roles/" + role.id + "/edit";
+    nameInput.value = role.name;
+    descInput.value = role.description || "";
+    var perms = role.permissions || {};
+    allActionBoxes.forEach(function (b) {
+      var mod = b.getAttribute("data-module");
+      var action = b.name.split("__")[2];
+      if (perms[mod] && perms[mod][action]) b.checked = true;
+    });
+    allSelectAllBoxes.forEach(function (b) {
+      var mod = b.getAttribute("data-module");
+      var boxes = allActionBoxes.filter(function (x) { return x.getAttribute("data-module") === mod && !x.disabled; });
+      b.checked = boxes.length > 0 && boxes.every(function (x) { return x.checked; });
+    });
+    updateCount();
+    modal.showModal();
+  }
+
+  document.getElementById("newRoleBtn").addEventListener("click", openForNew);
+  document.getElementById("closeRoleModalBtn").addEventListener("click", function () { modal.close(); });
+  document.getElementById("cancelRoleBtn").addEventListener("click", function () { modal.close(); });
+
+  document.querySelectorAll(".rc-edit").forEach(function (btn) {
+    btn.addEventListener("click", function () {
+      var id = parseInt(btn.getAttribute("data-role-id"), 10);
+      var role = ROLES.filter(function (r) { return r.id === id; })[0];
+      if (role) openForEdit(role);
+    });
+  });
+
+  allSelectAllBoxes.forEach(function (master) {
+    master.addEventListener("change", function () {
+      var mod = master.getAttribute("data-module");
+      allActionBoxes.forEach(function (b) {
+        if (b.getAttribute("data-module") === mod && !b.disabled) b.checked = master.checked;
+      });
+      updateCount();
+    });
+  });
+
+  allActionBoxes.forEach(function (b) { b.addEventListener("change", updateCount); });
+})();
+</script>
+{% endblock %}

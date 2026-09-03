@@ -1,0 +1,237 @@
+{% extends "base.html" %}
+{% block title %}{{ t('nav.services') }}{% endblock %}
+{% block head %}
+<style>
+  .filter-tabs { display: flex; gap: .4rem; margin-bottom: 1rem; }
+  .filter-tabs a { padding: .4rem .9rem; border-radius: 999px; font-size: .8rem; font-weight: 600;
+    text-decoration: none; color: var(--ink-secondary); background: var(--bg-surface-2); border: 1px solid var(--border); }
+  .filter-tabs a.active { background: var(--accent-tint); color: var(--accent-light); border-color: transparent; }
+  dialog#serviceEditModal, dialog#serviceAddModal { border: 1px solid var(--border); border-radius: var(--radius); background: var(--bg-surface);
+    box-shadow: var(--shadow); color: var(--ink-primary); padding: 1.4rem; width: min(480px, 94vw); box-sizing: border-box; }
+  dialog#serviceAddModal { width: min(760px, 94vw); }
+  dialog#serviceEditModal::backdrop, dialog#serviceAddModal::backdrop { background: rgba(0,0,0,.55); }
+  .modal-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.1rem; }
+  .modal-head h2 { margin: 0; font-size: 1.15rem; }
+  .modal-close-btn { background: none; border: none; color: var(--ink-secondary); font-size: 1.3rem; cursor: pointer; line-height: 1; }
+  .row-actions { display: flex; gap: .4rem; }
+</style>
+{% endblock %}
+{% block content %}
+  {% set qs_dir = ('year='~year~'&' if year) ~ ('month='~month~'&' if month) ~ ('counterparty='~(counterparty|urlencode)~'&' if counterparty) ~ ('service_type='~(service_type|urlencode)~'&' if service_type) %}
+  <div style="display:flex;align-items:flex-end;justify-content:space-between;flex-wrap:wrap;gap:1rem;margin-bottom:1.6rem;">
+    <div>
+      <h1 style="font-size:1.55rem">{{ t('services.title') }}</h1>
+      <p style="color:var(--ink-secondary);font-size:.9rem;margin-top:.3rem">{{ t('services.subtitle') }}</p>
+    </div>
+    <div style="display:flex;gap:.6rem;flex-wrap:wrap;align-items:center">
+      {% include "_period_filter.html" %}
+      {% if counterparties %}
+      <form method="get" id="svcCpFilterForm" class="period-select">
+        <input type="hidden" name="year" value="{{ year or '' }}">
+        <input type="hidden" name="month" value="{{ month or '' }}">
+        {% if direction %}<input type="hidden" name="direction" value="{{ direction }}">{% endif %}
+        {% if service_type %}<input type="hidden" name="service_type" value="{{ service_type }}">{% endif %}
+        <select name="counterparty" onchange="document.getElementById('svcCpFilterForm').submit()">
+          <option value="">{{ t('services.filter_all_counterparties') }}</option>
+          {% for cp in counterparties %}
+          <option value="{{cp}}" {{ 'selected' if counterparty == cp else '' }}>{{cp}}</option>
+          {% endfor %}
+        </select>
+      </form>
+      {% endif %}
+      {% if service_types %}
+      <form method="get" id="svcTypeFilterForm" class="period-select">
+        <input type="hidden" name="year" value="{{ year or '' }}">
+        <input type="hidden" name="month" value="{{ month or '' }}">
+        {% if direction %}<input type="hidden" name="direction" value="{{ direction }}">{% endif %}
+        {% if counterparty %}<input type="hidden" name="counterparty" value="{{ counterparty }}">{% endif %}
+        <select name="service_type" onchange="document.getElementById('svcTypeFilterForm').submit()">
+          <option value="">{{ t('services.filter_all_service_types') }}</option>
+          {% for st in service_types %}
+          <option value="{{st}}" {{ 'selected' if service_type == st else '' }}>{{st}}</option>
+          {% endfor %}
+        </select>
+      </form>
+      {% endif %}
+      {% if can_create %}<button type="button" class="btn primary" id="openServiceAddBtn">+ {{ t('services.add_title') }}</button>{% endif %}
+    </div>
+  </div>
+
+  {% if can_create %}
+  <dialog id="serviceAddModal">
+    <div class="modal-head">
+      <h2>{{ t('services.add_title') }}</h2>
+      <button type="button" class="modal-close-btn" id="closeServiceAddBtn">✕</button>
+    </div>
+    <form class="form-grid" method="post" action="/services/add" id="serviceForm">
+      <div class="field"><label>{{ t('services.date') }}</label><input type="date" name="date" required value="{{today}}"></div>
+      <div class="field"><label>{{ t('services.direction') }}</label>
+        <select name="direction">
+          <option value="received">{{ t('services.direction_received') }}</option>
+          <option value="rendered">{{ t('services.direction_rendered') }}</option>
+        </select>
+      </div>
+      <div class="field"><label>{{ t('services.counterparty') }}</label><input type="text" name="counterparty" required></div>
+      <div class="field"><label>{{ t('services.service_type') }}</label><input type="text" name="service_type" required></div>
+      <div class="field"><label>{{ t('services.amount_no_vat') }}</label><input type="text" inputmode="decimal" class="money-input" name="amount_no_vat" id="svcAmountNoVat" required></div>
+      <div class="field"><label>{{ t('services.vat_amount') }} (12%)</label><input type="text" id="svcVatDisplay" readonly></div>
+      <div class="field"><label>{{ t('services.total') }}</label><input type="text" id="svcTotalDisplay" readonly></div>
+      <div class="field"><label>{{ t('services.currency') }}</label>
+        <select name="currency"><option value="UZS">UZS</option><option value="USD">USD</option></select>
+      </div>
+      <div class="field"><label>{{ t('services.status') }}</label>
+        <select name="status"><option value="paid">{{ t('common.paid') }}</option><option value="unpaid">{{ t('common.unpaid') }}</option></select>
+      </div>
+      <div class="field full"><label>{{ t('services.description') }}</label><input type="text" name="description"></div>
+      <div class="field"><button class="btn primary" type="submit">{{ t('services.submit') }}</button></div>
+    </form>
+  </dialog>
+  {% endif %}
+
+  <div class="card">
+    <h2>{{ t('services.all_title') }}</h2>
+    <div class="filter-tabs">
+      <a href="?{{ qs_dir }}" class="{{ 'active' if not direction else '' }}">{{ t('services.filter_all') }}</a>
+      <a href="?{{ qs_dir }}direction=received" class="{{ 'active' if direction=='received' else '' }}">{{ t('services.direction_received') }}</a>
+      <a href="?{{ qs_dir }}direction=rendered" class="{{ 'active' if direction=='rendered' else '' }}">{{ t('services.direction_rendered') }}</a>
+    </div>
+    <div class="overflow-x">
+      {% if rows %}
+      <table class="data-table">
+        <thead><tr>
+          <th>{{ t('services.th_date') }}</th><th>{{ t('services.th_direction') }}</th>
+          <th>{{ t('services.th_counterparty') }}</th><th>{{ t('services.th_service_type') }}</th>
+          <th class="num">{{ t('services.th_no_vat') }}</th><th class="num">{{ t('services.th_vat') }}</th>
+          <th class="num">{{ t('services.th_total') }}</th><th>{{ t('services.th_status') }}</th>
+          {% if can_delete %}<th></th>{% endif %}
+        </tr></thead>
+        <tbody>
+          {% for r in rows %}
+          <tr>
+            <td>{{r.date}}</td>
+            <td><span class="tag {{'income' if r.direction=='rendered' else 'expense'}}">{{ t('services.direction_rendered') if r.direction=='rendered' else t('services.direction_received') }}</span></td>
+            <td>{{r.counterparty}}</td>
+            <td>{{r.service_type}}</td>
+            <td class="num">{{r.amount_no_vat|money}} {{r.currency}}</td>
+            <td class="num">{{r.vat_amount|money}} {{r.currency}}</td>
+            <td class="num">{{r.total|money}} {{r.currency}}</td>
+            <td>{{ t('common.paid') if r.status == "paid" else t('common.unpaid') }}</td>
+            {% if can_delete %}
+            <td>
+              {% if is_date_locked(r.date) %}
+              <span class="tag role-custom">🔒</span>
+              {% else %}
+              <div class="row-actions">
+                {% if can_create %}
+                <button type="button" class="btn service-edit-btn"
+                  data-id="{{r.id}}" data-date="{{r.date}}" data-counterparty="{{r.counterparty}}"
+                  data-service-type="{{r.service_type}}" data-amount-no-vat="{{r.amount_no_vat}}"
+                  data-currency="{{r.currency}}" data-status="{{r.status}}"
+                  data-description="{{r.description or ''}}">✎</button>
+                {% endif %}
+                <form method="post" action="/services/{{r.id}}/delete" data-confirm="{{ t('services.delete_confirm') }}">
+                  <button class="btn danger" type="submit">{{ t('services.delete') }}</button>
+                </form>
+              </div>
+              {% endif %}
+            </td>
+            {% endif %}
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      {% else %}
+      <div class="empty">{{ t('services.empty') }}</div>
+      {% endif %}
+    </div>
+  </div>
+
+  {% if can_create %}
+  <dialog id="serviceEditModal">
+    <div class="modal-head">
+      <h2>{{ t('services.edit_title') }}</h2>
+      <button type="button" class="modal-close-btn" id="closeServiceEditBtn">✕</button>
+    </div>
+    <form method="post" id="serviceEditForm" class="form-grid" style="grid-template-columns:1fr 1fr">
+      <div class="field"><label>{{ t('services.date') }}</label><input type="date" name="date" id="editSvcDate" required></div>
+      <div class="field"><label>{{ t('services.counterparty') }}</label><input type="text" name="counterparty" id="editSvcCounterparty" required></div>
+      <div class="field full"><label>{{ t('services.service_type') }}</label><input type="text" name="service_type" id="editSvcServiceType" required></div>
+      <div class="field"><label>{{ t('services.amount_no_vat') }}</label><input type="text" inputmode="decimal" class="money-input" name="amount_no_vat" id="editSvcAmountNoVat" required></div>
+      <div class="field"><label>{{ t('services.vat_amount') }} (12%)</label><input type="text" id="editSvcVatDisplay" readonly></div>
+      <div class="field"><label>{{ t('services.total') }}</label><input type="text" id="editSvcTotalDisplay" readonly></div>
+      <div class="field"><label>{{ t('services.currency') }}</label>
+        <select name="currency" id="editSvcCurrency"><option value="UZS">UZS</option><option value="USD">USD</option></select>
+      </div>
+      <div class="field"><label>{{ t('services.status') }}</label>
+        <select name="status" id="editSvcStatus"><option value="paid">{{ t('common.paid') }}</option><option value="unpaid">{{ t('common.unpaid') }}</option></select>
+      </div>
+      <div class="field full"><label>{{ t('services.description') }}</label><input type="text" name="description" id="editSvcDescription"></div>
+      <div class="field"><button class="btn primary" type="submit">{{ t('services.save') }}</button></div>
+    </form>
+  </dialog>
+  {% endif %}
+{% endblock %}
+{% block scripts %}
+{% if can_create %}
+<script>
+(function () {
+  var VAT_RATE = {{ vat_rate }};
+  var modal = document.getElementById("serviceEditModal");
+  var form = document.getElementById("serviceEditForm");
+  var noVat = document.getElementById("editSvcAmountNoVat");
+  var vatDisplay = document.getElementById("editSvcVatDisplay");
+  var totalDisplay = document.getElementById("editSvcTotalDisplay");
+  function recalcEdit() {
+    var raw = noVat.value.replace(/\s/g, "");
+    var n = parseFloat(raw) || 0;
+    var vat = Math.round(n * VAT_RATE * 100) / 100;
+    vatDisplay.value = vat.toLocaleString("ru-RU");
+    totalDisplay.value = (n + vat).toLocaleString("ru-RU");
+  }
+  noVat.addEventListener("input", recalcEdit);
+  document.querySelectorAll(".service-edit-btn").forEach(function (btn) {
+    btn.addEventListener("click", function () {
+      form.action = "/services/" + btn.getAttribute("data-id") + "/edit";
+      document.getElementById("editSvcDate").value = btn.getAttribute("data-date");
+      document.getElementById("editSvcCounterparty").value = btn.getAttribute("data-counterparty");
+      document.getElementById("editSvcServiceType").value = btn.getAttribute("data-service-type");
+      noVat.value = btn.getAttribute("data-amount-no-vat");
+      document.getElementById("editSvcCurrency").value = btn.getAttribute("data-currency");
+      document.getElementById("editSvcStatus").value = btn.getAttribute("data-status");
+      document.getElementById("editSvcDescription").value = btn.getAttribute("data-description");
+      recalcEdit();
+      modal.showModal();
+    });
+  });
+  document.getElementById("closeServiceEditBtn").addEventListener("click", function () { modal.close(); });
+})();
+</script>
+<script>
+(function () {
+  var modal = document.getElementById("serviceAddModal");
+  var openBtn = document.getElementById("openServiceAddBtn");
+  if (!modal || !openBtn) return;
+  openBtn.addEventListener("click", function () { modal.showModal(); });
+  document.getElementById("closeServiceAddBtn").addEventListener("click", function () { modal.close(); });
+})();
+</script>
+{% endif %}
+<script>
+(function () {
+  var VAT_RATE = {{ vat_rate }};
+  var noVatInput = document.getElementById("svcAmountNoVat");
+  var vatDisplay = document.getElementById("svcVatDisplay");
+  var totalDisplay = document.getElementById("svcTotalDisplay");
+  if (!noVatInput) return;
+  function recalc() {
+    var raw = noVatInput.value.replace(/\s/g, "").replace(/ /g, "");
+    var n = parseFloat(raw) || 0;
+    var vat = Math.round(n * VAT_RATE * 100) / 100;
+    vatDisplay.value = vat.toLocaleString("ru-RU");
+    totalDisplay.value = (n + vat).toLocaleString("ru-RU");
+  }
+  noVatInput.addEventListener("input", recalc);
+  recalc();
+})();
+</script>
+{% endblock %}

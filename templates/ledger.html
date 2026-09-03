@@ -1,0 +1,85 @@
+{% extends "base.html" %}
+{% block title %}{{ t('nav.ledger') }}{% endblock %}
+{% block head %}
+<style>
+  .report-tabs { display: flex; gap: .5rem; flex-wrap: wrap; margin-bottom: 1.4rem; }
+  .report-tabs a { padding: .5rem 1rem; border-radius: 10px; font-size: .84rem; font-weight: 600;
+    text-decoration: none; color: var(--ink-secondary); background: var(--bg-surface-2); border: 1px solid var(--border); }
+  .report-tabs a.active { background: linear-gradient(135deg, var(--accent), var(--accent-deep)); color: #fff; border-color: transparent; }
+  .currency-tabs { display: flex; gap: .4rem; margin-bottom: 0; }
+  .currency-tabs a { padding: .4rem .9rem; border-radius: 999px; font-size: .8rem; font-weight: 600;
+    text-decoration: none; color: var(--ink-secondary); background: var(--bg-surface-2); border: 1px solid var(--border); }
+  .currency-tabs a.active { background: var(--accent-tint); color: var(--accent-light); border-color: transparent; }
+  .ledger-table th.grp { text-align: center; border-bottom: 1px solid var(--border); }
+  .dt-val { color: var(--good); }
+  .kt-val { color: var(--bad); }
+  .cp-link { color: var(--ink-primary); text-decoration: none; font-weight: 600; }
+  .cp-link:hover { color: var(--accent-light); text-decoration: underline; }
+</style>
+{% endblock %}
+{% block content %}
+  <div style="display:flex;align-items:flex-end;justify-content:space-between;flex-wrap:wrap;gap:1rem;margin-bottom:1rem;">
+    <div>
+      <h1 style="font-size:1.55rem">{{ t('ledger.title') }}</h1>
+      <p style="color:var(--ink-secondary);font-size:.85rem;margin-top:.3rem;">{{ t('ledger.subtitle') }}</p>
+    </div>
+    {% include "_period_filter.html" %}
+  </div>
+
+  {% set active_report = 'ledger' %}
+  {% include "_report_tabs.html" with context %}
+
+  <div class="currency-tabs" style="margin-bottom:1.2rem;">
+    <a href="?currency=UZS{{ '&year='~year if year }}{{ '&month='~month if month }}" class="{{ 'active' if currency=='UZS' else '' }}">UZS</a>
+    <a href="?currency=USD{{ '&year='~year if year }}{{ '&month='~month if month }}" class="{{ 'active' if currency=='USD' else '' }}">USD</a>
+  </div>
+
+  <div class="card">
+    <div class="overflow-x">
+      {% if rows %}
+      <table class="data-table ledger-table">
+        <thead>
+          <tr>
+            <th rowspan="2" style="vertical-align:bottom">{{ t('ledger.th_counterparty') }}</th>
+            <th class="grp" colspan="2">{{ t('ledger.th_open') }}</th>
+            <th class="grp" colspan="2">{{ t('ledger.th_turn') }}</th>
+            <th class="grp" colspan="2">{{ t('ledger.th_close') }}</th>
+          </tr>
+          <tr>
+            <th class="num">{{ t('ledger.dt') }}</th><th class="num">{{ t('ledger.kt') }}</th>
+            <th class="num">{{ t('ledger.dt') }}</th><th class="num">{{ t('ledger.kt') }}</th>
+            <th class="num">{{ t('ledger.dt') }}</th><th class="num">{{ t('ledger.kt') }}</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for r in rows %}
+          <tr>
+            <td><a class="cp-link" href="/ledger/detail?name={{ r.counterparty | urlencode }}&currency={{ currency }}">{{ r.counterparty }}</a></td>
+            <td class="num dt-val">{{ r.open_dt|money if r.open_dt else '' }}</td>
+            <td class="num kt-val">{{ r.open_kt|money if r.open_kt else '' }}</td>
+            <td class="num dt-val">{{ r.turn_dt|money if r.turn_dt else '' }}</td>
+            <td class="num kt-val">{{ r.turn_kt|money if r.turn_kt else '' }}</td>
+            <td class="num dt-val">{{ r.close_dt|money if r.close_dt else '' }}</td>
+            <td class="num kt-val">{{ r.close_kt|money if r.close_kt else '' }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+        <tfoot>
+          <tr style="font-weight:700;background:var(--bg-surface-2)">
+            <td>{{ t('ledger.total') }}</td>
+            <td class="num dt-val">{{ totals.open_dt|money }}</td>
+            <td class="num kt-val">{{ totals.open_kt|money }}</td>
+            <td class="num dt-val">{{ totals.turn_dt|money }}</td>
+            <td class="num kt-val">{{ totals.turn_kt|money }}</td>
+            <td class="num dt-val">{{ totals.close_dt|money }}</td>
+            <td class="num kt-val">{{ totals.close_kt|money }}</td>
+          </tr>
+        </tfoot>
+      </table>
+      {% else %}
+      <div class="empty">{{ t('ledger.empty') }}</div>
+      {% endif %}
+    </div>
+    <div class="note" style="margin-top:1rem">{{ t('ledger.note') }}</div>
+  </div>
+{% endblock %}

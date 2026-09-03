@@ -1,0 +1,7 @@
+{
+  "api_client_id": "YOUR_EXELY_API_CLIENT_ID",
+  "api_client_secret": "YOUR_EXELY_API_CLIENT_SECRET",
+  "property_id": "YOUR_EXELY_PROPERTY_ID",
+  "output_dir": "reports",
+  "refresh_minutes": 30
+}

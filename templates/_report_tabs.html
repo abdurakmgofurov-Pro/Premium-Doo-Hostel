@@ -1,0 +1,9 @@
+{% set _qs = ('&year='~year if year) ~ ('&month='~month if month) %}
+<div class="report-tabs">
+  <a href="/reports?tab=f2{{ _qs }}" class="{{ 'active' if active_report=='f2' else '' }}">{{ t('reports.tab_f2') }}</a>
+  <a href="/reports?tab=f1{{ _qs }}" class="{{ 'active' if active_report=='f1' else '' }}">{{ t('reports.tab_f1') }}</a>
+  <a href="/reports?tab=f3{{ _qs }}" class="{{ 'active' if active_report=='f3' else '' }}">{{ t('reports.tab_f3') }}</a>
+  <a href="/reports?tab=bar{{ _qs }}" class="{{ 'active' if active_report=='bar' else '' }}">{{ t('reports.tab_bar') }}</a>
+  <a href="/ledger{{ ('?'~_qs[1:]) if _qs else '' }}" class="{{ 'active' if active_report=='ledger' else '' }}">{{ t('nav.ledger') }}</a>
+  <a href="/taxes{{ ('?'~_qs[1:]) if _qs else '' }}" class="{{ 'active' if active_report=='taxes' else '' }}">{{ t('nav.taxes') }}</a>
+</div>

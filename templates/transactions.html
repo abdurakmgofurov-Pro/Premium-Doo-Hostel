@@ -1,0 +1,133 @@
+{% extends "base.html" %}
+{% block title %}{{ t('nav.transactions') }}{% endblock %}
+{% block content %}
+  {% if can_create %}
+  <div style="display:flex;justify-content:flex-end;margin-bottom:1rem">
+    <a class="btn" href="/transactions/import">{{ t('tx.import_btn') }}</a>
+  </div>
+  <div class="card">
+    <h2>{{ t('tx.add_title') }}</h2>
+    <form class="form-grid" method="post" action="/transactions/add">
+      <div class="field"><label>{{ t('tx.date') }}</label><input type="date" name="date" required value="{{today}}"></div>
+      <div class="field"><label>{{ t('tx.type') }}</label>
+        <select name="type" id="txType">
+          <option value="expense">{{ t('common.expense') }}</option>
+          <option value="income">{{ t('common.income') }}</option>
+        </select>
+      </div>
+      <div class="field" id="expenseCategoryField"><label>{{ t('tx.category') }}</label>
+        <select name="category" id="expenseCategorySelect">
+          {% for group_key, group_label in forma2_groups %}
+          <optgroup label="{{ t_group(group_key) }}">
+            {% for c in categories if c.group == group_key %}
+            <option value="{{c.name}}">{{ t_cat(c.name) }}</option>
+            {% endfor %}
+          </optgroup>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="field" id="incomeCategoryField" style="display:none"><label>{{ t('tx.category') }}</label>
+        <select name="category" id="incomeCategorySelect" disabled>
+          {% for c in income_categories %}
+          <option value="{{c}}">{{ t_cat(c) }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="field"><label>{{ t('tx.amount') }}</label><input type="text" inputmode="decimal" class="money-input" name="amount" required></div>
+      <div class="field"><label>{{ t('tx.currency') }}</label>
+        <select name="currency"><option value="UZS">UZS</option><option value="USD">USD</option></select>
+      </div>
+      <div class="field"><label>{{ t('tx.status') }}</label>
+        <select name="status"><option value="paid">{{ t('common.paid') }}</option><option value="unpaid">{{ t('common.unpaid') }}</option></select>
+      </div>
+      <div class="field"><label>{{ t('tx.counterparty') }}</label><input type="text" name="counterparty" placeholder="{{ t('tx.counterparty_placeholder') }}"></div>
+      <div class="field full"><label>{{ t('tx.description') }}</label><input type="text" name="description" placeholder="{{ t('tx.description_placeholder') }}"></div>
+      <div class="field"><button class="btn primary" type="submit">{{ t('tx.submit') }}</button></div>
+    </form>
+  </div>
+  {% endif %}
+
+  <div class="card">
+    <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:.8rem;margin-bottom:1rem;">
+      <h2 style="margin-bottom:0">{{ t('tx.all_title') }}</h2>
+      <div style="display:flex;gap:.6rem;flex-wrap:wrap;align-items:center">
+        {% include "_period_filter.html" %}
+        <form method="get" id="categoryFilterForm" class="period-select">
+          <input type="hidden" name="year" value="{{ year or '' }}">
+          <input type="hidden" name="month" value="{{ month or '' }}">
+          <select name="category" onchange="document.getElementById('categoryFilterForm').submit()">
+            <option value="">{{ t('tx.filter_all_categories') }}</option>
+            <optgroup label="{{ t('common.expense') }}">
+              {% for c in categories %}
+              <option value="{{c.name}}" {{ 'selected' if category == c.name else '' }}>{{ t_cat(c.name) }}</option>
+              {% endfor %}
+            </optgroup>
+            <optgroup label="{{ t('common.income') }}">
+              {% for c in income_categories %}
+              <option value="{{c}}" {{ 'selected' if category == c else '' }}>{{ t_cat(c) }}</option>
+              {% endfor %}
+            </optgroup>
+          </select>
+        </form>
+      </div>
+    </div>
+    <div class="overflow-x">
+      {% if transactions %}
+      <table class="data-table">
+        <thead><tr><th>{{ t('tx.th_date') }}</th><th>{{ t('tx.th_type') }}</th><th>{{ t('tx.th_category') }}</th><th>{{ t('tx.th_counterparty') }}</th><th>{{ t('tx.th_description') }}</th><th>{{ t('tx.th_amount') }}</th><th>{{ t('tx.th_status') }}</th>{% if can_delete %}<th></th>{% endif %}</tr></thead>
+        <tbody>
+          {% for tx in transactions %}
+          <tr>
+            <td>{{tx.date}}</td>
+            <td><span class="tag {{tx.type}}">{{ t('common.income') if tx.type == "income" else t('common.expense') }}</span></td>
+            <td>{{ t_cat(tx.category) }}</td>
+            <td>{{tx.counterparty or t('common.dash')}}</td>
+            <td>{{tx.description or t('common.dash')}}</td>
+            <td class="num">{{tx.amount|money}} {{tx.currency}}</td>
+            <td>{{ t('common.paid') if tx.status == "paid" else t('common.unpaid') }}</td>
+            {% if can_delete %}
+            <td>
+              {% if is_date_locked(tx.date) %}
+              <span class="tag role-custom">🔒</span>
+              {% else %}
+              <form method="post" action="/transactions/{{tx.id}}/delete" data-confirm="{{ t('tx.delete_confirm') }}">
+                <button class="btn danger" type="submit">{{ t('tx.delete') }}</button>
+              </form>
+              {% endif %}
+            </td>
+            {% endif %}
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      {% else %}
+      <div class="empty">{{ t('tx.empty') }}</div>
+      {% endif %}
+    </div>
+  </div>
+{% endblock %}
+{% block scripts %}
+{% if can_create %}
+<script>
+(function () {
+  var typeSelect = document.getElementById("txType");
+  var expenseField = document.getElementById("expenseCategoryField");
+  var incomeField = document.getElementById("incomeCategoryField");
+  var expenseSelect = document.getElementById("expenseCategorySelect");
+  var incomeSelect = document.getElementById("incomeCategorySelect");
+  if (!typeSelect) return;
+
+  function sync() {
+    var isIncome = typeSelect.value === "income";
+    expenseField.style.display = isIncome ? "none" : "";
+    incomeField.style.display = isIncome ? "" : "none";
+    expenseSelect.disabled = isIncome;
+    incomeSelect.disabled = !isIncome;
+  }
+
+  typeSelect.addEventListener("change", sync);
+  sync();
+})();
+</script>
+{% endif %}
+{% endblock %}

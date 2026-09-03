@@ -1,0 +1,89 @@
+{% extends "base.html" %}
+{% block title %}{{ counterparty }} — {{ t('nav.ledger') }}{% endblock %}
+{% block head %}
+<style>
+  .pay-details summary { cursor: pointer; font-size: .8rem; color: var(--accent-light); font-weight: 600; list-style: none; }
+  .pay-details summary::-webkit-details-marker { display: none; }
+  .pay-details[open] summary { margin-bottom: .5rem; }
+  .pay-form { min-width: 300px; }
+  .hist-details summary { cursor: pointer; font-size: .76rem; color: var(--ink-secondary); list-style: none; margin-top: .4rem; }
+  .hist-details summary::-webkit-details-marker { display: none; }
+  .pay-row { display: flex; justify-content: space-between; align-items: center; padding: .35rem 0; font-size: .8rem; border-bottom: 1px solid var(--border); }
+  .settled { color: var(--good); font-size: .78rem; font-weight: 600; }
+</style>
+{% endblock %}
+{% block content %}
+  <div style="margin-bottom:1rem;">
+    <a href="/ledger?currency={{currency}}" style="color:var(--ink-secondary);font-size:.85rem;text-decoration:none">{{ t('ledger.back') }}</a>
+  </div>
+  <div style="display:flex;align-items:flex-end;justify-content:space-between;flex-wrap:wrap;gap:1rem;margin-bottom:1.4rem;">
+    <div>
+      <h1 style="font-size:1.4rem">{{ counterparty }}</h1>
+      <p style="color:var(--ink-secondary);font-size:.85rem;margin-top:.3rem;">{{ t('ledger.detail_title') }} — {{ currency }}</p>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="overflow-x">
+      {% if entries %}
+      <table class="data-table">
+        <thead><tr>
+          <th>{{ t('ledger.th_date') }}</th><th>{{ t('ledger.th_source') }}</th><th>{{ t('ledger.th_direction') }}</th>
+          <th class="num">{{ t('ledger.th_amount') }}</th><th class="num">{{ t('ledger.th_paid') }}</th>
+          <th class="num">{{ t('ledger.th_remaining') }}</th><th></th>
+        </tr></thead>
+        <tbody>
+          {% for e in entries %}
+          <tr>
+            <td>{{e.date}}</td>
+            <td>{% if e.origin == 'service' %}{{ t('ledger.source_service') }}{% elif e.origin == 'cash_transaction' %}{{ t('ledger.source_cash') }}{% elif e.origin == 'bar_transaction' %}{{ t('ledger.source_bar') }}{% else %}{{ t('ledger.source_transaction') }}{% endif %}</td>
+            <td><span class="tag {{'income' if e.polarity=='dt' else 'expense'}}">{{ t('ledger.dt') if e.polarity=='dt' else t('ledger.kt') }}</span></td>
+            <td class="num">{{ e.amount|money }} {{e.currency}}</td>
+            <td class="num">{{ e.paid|money }} {{e.currency}}</td>
+            <td class="num">{{ e.remaining|money }} {{e.currency}}</td>
+            <td>
+              {% if e.remaining > 0.009 and can_create and not is_date_locked(e.date) %}
+              <details class="pay-details">
+                <summary>{{ t('ledger.add_payment') }}</summary>
+                <form method="post" action="/ledger/payment/add" class="form-grid pay-form">
+                  <input type="hidden" name="source_type" value="{{e.source_type}}">
+                  <input type="hidden" name="source_id" value="{{e.source_id}}">
+                  <input type="hidden" name="currency" value="{{e.currency}}">
+                  <input type="hidden" name="counterparty" value="{{counterparty}}">
+                  <div class="field"><label>{{ t('ledger.payment_date') }}</label><input type="date" name="date" value="{{today}}" required></div>
+                  <div class="field"><label>{{ t('ledger.payment_amount') }}</label><input type="text" inputmode="decimal" class="money-input" name="amount" value="{{ e.remaining|money }}" required></div>
+                  <div class="field full"><label>{{ t('ledger.payment_note') }}</label><input type="text" name="note"></div>
+                  <div class="field"><button class="btn primary" type="submit">{{ t('ledger.payment_submit') }}</button></div>
+                </form>
+              </details>
+              {% elif e.remaining <= 0.009 %}
+              <span class="settled">✓ {{ t('ledger.fully_settled') }}</span>
+              {% endif %}
+              {% if e.payments %}
+              <details class="hist-details">
+                <summary>{{ t('ledger.payment_history') }} ({{ e.payments|length }})</summary>
+                {% for p in e.payments %}
+                <div class="pay-row">
+                  <span>{{p.date}} — {{ p.amount|money }} {{p.currency}}{% if p.note %} ({{p.note}}){% endif %}</span>
+                  {% if can_delete and not is_date_locked(p.date) %}
+                  <form method="post" action="/ledger/payment/{{p.id}}/delete" data-confirm="{{ t('ledger.payment_delete_confirm') }}">
+                    <input type="hidden" name="counterparty" value="{{counterparty}}">
+                    <input type="hidden" name="currency" value="{{currency}}">
+                    <button class="btn danger" type="submit" style="padding:.2rem .6rem;font-size:.72rem">{{ t('ledger.payment_delete') }}</button>
+                  </form>
+                  {% endif %}
+                </div>
+                {% endfor %}
+              </details>
+              {% endif %}
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      {% else %}
+      <div class="empty">{{ t('ledger.empty') }}</div>
+      {% endif %}
+    </div>
+  </div>
+{% endblock %}

@@ -1,0 +1,242 @@
+{% extends "base.html" %}
+{% block title %}{{ t('nav.reports') }}{% endblock %}
+{% block head %}
+<style>
+  .report-tabs { display: flex; gap: .5rem; flex-wrap: wrap; margin-bottom: 1.4rem; }
+  .report-tabs a { padding: .5rem 1rem; border-radius: 10px; font-size: .84rem; font-weight: 600;
+    text-decoration: none; color: var(--ink-secondary); background: var(--bg-surface-2); border: 1px solid var(--border); }
+  .report-tabs a.active { background: linear-gradient(135deg, var(--accent), var(--accent-deep)); color: #fff; border-color: transparent; }
+</style>
+{% endblock %}
+{% block content %}
+  <div style="display:flex;align-items:flex-end;justify-content:space-between;flex-wrap:wrap;gap:1rem;margin-bottom:1.4rem;">
+    <div>
+      <h1 style="font-size:1.55rem">{{ t('reports.tab_f1') if tab == 'f1' else t('reports.tab_f3') if tab == 'f3' else t('reports.bar_title') if tab == 'bar' else t('reports.title') }}</h1>
+      <p style="color:var(--ink-secondary);font-size:.85rem;margin-top:.3rem;">{{ t('reports.period') }}{{today}}</p>
+    </div>
+    {% include "_period_filter.html" %}
+  </div>
+
+  <div class="kpi-row">
+    <div class="kpi">
+      <div class="kpi-top"><div class="label">{{ t('reports.kpi_revenue') }}</div>
+        <div class="kpi-icon green"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 17l6-6 4 4 6-8"/><path d="M14 7h6v6"/></svg></div></div>
+      <div class="value">{{ kpi_revenue|money }} {{ display_currency }}</div>
+    </div>
+    <div class="kpi">
+      <div class="kpi-top"><div class="label">{{ t('reports.kpi_net_profit') }}</div>
+        <div class="kpi-icon {{ 'green' if kpi_net_profit >= 0 else 'red' }}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v18"/><path d="M5 8l-3 6a4 4 0 0 0 6 0z"/><path d="M19 8l-3 6a4 4 0 0 0 6 0z"/><path d="M5 8h14"/></svg></div></div>
+      <div class="value {{ 'good' if kpi_net_profit >= 0 else 'bad' }}">{{ kpi_net_profit|money }} {{ display_currency }}</div>
+    </div>
+    <div class="kpi">
+      <div class="kpi-top"><div class="label">{{ t('reports.kpi_gross_margin') }}</div>
+        <div class="kpi-icon indigo"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.2 15.3A10 10 0 1 1 12 2v10z"/></svg></div></div>
+      <div class="value accent">{{ kpi_gross_margin }}%</div>
+    </div>
+    <div class="kpi">
+      <div class="kpi-top"><div class="label">{{ t('reports.kpi_net_margin') }}</div>
+        <div class="kpi-icon cyan"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 17l6-6 4 4 8-9"/><path d="M14 6h7v7"/></svg></div></div>
+      <div class="value accent">{{ kpi_net_margin }}%</div>
+    </div>
+  </div>
+
+  {% set active_report = tab %}
+  {% include "_report_tabs.html" with context %}
+
+  {% if tab == 'f1' %}
+  <div class="card">
+    <h2>{{ t('reports.tab_f1') }}</h2>
+    <div class="overflow-x">
+      <table class="data-table">
+        <thead><tr><th>{{ t('reports.th_indicator') }}</th><th class="num">{{ display_currency }}</th></tr></thead>
+        <tbody>
+          {% for row in f1 %}
+          {% if row.key in ('f1.section_assets', 'f1.section_liab_equity') %}
+          <tr><td colspan="2" style="font-weight:700;color:var(--accent-light);padding-top:1rem">{{ t(row.key) }}</td></tr>
+          {% else %}
+          <tr {% if row.bold %}style="font-weight:700;background:var(--bg-surface-2)"{% endif %}>
+            <td>{{ row.indent * "&nbsp;&nbsp;&nbsp;&nbsp;" | safe }}{{ t(row.key) }}</td>
+            <td class="num">{{ to_display(row.uzs, row.usd, rate)|money }}</td>
+          </tr>
+          {% endif %}
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% if not rate %}<div class="note">{{ t('reports.no_rate_note') }}</div>{% endif %}
+    <div class="note">{{ t('f1.note') }}</div>
+  </div>
+
+  {% elif tab == 'f3' %}
+  <div class="card">
+    <h2>{{ t('reports.tab_f3') }}</h2>
+    <div class="overflow-x">
+      <table class="data-table">
+        <thead><tr>
+          <th>{{ t('f3.th_code') }}</th><th>{{ t('f3.th_name') }}</th>
+          <th class="num">{{ t('f3.th_bank_in') }}</th><th class="num">{{ t('f3.th_bank_out') }}</th>
+          <th class="num">{{ t('f3.th_kassa_in') }}</th><th class="num">{{ t('f3.th_kassa_out') }}</th>
+          <th class="num">{{ t('f3.th_total_in') }}</th><th class="num">{{ t('f3.th_total_out') }}</th>
+        </tr></thead>
+        <tbody>
+          <tr style="font-weight:700;background:var(--bg-surface-2)">
+            <td colspan="2">{{ t('f3.opening_balance') }}</td>
+            <td class="num">{{ cash_flow_opening.bank|money }}</td><td class="num">—</td>
+            <td class="num">{{ cash_flow_opening.kassa|money }}</td><td class="num">—</td>
+            <td class="num">{{ cash_flow_opening.total|money }}</td><td class="num">—</td>
+          </tr>
+          {% for r in cash_flow_rows %}
+          <tr>
+            <td>{{ r.code }}</td>
+            <td>{{ t_cash_cat(r.name) }}</td>
+            <td class="num">{{ r.bank_in|money }}</td><td class="num">{{ r.bank_out|money }}</td>
+            <td class="num">{{ r.kassa_in|money }}</td><td class="num">{{ r.kassa_out|money }}</td>
+            <td class="num">{{ r.total_in|money }}</td><td class="num">{{ r.total_out|money }}</td>
+          </tr>
+          {% else %}
+          <tr><td colspan="8" class="empty">{{ t('f3.empty') }}</td></tr>
+          {% endfor %}
+          {% if cash_flow_rows %}
+          <tr style="font-weight:700;background:var(--bg-surface-2)">
+            <td colspan="2">{{ t('f3.total_row') }}</td>
+            <td class="num">{{ cash_flow_totals.bank_in|money }}</td><td class="num">{{ cash_flow_totals.bank_out|money }}</td>
+            <td class="num">{{ cash_flow_totals.kassa_in|money }}</td><td class="num">{{ cash_flow_totals.kassa_out|money }}</td>
+            <td class="num">{{ cash_flow_totals.total_in|money }}</td><td class="num">{{ cash_flow_totals.total_out|money }}</td>
+          </tr>
+          {% endif %}
+          <tr style="font-weight:700">
+            <td colspan="2">{{ t('f3.closing_balance') }}</td>
+            <td class="num">{{ cash_flow_closing.bank|money }}</td><td class="num">—</td>
+            <td class="num">{{ cash_flow_closing.kassa|money }}</td><td class="num">—</td>
+            <td class="num">{{ cash_flow_closing.total|money }}</td><td class="num">—</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="note" style="margin-top:.6rem">{{ display_currency }}{% if not rate %} · {{ t('reports.no_rate_note') }}{% endif %}</div>
+  </div>
+
+  {% elif tab == 'bar' %}
+  <div class="kpi-row">
+    <div class="kpi">
+      <div class="kpi-top"><div class="label">{{ t('reports.segment_revenue') }}</div>
+        <div class="kpi-icon green"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 17l6-6 4 4 6-8"/><path d="M14 7h6v6"/></svg></div></div>
+      <div class="value">{{ bar_revenue|money }} {{ display_currency }}</div>
+    </div>
+    <div class="kpi">
+      <div class="kpi-top"><div class="label">{{ t('reports.segment_cost') }}</div>
+        <div class="kpi-icon gold"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 3h14l-2 8a5 5 0 0 1-10 0z"/><path d="M12 11v7"/><path d="M8 21h8"/></svg></div></div>
+      <div class="value">{{ bar_cost|money }} {{ display_currency }}</div>
+    </div>
+    <div class="kpi">
+      <div class="kpi-top"><div class="label">{{ t('reports.segment_bar') }}</div>
+        <div class="kpi-icon {{ 'green' if bar_profit >= 0 else 'red' }}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v18"/><path d="M5 8l-3 6a4 4 0 0 0 6 0z"/><path d="M19 8l-3 6a4 4 0 0 0 6 0z"/><path d="M5 8h14"/></svg></div></div>
+      <div class="value {{ 'good' if bar_profit >= 0 else 'bad' }}">{{ bar_profit|money }} {{ display_currency }}</div>
+    </div>
+    <div class="kpi">
+      <div class="kpi-top"><div class="label">{{ t('bar.stock_value') }}</div>
+        <div class="kpi-icon indigo"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="7" width="18" height="13" rx="2"/><path d="M3 11h18"/><path d="M8 7V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg></div></div>
+      <div class="value">{{ bar_stock_value|money }} {{ display_currency }}</div>
+    </div>
+  </div>
+  <div class="card">
+    <h2>{{ t('reports.bar_title') }}</h2>
+    <div class="overflow-x">
+      <table class="data-table">
+        <thead><tr>
+          <th>{{ t('bar.product') }}</th>
+          <th class="num">{{ t('reports.bar_th_sold_qty') }}</th><th class="num">{{ t('reports.bar_th_sold_amount') }}</th>
+          <th class="num">{{ t('reports.bar_th_purchased_qty') }}</th><th class="num">{{ t('reports.bar_th_purchased_amount') }}</th>
+          <th class="num">{{ t('reports.bar_th_net') }}</th><th class="num">{{ t('reports.bar_th_stock') }}</th>
+        </tr></thead>
+        <tbody>
+          {% for r in bar_products_report %}
+          <tr>
+            <td>{{ r.name }}</td>
+            <td class="num">{{ r.sold_qty|qty }} {{ r.unit }}</td>
+            <td class="num">{{ r.sold_amount|money }}</td>
+            <td class="num">{{ r.purchased_qty|qty }} {{ r.unit }}</td>
+            <td class="num">{{ r.purchased_amount|money }}</td>
+            <td class="num {{ 'good' if r.net >= 0 else 'bad' }}">{{ r.net|money }}</td>
+            <td class="num">{{ r.stock_qty|qty }} {{ r.unit }}</td>
+          </tr>
+          {% else %}
+          <tr><td colspan="7" class="empty">{{ t('reports.bar_empty') }}</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    <div class="note" style="margin-top:.6rem">{{ display_currency }}{% if not rate %} · {{ t('reports.no_rate_note') }}{% endif %}</div>
+  </div>
+
+  {% else %}
+  {% set cost_amt = kpi_revenue - kpi_gross_profit %}
+  {% set opex_amt = kpi_gross_profit - kpi_net_profit %}
+  <div class="card">
+    <h2>{{ t('reports.segment_title') }}</h2>
+    <div class="kpi-row">
+      <div class="kpi">
+        <div class="kpi-top"><div class="label">{{ t('reports.segment_hostel') }}</div>
+          <div class="kpi-icon indigo"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11l9-8 9 8"/><path d="M5 10v10h14V10"/></svg></div></div>
+        <div class="value {{ 'good' if hostel_profit >= 0 else 'bad' }}">{{ hostel_profit|money }} {{ display_currency }}</div>
+        <div class="sub">{{ t('reports.segment_revenue') }}: {{ hostel_revenue|money }} · {{ t('reports.segment_cost') }}: {{ hostel_cost|money }}</div>
+      </div>
+      <div class="kpi">
+        <div class="kpi-top"><div class="label">{{ t('reports.segment_bar') }}</div>
+          <div class="kpi-icon gold"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 3h14l-2 8a5 5 0 0 1-10 0z"/><path d="M12 11v7"/><path d="M8 21h8"/></svg></div></div>
+        <div class="value {{ 'good' if bar_profit >= 0 else 'bad' }}">{{ bar_profit|money }} {{ display_currency }}</div>
+        <div class="sub">{{ t('reports.segment_revenue') }}: {{ bar_revenue|money }} · {{ t('reports.segment_cost') }}: {{ bar_cost|money }}</div>
+      </div>
+      <div class="kpi">
+        <div class="kpi-top"><div class="label">{{ t('reports.segment_total') }}</div>
+          <div class="kpi-icon green"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 17l6-6 4 4 6-8"/><path d="M14 7h6v6"/></svg></div></div>
+        <div class="value {{ 'good' if kpi_net_profit >= 0 else 'bad' }}">{{ kpi_net_profit|money }} {{ display_currency }}</div>
+        <div class="sub">{{ t('reports.segment_total_note') }}</div>
+      </div>
+    </div>
+    {% if kpi_net_profit > 0 %}
+    <div class="comp-bar">
+      <span style="width:{{ (hostel_profit / kpi_net_profit * 100) if hostel_profit > 0 else 0 }}%;background:var(--accent)"></span>
+      <span style="width:{{ (bar_profit / kpi_net_profit * 100) if bar_profit > 0 else 0 }}%;background:var(--gold)"></span>
+    </div>
+    <div class="comp-legend">
+      <div class="comp-item"><span class="comp-dot" style="background:var(--accent)"></span>{{ t('reports.segment_hostel') }} ({{ (hostel_profit / kpi_net_profit * 100)|round|int }}%)</div>
+      <div class="comp-item"><span class="comp-dot" style="background:var(--gold)"></span>{{ t('reports.segment_bar') }} ({{ (bar_profit / kpi_net_profit * 100)|round|int }}%)</div>
+    </div>
+    {% endif %}
+  </div>
+  {% if kpi_revenue > 0 %}
+  <div class="card">
+    <h2>{{ t('reports.composition_title') }}</h2>
+    <div class="comp-bar">
+      <span style="width:{{ (cost_amt / kpi_revenue * 100) if kpi_revenue else 0 }}%;background:var(--bad)"></span>
+      <span style="width:{{ (opex_amt / kpi_revenue * 100) if kpi_revenue else 0 }}%;background:var(--warn)"></span>
+      <span style="width:{{ (kpi_net_profit / kpi_revenue * 100) if (kpi_revenue and kpi_net_profit > 0) else 0 }}%;background:linear-gradient(90deg,var(--good),#22d3ee)"></span>
+    </div>
+    <div class="comp-legend">
+      <div class="comp-item"><span class="comp-dot" style="background:var(--bad)"></span>{{ t('reports.composition_cost') }}: {{ cost_amt|money }} {{ display_currency }}</div>
+      <div class="comp-item"><span class="comp-dot" style="background:var(--warn)"></span>{{ t('reports.composition_opex') }}: {{ opex_amt|money }} {{ display_currency }}</div>
+      <div class="comp-item"><span class="comp-dot" style="background:var(--good)"></span>{{ t('dash.table_net') }}: {{ kpi_net_profit|money }} {{ display_currency }}</div>
+    </div>
+  </div>
+  {% endif %}
+  <div class="card">
+    <h2>{{ t('reports.tab_f2') }}</h2>
+    <div class="overflow-x">
+      <table class="data-table">
+        <thead><tr><th>{{ t('reports.th_indicator') }}</th><th class="num">{{ display_currency }}</th></tr></thead>
+        <tbody>
+          {% for row in f2 %}
+          <tr {% if row.bold %}style="font-weight:700;background:var(--bg-surface-2)"{% endif %}>
+            <td>{{ row.indent * "&nbsp;&nbsp;&nbsp;&nbsp;" | safe }}{{ t(row.key) }}</td>
+            <td class="num">{{ to_display(row.uzs, row.usd, rate)|money }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% if not rate %}<div class="note">{{ t('reports.no_rate_note') }}</div>{% endif %}
+    <div class="note">{{ t('reports.note') | safe }}</div>
+  </div>
+  {% endif %}
+{% endblock %}

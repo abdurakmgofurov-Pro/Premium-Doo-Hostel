@@ -1,0 +1,128 @@
+<!doctype html>
+<html lang="uz">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Kirish — Premium Doo</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg-page: #090b10; --bg-surface: #12151c; --bg-surface-2: #191d26;
+    --ink-primary: #f2f4f8; --ink-secondary: #99a1b0; --ink-muted: #5c6474; --border: rgba(255,255,255,.09);
+    --accent: #6d6af7; --accent-deep: #5551e0; --accent-light: #9c98ff; --accent-tint: rgba(109,106,247,.14);
+    --bad: #f87171; --bad-bg: rgba(248,113,113,.13);
+  }
+  html { color-scheme: dark; }
+  * { box-sizing: border-box; }
+  body { margin: 0; min-height: 100vh; display: flex; background: var(--bg-page); position: relative;
+    overflow-x: hidden; font-family: "Inter", system-ui, sans-serif; color: var(--ink-primary); }
+  body::before {
+    content: ""; position: fixed; inset: 0; z-index: 0; pointer-events: none;
+    background:
+      radial-gradient(620px 420px at 18% 8%, rgba(109,106,247,.22), transparent 60%),
+      radial-gradient(520px 380px at 90% 90%, rgba(34,211,238,.12), transparent 55%);
+  }
+
+  .lang-row { position: absolute; top: 1.2rem; right: 1.2rem; z-index: 2; display: flex; gap: 2px;
+    background: var(--bg-surface-2); border: 1px solid var(--border); border-radius: 999px; padding: 2px; }
+  .lang-row a { display: inline-flex; align-items: center; justify-content: center; min-width: 28px;
+    padding: .26rem .45rem; border-radius: 999px; font-size: .68rem; font-weight: 700; text-decoration: none;
+    color: var(--ink-secondary); }
+  .lang-row a.active { background: var(--accent); color: #fff; }
+
+  .pitch-col { flex: 1 1 480px; position: relative; z-index: 1; display: flex; flex-direction: column;
+    justify-content: center; padding: 3rem 4vw; min-width: 0; }
+  .brand { display: flex; align-items: center; gap: .65rem; margin-bottom: 2.6rem; }
+  .brand .mark { width: 36px; height: 36px; border-radius: 9px; flex-shrink: 0;
+    object-fit: cover; background: #fff;
+    box-shadow: 0 0 0 1px rgba(255,255,255,.14) inset, 0 6px 18px rgba(109,106,247,.4); }
+  .brand .name { font-weight: 800; letter-spacing: -.01em; font-size: 1.05rem; }
+  .brand .sub { color: var(--ink-muted); font-size: .68rem; font-weight: 700; text-transform: uppercase; letter-spacing: .07em; }
+
+  .pitch-col h1 { font-size: clamp(1.8rem, 3.4vw, 2.6rem); font-weight: 800; letter-spacing: -.02em;
+    line-height: 1.15; margin: 0 0 1.1rem; max-width: 20ch; }
+  .pitch-col p.pitch { color: var(--ink-secondary); font-size: 1rem; line-height: 1.6; max-width: 44ch; margin: 0 0 2.2rem; }
+
+  .badge-row { display: flex; gap: 1.8rem; flex-wrap: wrap; }
+  .badge b { display: block; font-size: 1.05rem; font-weight: 800; color: var(--ink-primary); }
+  .badge span { font-size: .74rem; color: var(--ink-muted); text-transform: lowercase; }
+
+  .form-col { flex: 0 1 460px; position: relative; z-index: 1; display: flex; align-items: center;
+    justify-content: center; padding: 2rem; }
+  .card { background: var(--bg-surface); border: 1px solid var(--border); border-radius: 16px;
+    padding: 2.4rem 2.2rem; width: 100%; max-width: 340px;
+    box-shadow: 0 1px 0 rgba(255,255,255,.04) inset, 0 24px 60px rgba(0,0,0,.55); }
+  h2.card-title { font-size: 1.25rem; font-weight: 800; letter-spacing: -.01em; margin: 0 0 .3rem; }
+  p.sub { color: var(--ink-secondary); font-size: .85rem; margin: 0 0 1.6rem; }
+  .field { display: flex; flex-direction: column; gap: .35rem; margin-bottom: 1rem; }
+  label { font-size: .7rem; text-transform: uppercase; letter-spacing: .05em; color: var(--ink-secondary); font-weight: 700; }
+  input { font-family: inherit; font-size: .95rem; padding: .62rem .75rem; border-radius: 9px;
+    border: 1px solid var(--border); background: var(--bg-surface-2); color: var(--ink-primary); outline: none;
+    transition: border-color .15s ease, box-shadow .15s ease; width: 100%; }
+  input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-tint); }
+  button { width: 100%; margin-top: .6rem; font-family: inherit; font-size: .92rem; font-weight: 700;
+    padding: .72rem 1rem; border-radius: 9px; border: none;
+    background: linear-gradient(135deg, var(--accent), var(--accent-deep)); color: #fff; cursor: pointer;
+    box-shadow: 0 4px 16px rgba(109,106,247,.35); transition: filter .15s ease; }
+  button:hover { filter: brightness(1.08); }
+  .flash.error { background: var(--bad-bg); color: var(--bad); padding: .7rem .9rem; border-radius: 9px;
+    font-size: .85rem; margin-bottom: 1rem; border: 1px solid rgba(248,113,113,.25); }
+
+  @media (max-width: 860px) {
+    body { flex-direction: column; }
+    .pitch-col { padding: 2.2rem 1.5rem 1rem; text-align: left; }
+    .badge-row { gap: 1.2rem; }
+    .form-col { flex: 1; padding: 1.5rem; }
+  }
+</style>
+</head>
+<body>
+  <div class="lang-row">
+    {% for code in LANGS %}
+    <a href="/set_language/{{ code }}" class="{{ 'active' if LANG==code else '' }}">{{ LANG_LABELS[code] }}</a>
+    {% endfor %}
+  </div>
+
+  <div class="pitch-col">
+    <div class="brand">
+      <img class="mark" src="{{ url_for('static', filename='img/logo.png') }}" alt="Premium Doo Hostel">
+      <div>
+        <div class="name">Premium Doo</div>
+        <div class="sub">Moliyaviy tizim</div>
+      </div>
+    </div>
+    <h1>{{ t('login.headline') }}</h1>
+    <p class="pitch">{{ t('login.pitch') }}</p>
+    <div class="badge-row">
+      <div class="badge"><b>{{ t('login.badge_realtime') }}</b><span>{{ t('login.badge_realtime_sub') }}</span></div>
+      <div class="badge"><b>{{ t('login.badge_currency') }}</b><span>{{ t('login.badge_currency_sub') }}</span></div>
+      <div class="badge"><b>{{ t('login.badge_rbac') }}</b><span>{{ t('login.badge_rbac_sub') }}</span></div>
+    </div>
+  </div>
+
+  <div class="form-col">
+    <div class="card">
+      <h2 class="card-title">{{ t('login.card_title') }}</h2>
+      <p class="sub">{{ t('login.card_subtitle') }}</p>
+      {% with messages = get_flashed_messages(with_categories=true) %}
+        {% for category, msg in messages %}
+          <div class="flash {{ category }}">{{ msg }}</div>
+        {% endfor %}
+      {% endwith %}
+      <form method="post">
+        <div class="field">
+          <label>{{ t('login.username') }}</label>
+          <input type="text" name="username" required autofocus>
+        </div>
+        <div class="field">
+          <label>{{ t('login.password') }}</label>
+          <input type="password" name="password" required>
+        </div>
+        <button type="submit">{{ t('login.submit') }}</button>
+      </form>
+    </div>
+  </div>
+</body>
+</html>

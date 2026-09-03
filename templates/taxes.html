@@ -1,0 +1,119 @@
+{% extends "base.html" %}
+{% block title %}{{ t('nav.taxes') }}{% endblock %}
+{% block head %}
+<style>
+  .report-tabs { display: flex; gap: .5rem; flex-wrap: wrap; margin-bottom: 1.4rem; }
+  .report-tabs a { padding: .5rem 1rem; border-radius: 10px; font-size: .84rem; font-weight: 600;
+    text-decoration: none; color: var(--ink-secondary); background: var(--bg-surface-2); border: 1px solid var(--border); }
+  .report-tabs a.active { background: linear-gradient(135deg, var(--accent), var(--accent-deep)); color: #fff; border-color: transparent; }
+  dialog#taxModal { border: 1px solid var(--border); border-radius: var(--radius); background: var(--bg-surface);
+    box-shadow: var(--shadow); color: var(--ink-primary); padding: 1.4rem; width: min(420px, 94vw); box-sizing: border-box; }
+  dialog#taxModal::backdrop { background: rgba(0,0,0,.55); }
+  .modal-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.1rem; }
+  .modal-head h2 { margin: 0; font-size: 1.15rem; }
+  .modal-close-btn { background: none; border: none; color: var(--ink-secondary); font-size: 1.3rem; cursor: pointer; line-height: 1; }
+  .auto-badge { font-size: .68rem; font-weight: 700; padding: .1rem .45rem; border-radius: 999px;
+    background: var(--bg-surface-2); color: var(--ink-muted); margin-left: .4rem; }
+</style>
+{% endblock %}
+{% block content %}
+  <div style="display:flex;align-items:flex-end;justify-content:space-between;flex-wrap:wrap;gap:1rem;margin-bottom:1.6rem;">
+    <div>
+      <h1 style="font-size:1.55rem">{{ t('taxes.title') }}</h1>
+      <p style="color:var(--ink-secondary);font-size:.9rem;margin-top:.3rem">{{ t('taxes.subtitle') }}</p>
+    </div>
+    {% include "_period_filter.html" %}
+  </div>
+
+  {% set active_report = 'taxes' %}
+  {% include "_report_tabs.html" with context %}
+
+  <div class="card">
+    <div class="overflow-x">
+      <table class="data-table">
+        <thead><tr>
+          <th>{{ t('taxes.th_name') }}</th>
+          <th class="num">{{ t('taxes.th_opening') }}</th>
+          <th class="num">{{ t('taxes.th_accrued') }}</th>
+          <th class="num">{{ t('taxes.th_paid') }}</th>
+          <th class="num">{{ t('taxes.th_closing') }}</th>
+          <th class="num">{{ t('taxes.th_overpayment') }}</th>
+          {% if can_create %}<th></th>{% endif %}
+        </tr></thead>
+        <tbody>
+          {% for r in rows %}
+          <tr>
+            <td>{{ r.tax_name }}</td>
+            <td class="num">{{ r.opening|money }}</td>
+            <td class="num">{{ r.accrued|money }}</td>
+            <td class="num">{{ r.paid|money }}</td>
+            <td class="num" style="font-weight:700">{{ r.debt|money if r.debt else '0' }}</td>
+            <td class="num">{{ r.overpayment|money if r.overpayment else t('common.dash') }}</td>
+            {% if can_create %}
+            <td style="display:flex;gap:.4rem">
+              <button type="button" class="btn tax-edit" data-name="{{r.tax_name}}" data-accrued="{{r.accrued}}" data-paid="{{r.paid}}">✎</button>
+              {% if can_delete and (r.accrued or r.paid) %}
+              <form method="post" action="/taxes/delete" data-confirm="{{ t('taxes.delete_confirm') }}">
+                <input type="hidden" name="year" value="{{year}}">
+                <input type="hidden" name="month" value="{{month}}">
+                <input type="hidden" name="tax_name" value="{{r.tax_name}}">
+                <button type="submit" class="btn danger">✕</button>
+              </form>
+              {% endif %}
+            </td>
+            {% endif %}
+          </tr>
+          {% endfor %}
+        </tbody>
+        <tfoot>
+          <tr style="font-weight:700">
+            <td>{{ t('taxes.total') }}</td>
+            <td class="num">{{ totals.opening|money }}</td>
+            <td class="num">{{ totals.accrued|money }}</td>
+            <td class="num">{{ totals.paid|money }}</td>
+            <td class="num">{{ totals.debt|money }}</td>
+            <td class="num">{{ totals.overpayment|money }}</td>
+            {% if can_create %}<td></td>{% endif %}
+          </tr>
+        </tfoot>
+      </table>
+    </div>
+  </div>
+
+  {% if can_create %}
+  <dialog id="taxModal">
+    <div class="modal-head">
+      <h2 id="taxModalTitle">{{ t('taxes.edit_title') }}</h2>
+      <button type="button" class="modal-close-btn" id="closeTaxModalBtn">✕</button>
+    </div>
+    <form method="post" action="/taxes/save" class="form-grid" id="taxForm" style="grid-template-columns:1fr">
+      <input type="hidden" name="year" value="{{year}}">
+      <input type="hidden" name="month" value="{{month}}">
+      <input type="hidden" name="tax_name" id="taxNameInput">
+      <div class="field"><label>{{ t('taxes.th_accrued') }}</label><input type="text" inputmode="decimal" class="money-input" name="accrued" id="taxAccruedInput"></div>
+      <div class="field"><label>{{ t('taxes.th_paid') }}</label><input type="text" inputmode="decimal" class="money-input" name="paid" id="taxPaidInput"></div>
+      <div class="field"><button class="btn primary" type="submit">{{ t('taxes.save') }}</button></div>
+    </form>
+  </dialog>
+  {% endif %}
+{% endblock %}
+{% block scripts %}
+{% if can_create %}
+<script>
+(function () {
+  var modal = document.getElementById("taxModal");
+  var title = document.getElementById("taxModalTitle");
+  document.querySelectorAll(".tax-edit").forEach(function (btn) {
+    btn.addEventListener("click", function () {
+      document.getElementById("taxNameInput").value = btn.getAttribute("data-name");
+      document.getElementById("taxAccruedInput").value = btn.getAttribute("data-accrued");
+      document.getElementById("taxPaidInput").value = btn.getAttribute("data-paid");
+      title.textContent = btn.getAttribute("data-name");
+      modal.showModal();
+    });
+  });
+  document.getElementById("closeTaxModalBtn").addEventListener("click", function () { modal.close(); });
+})();
+</script>
+{% endif %}
+{% endblock %}

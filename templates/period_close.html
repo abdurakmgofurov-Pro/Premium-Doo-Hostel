@@ -1,0 +1,100 @@
+{% extends "base.html" %}
+{% block title %}{{ t('nav.period_close') }}{% endblock %}
+{% block head %}
+<style>
+  .close-layout { display: grid; grid-template-columns: 260px 1fr; gap: 1.4rem; align-items: start; }
+  @media (max-width: 860px) { .close-layout { grid-template-columns: 1fr; } }
+  .month-list { display: flex; flex-direction: column; gap: .4rem; }
+  .month-item { display: flex; align-items: center; justify-content: space-between; gap: .6rem;
+    padding: .8rem .9rem; border-radius: 10px; border: 1px solid var(--border); background: var(--bg-surface);
+    text-decoration: none; color: var(--ink-primary); }
+  .month-item.selected { border-color: var(--accent); background: var(--accent-tint); }
+  .month-item .mname { font-weight: 700; font-size: .88rem; }
+  .month-item .msub { font-size: .7rem; color: var(--ink-muted); margin-top: .1rem; }
+  .status-pill { font-size: .68rem; font-weight: 700; padding: .2rem .55rem; border-radius: 999px; white-space: nowrap; }
+  .status-pill.closed { background: var(--good-bg); color: var(--good); }
+  .status-pill.next { background: var(--accent-tint); color: var(--accent-light); }
+  .status-pill.waiting { background: var(--bg-surface-3); color: var(--ink-secondary); }
+  .status-pill.ongoing { background: var(--warn-bg); color: var(--warn); }
+
+  .check-row { display: flex; align-items: flex-start; gap: .7rem; padding: .7rem 0; border-bottom: 1px solid var(--border); }
+  .check-row:last-child { border-bottom: none; }
+  .check-icon { width: 20px; height: 20px; border-radius: 50%; flex-shrink: 0; display: flex; align-items: center;
+    justify-content: center; font-size: .72rem; font-weight: 700; margin-top: .1rem; }
+  .check-icon.ok { background: var(--good-bg); color: var(--good); }
+  .check-icon.bad { background: var(--bad-bg); color: var(--bad); }
+  .indicators-row { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-top: 1.2rem; }
+</style>
+{% endblock %}
+{% block content %}
+  <h1 style="font-size:1.55rem">{{ t('close.title') }}</h1>
+  <p style="color:var(--ink-secondary);font-size:.9rem;margin-top:.3rem;margin-bottom:1.6rem;">{{ t('close.subtitle') }}</p>
+
+  <div class="close-layout">
+    <div class="month-list">
+      {% for ym, status in months %}
+      {% set y = ym.split('-')[0]|int %}
+      {% set m = ym.split('-')[1]|int %}
+      <a class="month-item {{ 'selected' if ym==selected else '' }}" href="?ym={{ym}}">
+        <div>
+          <div class="mname">{{ m|t_month }} {{y}}</div>
+          <div class="msub">
+            {% if status=='closed' %}{{ t('close.status_closed') }}
+            {% elif status=='next' %}{{ t('close.status_next') }}
+            {% elif status=='ongoing' %}{{ t('close.status_ongoing') }}
+            {% else %}{{ t('close.status_waiting') }}{% endif %}
+          </div>
+        </div>
+        <span class="status-pill {{status}}">
+          {% if status=='closed' %}{{ t('close.status_closed') }}
+          {% elif status=='next' %}{{ t('close.status_next') }}
+          {% elif status=='ongoing' %}{{ t('close.status_ongoing') }}
+          {% else %}{{ t('close.status_waiting') }}{% endif %}
+        </span>
+      </a>
+      {% endfor %}
+    </div>
+
+    {% if selected %}
+    {% set sy = selected.split('-')[0]|int %}
+    {% set sm = selected.split('-')[1]|int %}
+    <div class="card" style="margin-bottom:0">
+      <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:1rem;margin-bottom:.3rem;">
+        <h2 style="margin-bottom:0">{{ sm|t_month }} {{sy}}</h2>
+        {% set st = months|selectattr('0','equalto',selected)|map(attribute='1')|first %}
+        {% if st == 'closed' %}
+          {% if is_super_admin %}
+          <form method="post" action="/period-close/{{selected}}/reopen">
+            <button class="btn danger" type="submit">{{ t('close.reopen_btn') }}</button>
+          </form>
+          {% endif %}
+        {% elif st == 'next' %}
+          <form method="post" action="/period-close/{{selected}}/close">
+            <button class="btn primary" type="submit">{{ t('close.close_btn') }}</button>
+          </form>
+        {% endif %}
+      </div>
+      <p style="color:var(--ink-muted);font-size:.8rem;margin-bottom:.6rem">{{ t('close.checks_title') }}</p>
+      <div>
+        {% for c in checks %}
+        <div class="check-row">
+          <span class="check-icon {{ 'ok' if c.ok else 'bad' }}">{{ '✓' if c.ok else '!' }}</span>
+          <span>{{ t('close.check_' ~ c.key) }}</span>
+        </div>
+        {% endfor %}
+      </div>
+
+      <div class="indicators-row">
+        <div class="balance-card" style="background:var(--bg-surface-2);border:1px solid var(--border);border-radius:12px;padding:1rem 1.2rem;">
+          <div style="font-size:.72rem;color:var(--ink-secondary);margin-bottom:.4rem">{{ t('close.cash_balance') }} (UZS)</div>
+          <div style="font-size:1.15rem;font-weight:700;font-family:'IBM Plex Mono',monospace">{{ bal_uzs|money }}</div>
+        </div>
+        <div class="balance-card" style="background:var(--bg-surface-2);border:1px solid var(--border);border-radius:12px;padding:1rem 1.2rem;">
+          <div style="font-size:.72rem;color:var(--ink-secondary);margin-bottom:.4rem">{{ t('close.cash_balance') }} (USD)</div>
+          <div style="font-size:1.15rem;font-weight:700;font-family:'IBM Plex Mono',monospace">{{ bal_usd|money }}</div>
+        </div>
+      </div>
+    </div>
+    {% endif %}
+  </div>
+{% endblock %}

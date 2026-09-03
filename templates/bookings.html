@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+{% block title %}{{ t('nav.bookings') }}{% endblock %}
+{% block content %}
+<div class="card">
+  <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:.8rem;margin-bottom:1rem;">
+    <h2 style="margin-bottom:0">{{ t('bookings.title') }}</h2>
+    {% include "_period_filter.html" %}
+  </div>
+  <input type="text" id="searchBox" placeholder="{{ t('bookings.search_placeholder') }}"
+    style="width:100%;padding:.6rem .8rem;border-radius:8px;border:1px solid var(--border);
+    background:var(--bg-surface-2);font-family:inherit;font-size:.88rem;margin-bottom:1rem;">
+  <div class="overflow-x">
+    <table class="data-table" id="bookingsTable">
+      <thead><tr>
+        <th>{{ t('bookings.th_number') }}</th><th>{{ t('bookings.th_status') }}</th><th>{{ t('bookings.th_guest') }}</th><th>{{ t('bookings.th_channel') }}</th>
+        <th>{{ t('bookings.th_currency') }}</th><th>{{ t('bookings.th_revenue') }}</th><th>{{ t('bookings.th_prepaid') }}</th><th>{{ t('bookings.th_checkin') }}</th>
+        <th>{{ t('bookings.th_room_type') }}</th><th class="num">{{ t('bookings.th_nights') }}</th><th>{{ t('bookings.th_guests') }}</th><th>{{ t('bookings.th_payment_method') }}</th>
+      </tr></thead>
+      <tbody>
+        {% for r in rows %}
+        <tr>
+          <td>{{r.number}}</td>
+          <td>{{ t('bookings.status_active') if r.status == "Active" else t('bookings.status_cancelled') }}</td>
+          <td>{{r.guest or t('common.dash')}}</td>
+          <td>{{r.channel_name}}</td>
+          <td>{{r.currency}}</td>
+          <td class="num">{{r.revenue|money}}</td>
+          <td class="num">{{r.prepaid|money}}</td>
+          <td>{{ r.arrival[:10] if r.arrival else t('common.dash') }}</td>
+          <td>{{r.room_type or t('common.dash')}}</td>
+          <td class="num">{{ r.nights if r.nights is not none else t('common.dash') }}</td>
+          <td>{{ r.adults }}{% if r.children %} + {{ r.children }}👶{% endif %}</td>
+          <td>{{r.payment_method or t('common.dash')}}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% if not rows %}<div class="empty">{{ t('bookings.empty') }}</div>{% endif %}
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+document.getElementById('searchBox').addEventListener('input', function() {
+  const q = this.value.toLowerCase();
+  document.querySelectorAll('#bookingsTable tbody tr').forEach(tr => {
+    tr.style.display = tr.textContent.toLowerCase().includes(q) ? '' : 'none';
+  });
+});
+</script>
+{% endblock %}

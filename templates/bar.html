@@ -1,0 +1,307 @@
+{% extends "base.html" %}
+{% block title %}{{ t('nav.bar') }}{% endblock %}
+{% block head %}
+<style>
+  .sell-form { max-width: 980px; }
+  .row-actions { display: flex; flex-direction: row; align-items: center; gap: .4rem; }
+  .pick-title { font-size: .78rem; text-transform: uppercase; letter-spacing: .05em; color: var(--ink-muted); font-weight: 700; margin-bottom: .5rem; }
+  .pick-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: .6rem; margin-bottom: 1.1rem; }
+  .pick-card { background: var(--bg-surface-2); border: 1px solid var(--border); border-radius: 12px; padding: .7rem .8rem;
+    text-align: left; cursor: pointer; font: inherit; color: inherit; transition: border-color .15s, background .15s; }
+  .pick-card:hover:not(:disabled) { border-color: var(--accent); }
+  .pick-card.selected { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
+  .pick-card:disabled { opacity: .4; cursor: not-allowed; }
+  .pick-card .pk-name { font-weight: 700; font-size: .88rem; margin-bottom: .3rem; }
+  .pick-card .pk-price { font-family: "IBM Plex Mono", monospace; font-weight: 700; color: var(--accent-light); font-size: .9rem; margin-bottom: .25rem; }
+  .pick-card .pk-stock { font-size: .7rem; color: var(--ink-muted); }
+  .cart-box { border: 1px solid var(--border); border-radius: 12px; padding: 0 .9rem; margin-bottom: .8rem; }
+  .cart-box .empty { padding: .7rem 0; font-size: .85rem; }
+  .cart-row { display: flex; gap: .6rem; align-items: center; padding: .55rem 0; border-bottom: 1px solid var(--border); flex-wrap: wrap; }
+  .cart-row:last-child { border-bottom: none; }
+  .cart-row .cr-name { flex: 2 1 160px; font-weight: 600; font-size: .88rem; min-width: 0; }
+  .cart-row .cr-qty { width: 80px; flex: 0 0 auto; }
+  .cart-row .cr-sub { flex: 1 1 100px; text-align: right; font-family: "IBM Plex Mono", monospace; font-size: .85rem; color: var(--ink-secondary); min-width: 90px; }
+  .remove-row-btn { background: none; border: 1px solid var(--border); border-radius: 9px; color: var(--ink-secondary);
+    width: 36px; height: 36px; flex: 0 0 auto; cursor: pointer; font-size: .9rem; line-height: 1; }
+  .remove-row-btn:hover { color: var(--bad); border-color: var(--bad); }
+  .cart-total { font-size: 1.05rem; font-weight: 700; font-family: "IBM Plex Mono", monospace; margin: .9rem 0; }
+  .sell-footer { display: flex; align-items: flex-end; gap: 1rem; flex-wrap: wrap; }
+  .sell-footer .field.source { flex: 1 1 220px; max-width: 280px; min-width: 0; }
+  .sell-footer button[type=submit] { flex: 0 0 auto; }
+  .sell-footer button[type=submit]:disabled { opacity: .45; cursor: not-allowed; }
+  dialog#barEditModal { border: 1px solid var(--border); border-radius: var(--radius); background: var(--bg-surface);
+    box-shadow: var(--shadow); color: var(--ink-primary); padding: 1.4rem; width: min(460px, 94vw); box-sizing: border-box; }
+  dialog#barEditModal::backdrop { background: rgba(0,0,0,.55); }
+  .modal-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.1rem; }
+  .modal-head h2 { margin: 0; font-size: 1.15rem; }
+  .modal-close-btn { background: none; border: none; color: var(--ink-secondary); font-size: 1.3rem; cursor: pointer; line-height: 1; }
+  @media (max-width: 520px) {
+    .pick-grid { grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: .5rem; }
+    .cart-row .cr-name { flex-basis: 100%; }
+    .cart-row .cr-qty { flex: 1 1 auto; }
+    .cart-row .cr-sub { text-align: left; }
+    .sell-footer .field.source { max-width: none; flex-basis: 100%; }
+    .sell-footer button[type=submit] { flex: 1 1 100%; }
+  }
+</style>
+{% endblock %}
+{% block content %}
+  <div style="display:flex;align-items:flex-end;justify-content:space-between;flex-wrap:wrap;gap:1rem;margin-bottom:1.4rem;">
+    <div>
+      <h1 style="font-size:1.55rem">{{ t('bar.title') }}</h1>
+      <p style="color:var(--ink-secondary);font-size:.9rem;margin-top:.3rem">{{ t('bar.subtitle') }}</p>
+    </div>
+    <a class="btn" href="/sklad">{{ t('bar.go_to_sklad') }}</a>
+  </div>
+
+  {% if can_create %}
+  <div class="card">
+    <h2>{{ t('bar.sell_form_title') }}</h2>
+    {% if products %}
+    <form class="form-grid sell-form" method="post" action="/bar/sell" id="sellForm">
+      <div class="field full">
+        <div class="pick-title">{{ t('bar.pick_title') }}</div>
+        <div class="pick-grid" id="pickGrid">
+          {% for p in products %}
+          <button type="button" class="pick-card" data-id="{{p.id}}" data-name="{{p.name}}"
+            data-price="{{p.sale_price}}" data-currency="{{p.currency}}" data-stock="{{p.stock_qty}}"
+            {% if p.stock_qty <= 0 %}disabled{% endif %}>
+            <div class="pk-name">{{p.name}}</div>
+            <div class="pk-price">{{ p.sale_price|money }} {{p.currency}}</div>
+            <div class="pk-stock">{% if p.stock_qty > 0 %}{{ t('bar.stock') }}: {{ p.stock_qty|qty }} {{p.unit}}{% else %}{{ t('bar.out_of_stock') }}{% endif %}</div>
+          </button>
+          {% endfor %}
+        </div>
+        <div class="cart-box" id="cartBox">
+          <div class="empty" id="cartEmpty">{{ t('bar.cart_empty') }}</div>
+          <div id="cartRows"></div>
+        </div>
+        <div class="cart-total" id="cartTotal"></div>
+      </div>
+      <div class="sell-footer" style="grid-column:1/-1">
+        <div class="field source"><label>{{ t('bar.source') }}</label>
+          <select name="source">
+            <option value="kassa">{{ t('bar.source_cash') }}</option>
+            <option value="bank">{{ t('bar.source_card') }}</option>
+          </select>
+        </div>
+        <button class="btn primary" type="submit" id="sellSubmitBtn" disabled>{{ t('bar.sell_submit') }}</button>
+      </div>
+    </form>
+    <div class="note" style="margin-top:.8rem">{{ t('bar.note') }}</div>
+    {% else %}
+    <div class="empty">{{ t('bar.no_products') }}</div>
+    {% endif %}
+  </div>
+  {% endif %}
+
+  <div class="card">
+    <div style="display:flex;align-items:flex-end;justify-content:space-between;flex-wrap:wrap;gap:1rem;margin-bottom:1rem;">
+      <h2 style="margin:0">{{ t('bar.history_title') }}</h2>
+      <div style="display:flex;gap:.6rem;flex-wrap:wrap;align-items:center">
+        {% include "_period_filter.html" %}
+        <form method="get" id="productFilterForm" class="period-select">
+          <input type="hidden" name="year" value="{{ year or '' }}">
+          <input type="hidden" name="month" value="{{ month or '' }}">
+          <select name="product_id" onchange="document.getElementById('productFilterForm').submit()">
+            <option value="">{{ t('bar.filter_all_products') }}</option>
+            {% for p in products %}
+            <option value="{{p.id}}" {{ 'selected' if product_id == p.id else '' }}>{{p.name}}</option>
+            {% endfor %}
+          </select>
+        </form>
+      </div>
+    </div>
+    <div class="overflow-x">
+      {% if rows %}
+      <table class="data-table">
+        <thead><tr>
+          <th>{{ t('bar.th_date') }}</th><th>{{ t('bar.th_product') }}</th>
+          <th class="num">{{ t('bar.th_qty') }}</th><th class="num">{{ t('bar.th_unit_price') }}</th>
+          <th class="num">{{ t('bar.th_amount') }}</th><th>{{ t('bar.th_source') }}</th>
+          {% if can_delete %}<th></th>{% endif %}
+        </tr></thead>
+        <tbody>
+          {% for r in rows %}
+          <tr>
+            <td>{{r.date}}</td>
+            <td>{{r.product_name}}</td>
+            <td class="num">{{ r.qty|qty }}</td>
+            <td class="num">{{ r.unit_price|money }} {{r.currency}}</td>
+            <td class="num">{{ r.amount|money }} {{r.currency}}</td>
+            <td>{{ t('bar.source_cash') if r.source=='kassa' else t('bar.source_card') }}</td>
+            {% if can_delete %}
+            <td>
+              {% if is_date_locked(r.date) %}
+              <span class="tag role-custom">🔒</span>
+              {% else %}
+              <div class="row-actions">
+                {% if can_create %}
+                <button type="button" class="btn bar-edit-btn"
+                  data-id="{{r.id}}" data-date="{{r.date}}" data-qty="{{r.qty}}" data-source="{{r.source}}"
+                  data-counterparty="{{r.counterparty or ''}}" data-description="{{r.description or ''}}">✎</button>
+                {% endif %}
+                <form method="post" action="/bar/{{r.id}}/delete" data-confirm="{{ t('bar.delete_confirm') }}">
+                  <button class="btn danger" type="submit">{{ t('bar.delete') }}</button>
+                </form>
+              </div>
+              {% endif %}
+            </td>
+            {% endif %}
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      {% else %}
+      <div class="empty">{{ t('bar.empty') }}</div>
+      {% endif %}
+    </div>
+  </div>
+
+  {% if can_create %}
+  <dialog id="barEditModal">
+    <div class="modal-head">
+      <h2>{{ t('bar.edit_title') }}</h2>
+      <button type="button" class="modal-close-btn" id="closeBarEditBtn">✕</button>
+    </div>
+    <form method="post" id="barEditForm" class="form-grid" style="grid-template-columns:1fr">
+      <div class="field"><label>{{ t('bar.th_date') }}</label><input type="date" name="date" id="editBarDate" required></div>
+      <div class="field"><label>{{ t('bar.th_qty') }}</label><input type="text" inputmode="decimal" class="money-input" name="qty" id="editBarQty" required></div>
+      <div class="field"><label>{{ t('bar.th_source') }}</label>
+        <select name="source" id="editBarSource">
+          <option value="kassa">{{ t('bar.source_cash') }}</option>
+          <option value="bank">{{ t('bar.source_card') }}</option>
+        </select>
+      </div>
+      <div class="field"><label>{{ t('services.counterparty') }}</label><input type="text" name="counterparty" id="editBarCounterparty"></div>
+      <div class="field"><label>{{ t('services.description') }}</label><input type="text" name="description" id="editBarDescription"></div>
+      <div class="field"><button class="btn primary" type="submit">{{ t('bar.save') }}</button></div>
+    </form>
+  </dialog>
+  {% endif %}
+{% endblock %}
+{% block scripts %}
+{% if can_create %}
+<script>
+(function () {
+  var modal = document.getElementById("barEditModal");
+  if (!modal) return;
+  var form = document.getElementById("barEditForm");
+  document.querySelectorAll(".bar-edit-btn").forEach(function (btn) {
+    btn.addEventListener("click", function () {
+      form.action = "/bar/" + btn.getAttribute("data-id") + "/edit";
+      document.getElementById("editBarDate").value = btn.getAttribute("data-date");
+      document.getElementById("editBarQty").value = btn.getAttribute("data-qty");
+      document.getElementById("editBarSource").value = btn.getAttribute("data-source");
+      document.getElementById("editBarCounterparty").value = btn.getAttribute("data-counterparty");
+      document.getElementById("editBarDescription").value = btn.getAttribute("data-description");
+      modal.showModal();
+    });
+  });
+  document.getElementById("closeBarEditBtn").addEventListener("click", function () { modal.close(); });
+})();
+</script>
+{% endif %}
+<script>
+(function () {
+  var grid = document.getElementById("pickGrid");
+  if (!grid) return;
+  var cartRows = document.getElementById("cartRows");
+  var cartEmpty = document.getElementById("cartEmpty");
+  var totalEl = document.getElementById("cartTotal");
+  var submitBtn = document.getElementById("sellSubmitBtn");
+
+  var products = {};
+  grid.querySelectorAll(".pick-card").forEach(function (card) {
+    var id = card.getAttribute("data-id");
+    products[id] = {
+      name: card.getAttribute("data-name"),
+      price: parseFloat(card.getAttribute("data-price")) || 0,
+      currency: card.getAttribute("data-currency") || "UZS",
+      stock: parseFloat(card.getAttribute("data-stock")) || 0,
+    };
+  });
+
+  var cart = {};
+
+  function fmtMoney(n) {
+    var parts = n.toFixed(2).split(".");
+    parts[0] = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, " ");
+    return parts.join(".");
+  }
+
+  function removeRow(id) {
+    delete cart[id];
+    var row = cartRows.querySelector('.cart-row[data-id="' + id + '"]');
+    if (row) row.remove();
+    var card = grid.querySelector('.pick-card[data-id="' + id + '"]');
+    if (card) card.classList.remove("selected");
+    updateAll();
+  }
+
+  function buildRow(id) {
+    var p = products[id];
+    var row = document.createElement("div");
+    row.className = "cart-row";
+    row.setAttribute("data-id", id);
+    row.innerHTML =
+      '<input type="hidden" name="product_id[]" value="' + id + '">' +
+      '<div class="cr-name">' + p.name + '</div>' +
+      '<input type="number" class="cr-qty" name="qty[]" step="0.01" min="0.01"' +
+      (p.stock ? ' max="' + p.stock + '"' : '') + ' value="' + cart[id] + '">' +
+      '<div class="cr-sub"></div>' +
+      '<button type="button" class="remove-row-btn">✕</button>';
+    row.querySelector(".cr-qty").addEventListener("input", function (e) {
+      var v = parseFloat(e.target.value);
+      cart[id] = v > 0 ? v : 0;
+      updateAll();
+    });
+    row.querySelector(".cr-qty").addEventListener("blur", function (e) {
+      if (!(parseFloat(e.target.value) > 0)) removeRow(id);
+    });
+    row.querySelector(".remove-row-btn").addEventListener("click", function () {
+      removeRow(id);
+    });
+    return row;
+  }
+
+  function updateAll() {
+    var ids = Object.keys(cart).filter(function (id) { return cart[id] > 0; });
+    cartEmpty.style.display = ids.length ? "none" : "";
+    var totals = {};
+    ids.forEach(function (id) {
+      var p = products[id];
+      var sub = p.price * cart[id];
+      totals[p.currency] = (totals[p.currency] || 0) + sub;
+      var row = cartRows.querySelector('.cart-row[data-id="' + id + '"]');
+      if (row) row.querySelector(".cr-sub").textContent = fmtMoney(sub) + " " + p.currency;
+    });
+    var parts = [];
+    Object.keys(totals).forEach(function (cur) {
+      if (totals[cur]) parts.push(fmtMoney(totals[cur]) + " " + cur);
+    });
+    totalEl.textContent = "{{ t('bar.cart_total') }}: " + (parts.length ? parts.join(" + ") : "0");
+    submitBtn.disabled = ids.length === 0;
+  }
+
+  grid.querySelectorAll(".pick-card").forEach(function (card) {
+    card.addEventListener("click", function () {
+      if (card.disabled) return;
+      var id = card.getAttribute("data-id");
+      if (cart[id] > 0) {
+        cart[id] += 1;
+        var row = cartRows.querySelector('.cart-row[data-id="' + id + '"]');
+        if (row) row.querySelector(".cr-qty").value = cart[id];
+      } else {
+        cart[id] = 1;
+        cartRows.appendChild(buildRow(id));
+        card.classList.add("selected");
+      }
+      updateAll();
+    });
+  });
+
+  updateAll();
+})();
+</script>
+{% endblock %}
