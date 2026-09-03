@@ -14,6 +14,8 @@ TR = {
     "nav.roles": {"ru": "Роли и доступы", "en": "Roles & Access", "uz": "Rollar va huquqlar"},
     "nav.settings": {"ru": "Настройки", "en": "Settings", "uz": "Sozlamalar"},
     "nav.section_main": {"ru": "Основное", "en": "Main", "uz": "Asosiy"},
+    "nav.section_operations": {"ru": "Операции", "en": "Operations", "uz": "Operatsion"},
+    "nav.section_finance": {"ru": "Финансы", "en": "Finance", "uz": "Moliya"},
     "nav.section_admin": {"ru": "Управление", "en": "Admin", "uz": "Boshqaruv"},
 
     "brand.subtitle": {"ru": "Финансовая система", "en": "Financial system", "uz": "Moliyaviy tizim"},

@@ -3,7 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Kirish — Premium Doo</title>
+<title>Kirish — Premium Doo Hostel</title>
+<link rel="icon" type="image/png" href="{{ url_for('static', filename='img/favicon.png') }}">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -16,8 +17,10 @@
   }
   html { color-scheme: dark; }
   * { box-sizing: border-box; }
-  body { margin: 0; min-height: 100vh; display: flex; background: var(--bg-page); position: relative;
-    overflow-x: hidden; font-family: "Inter", system-ui, sans-serif; color: var(--ink-primary); }
+  body { margin: 0; min-height: 100vh; display: flex; align-items: center; justify-content: center;
+    background: var(--bg-page); position: relative;
+    overflow-x: hidden; font-family: "Inter", system-ui, sans-serif; color: var(--ink-primary);
+    padding: 3rem 1.5rem 5rem; }
   body::before {
     content: ""; position: fixed; inset: 0; z-index: 0; pointer-events: none;
     background:
@@ -32,8 +35,10 @@
     color: var(--ink-secondary); }
   .lang-row a.active { background: var(--accent); color: #fff; }
 
-  .pitch-col { flex: 1 1 480px; position: relative; z-index: 1; display: flex; flex-direction: column;
-    justify-content: center; padding: 3rem 4vw; min-width: 0; }
+  .page-wrap { position: relative; z-index: 1; display: flex; align-items: center; flex-wrap: wrap;
+    justify-content: center; gap: 3rem; width: 100%; max-width: 1080px; margin: 0 auto; }
+
+  .pitch-col { flex: 1 1 420px; min-width: 0; display: flex; flex-direction: column; justify-content: center; }
   .brand { display: flex; align-items: center; gap: .65rem; margin-bottom: 2.6rem; }
   .brand .mark { width: 36px; height: 36px; border-radius: 9px; flex-shrink: 0;
     object-fit: cover; background: #fff;
@@ -49,8 +54,7 @@
   .badge b { display: block; font-size: 1.05rem; font-weight: 800; color: var(--ink-primary); }
   .badge span { font-size: .74rem; color: var(--ink-muted); text-transform: lowercase; }
 
-  .form-col { flex: 0 1 460px; position: relative; z-index: 1; display: flex; align-items: center;
-    justify-content: center; padding: 2rem; }
+  .form-col { flex: 0 1 380px; min-width: 300px; display: flex; align-items: center; justify-content: center; }
   .card { background: var(--bg-surface); border: 1px solid var(--border); border-radius: 16px;
     padding: 2.4rem 2.2rem; width: 100%; max-width: 340px;
     box-shadow: 0 1px 0 rgba(255,255,255,.04) inset, 0 24px 60px rgba(0,0,0,.55); }
@@ -70,11 +74,15 @@
   .flash.error { background: var(--bad-bg); color: var(--bad); padding: .7rem .9rem; border-radius: 9px;
     font-size: .85rem; margin-bottom: 1rem; border: 1px solid rgba(248,113,113,.25); }
 
+  .site-footer { position: fixed; left: 0; right: 0; bottom: 1rem; z-index: 2; text-align: center;
+    font-size: .72rem; color: var(--ink-muted); pointer-events: none; }
+
   @media (max-width: 860px) {
-    body { flex-direction: column; }
-    .pitch-col { padding: 2.2rem 1.5rem 1rem; text-align: left; }
+    body { padding: 2.2rem 1.5rem 4.5rem; }
+    .page-wrap { gap: 2rem; }
+    .pitch-col { text-align: left; }
     .badge-row { gap: 1.2rem; }
-    .form-col { flex: 1; padding: 1.5rem; }
+    .form-col { min-width: 0; }
   }
 </style>
 </head>
@@ -85,44 +93,48 @@
     {% endfor %}
   </div>
 
-  <div class="pitch-col">
-    <div class="brand">
-      <img class="mark" src="{{ url_for('static', filename='img/logo.png') }}" alt="Premium Doo Hostel">
-      <div>
-        <div class="name">Premium Doo</div>
-        <div class="sub">Moliyaviy tizim</div>
+  <div class="page-wrap">
+    <div class="pitch-col">
+      <div class="brand">
+        <img class="mark" src="{{ url_for('static', filename='img/logo.png') }}" alt="Premium Doo Hostel">
+        <div>
+          <div class="name">Premium Doo Hostel</div>
+          <div class="sub">Moliyaviy tizim</div>
+        </div>
+      </div>
+      <h1>{{ t('login.headline') }}</h1>
+      <p class="pitch">{{ t('login.pitch') }}</p>
+      <div class="badge-row">
+        <div class="badge"><b>{{ t('login.badge_realtime') }}</b><span>{{ t('login.badge_realtime_sub') }}</span></div>
+        <div class="badge"><b>{{ t('login.badge_currency') }}</b><span>{{ t('login.badge_currency_sub') }}</span></div>
+        <div class="badge"><b>{{ t('login.badge_rbac') }}</b><span>{{ t('login.badge_rbac_sub') }}</span></div>
       </div>
     </div>
-    <h1>{{ t('login.headline') }}</h1>
-    <p class="pitch">{{ t('login.pitch') }}</p>
-    <div class="badge-row">
-      <div class="badge"><b>{{ t('login.badge_realtime') }}</b><span>{{ t('login.badge_realtime_sub') }}</span></div>
-      <div class="badge"><b>{{ t('login.badge_currency') }}</b><span>{{ t('login.badge_currency_sub') }}</span></div>
-      <div class="badge"><b>{{ t('login.badge_rbac') }}</b><span>{{ t('login.badge_rbac_sub') }}</span></div>
+
+    <div class="form-col">
+      <div class="card">
+        <h2 class="card-title">{{ t('login.card_title') }}</h2>
+        <p class="sub">{{ t('login.card_subtitle') }}</p>
+        {% with messages = get_flashed_messages(with_categories=true) %}
+          {% for category, msg in messages %}
+            <div class="flash {{ category }}">{{ msg }}</div>
+          {% endfor %}
+        {% endwith %}
+        <form method="post">
+          <div class="field">
+            <label>{{ t('login.username') }}</label>
+            <input type="text" name="username" required autofocus>
+          </div>
+          <div class="field">
+            <label>{{ t('login.password') }}</label>
+            <input type="password" name="password" required>
+          </div>
+          <button type="submit">{{ t('login.submit') }}</button>
+        </form>
+      </div>
     </div>
   </div>
 
-  <div class="form-col">
-    <div class="card">
-      <h2 class="card-title">{{ t('login.card_title') }}</h2>
-      <p class="sub">{{ t('login.card_subtitle') }}</p>
-      {% with messages = get_flashed_messages(with_categories=true) %}
-        {% for category, msg in messages %}
-          <div class="flash {{ category }}">{{ msg }}</div>
-        {% endfor %}
-      {% endwith %}
-      <form method="post">
-        <div class="field">
-          <label>{{ t('login.username') }}</label>
-          <input type="text" name="username" required autofocus>
-        </div>
-        <div class="field">
-          <label>{{ t('login.password') }}</label>
-          <input type="password" name="password" required>
-        </div>
-        <button type="submit">{{ t('login.submit') }}</button>
-      </form>
-    </div>
-  </div>
+  <footer class="site-footer">© 2026 UstunSyS · Все права защищены</footer>
 </body>
 </html>
