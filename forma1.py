@@ -13,19 +13,20 @@ va ustav kapitali qo'lda (Sozlamalar sahifasida) kiritiladi. Rasmiy
 taqdim etishdan oldin buxgalter tomonidan tekshirilishi tavsiya etiladi."""
 
 
-def build_forma1(cash, receivables, fixed_assets, payables, charter, retained):
+def build_forma1(cash, receivables, inventory, fixed_assets, payables, charter, retained):
     """Har bir argument — {"UZS": x, "USD": y} ko'rinishidagi dict."""
     rows = []
 
     def add(key, uzs, usd, bold=False, indent=0):
         rows.append({"key": key, "uzs": uzs, "usd": usd, "bold": bold, "indent": indent})
 
-    assets_uzs = cash["UZS"] + receivables["UZS"] + fixed_assets["UZS"]
-    assets_usd = cash["USD"] + receivables["USD"] + fixed_assets["USD"]
+    assets_uzs = cash["UZS"] + receivables["UZS"] + inventory["UZS"] + fixed_assets["UZS"]
+    assets_usd = cash["USD"] + receivables["USD"] + inventory["USD"] + fixed_assets["USD"]
 
     add("f1.section_assets", 0, 0, bold=True)
     add("f1.cash", cash["UZS"], cash["USD"], indent=1)
     add("f1.receivables", receivables["UZS"], receivables["USD"], indent=1)
+    add("f1.inventory", inventory["UZS"], inventory["USD"], indent=1)
     add("f1.fixed_assets", fixed_assets["UZS"], fixed_assets["USD"], indent=1)
     add("f1.assets_total", assets_uzs, assets_usd, bold=True)
 

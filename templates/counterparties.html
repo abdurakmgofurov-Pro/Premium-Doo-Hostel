@@ -1,0 +1,109 @@
+{% extends "base.html" %}
+{% block title %}{{ t('cp.title') }}{% endblock %}
+{% block head %}
+<style>
+  dialog#cpEditModal { border: 1px solid var(--border); border-radius: var(--radius); background: var(--bg-surface);
+    box-shadow: var(--shadow); color: var(--ink-primary); padding: 1.4rem; width: min(480px, 94vw); box-sizing: border-box; }
+  dialog#cpEditModal::backdrop { background: rgba(0,0,0,.55); }
+  .modal-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.1rem; }
+  .modal-head h2 { margin: 0; font-size: 1.15rem; }
+  .modal-close-btn { background: none; border: none; color: var(--ink-secondary); font-size: 1.3rem; cursor: pointer; line-height: 1; }
+  .row-actions { display: flex; gap: .4rem; }
+</style>
+{% endblock %}
+{% block content %}
+  <div style="display:flex;align-items:flex-end;justify-content:space-between;flex-wrap:wrap;gap:1rem;margin-bottom:1rem;">
+    <div>
+      <h1 style="font-size:1.55rem">{{ t('cp.title') }}</h1>
+      <p style="color:var(--ink-secondary);font-size:.85rem;margin-top:.3rem;">{{ t('cp.subtitle') }}</p>
+    </div>
+    <div style="display:flex;gap:.6rem">
+      {% if can_create %}
+      <form method="post" action="/ledger/counterparties/import">
+        <button class="btn" type="submit">{{ t('cp.import_btn') }}</button>
+      </form>
+      {% endif %}
+      <a class="btn" href="/ledger">{{ t('ledger.back_to_ledger') }}</a>
+    </div>
+  </div>
+
+  {% if can_create %}
+  <div class="card">
+    <h2>{{ t('cp.add_title') }}</h2>
+    <form class="form-grid" method="post" action="/ledger/counterparties/add">
+      <div class="field"><label>{{ t('cp.name') }}</label><input type="text" name="name" required></div>
+      <div class="field"><label>{{ t('cp.inn') }}</label><input type="text" name="inn"></div>
+      <div class="field"><button class="btn primary" type="submit">{{ t('cp.add_submit') }}</button></div>
+    </form>
+  </div>
+  {% endif %}
+
+  <div class="card">
+    <div class="overflow-x">
+      {% if rows %}
+      <table class="data-table">
+        <thead><tr>
+          <th>{{ t('cp.name') }}</th><th>{{ t('cp.inn') }}</th><th></th>
+        </tr></thead>
+        <tbody>
+          {% for r in rows %}
+          <tr>
+            <td>{{ r.name }}</td>
+            <td>{{ r.inn or t('common.dash') }}</td>
+            <td>
+              <div class="row-actions">
+                {% if can_create %}
+                <button type="button" class="btn cp-edit-btn" data-id="{{r.id}}" data-name="{{r.name}}" data-inn="{{r.inn or ''}}">✎</button>
+                {% endif %}
+                {% if can_delete %}
+                <form method="post" action="/ledger/counterparties/{{r.id}}/delete" data-confirm="{{ t('cp.delete_confirm') }}">
+                  <button class="btn danger" type="submit">{{ t('cp.delete') }}</button>
+                </form>
+                {% endif %}
+              </div>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      {% else %}
+      <div class="empty">{{ t('cp.empty') }}</div>
+      {% endif %}
+    </div>
+    <div class="note" style="margin-top:1rem">{{ t('cp.note') }}</div>
+  </div>
+
+  {% if can_create %}
+  <dialog id="cpEditModal">
+    <div class="modal-head">
+      <h2>{{ t('cp.edit_title') }}</h2>
+      <button type="button" class="modal-close-btn" id="closeCpEditBtn">✕</button>
+    </div>
+    <form method="post" id="cpEditForm" class="form-grid" style="grid-template-columns:1fr">
+      <div class="field"><label>{{ t('cp.name') }}</label><input type="text" name="name" id="editCpName" required></div>
+      <div class="field"><label>{{ t('cp.inn') }}</label><input type="text" name="inn" id="editCpInn"></div>
+      <div class="field"><button class="btn primary" type="submit">{{ t('cp.save') }}</button></div>
+    </form>
+  </dialog>
+  {% endif %}
+{% endblock %}
+{% block scripts %}
+{% if can_create %}
+<script>
+(function () {
+  var modal = document.getElementById("cpEditModal");
+  if (!modal) return;
+  var form = document.getElementById("cpEditForm");
+  document.querySelectorAll(".cp-edit-btn").forEach(function (btn) {
+    btn.addEventListener("click", function () {
+      form.action = "/ledger/counterparties/" + btn.getAttribute("data-id") + "/edit";
+      document.getElementById("editCpName").value = btn.getAttribute("data-name");
+      document.getElementById("editCpInn").value = btn.getAttribute("data-inn");
+      modal.showModal();
+    });
+  });
+  document.getElementById("closeCpEditBtn").addEventListener("click", function () { modal.close(); });
+})();
+</script>
+{% endif %}
+{% endblock %}

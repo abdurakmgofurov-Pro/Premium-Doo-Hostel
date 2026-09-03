@@ -83,4 +83,93 @@
     {% endif %}
   </div>
 </div>
+
+<div class="card">
+  <h2>{{ t('settings.categories_title') }}</h2>
+  <p style="color:var(--ink-secondary);font-size:.85rem;margin-bottom:.9rem">{{ t('settings.categories_note') }}</p>
+  <form class="form-grid" method="post" action="/settings/category/add">
+    <div class="field full"><label>{{ t('settings.category_name') }}</label><input type="text" name="name" required></div>
+    <div class="field"><label>{{ t('settings.category_group') }}</label>
+      <select name="group_key">
+        {% for group_key, group_label in forma2_groups %}
+        <option value="{{group_key}}">{{ t_group(group_key) }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="field"><button class="btn primary" type="submit">{{ t('settings.category_add') }}</button></div>
+  </form>
+  <div class="overflow-x" style="margin-top:1rem">
+    {% if custom_categories %}
+    <table class="data-table">
+      <thead><tr>
+        <th>{{ t('settings.category_name') }}</th><th>{{ t('settings.category_group') }}</th><th></th>
+      </tr></thead>
+      <tbody>
+        {% for c in custom_categories %}
+        <tr>
+          <td>{{ t_cat(c.name) }}</td>
+          <td>{{ t_group(c.group_key) }}</td>
+          <td>
+            <form method="post" action="/settings/category/{{c.id}}/delete" data-confirm="{{ t('settings.category_delete_confirm') }}">
+              <button class="btn danger" type="submit">{{ t('settings.asset_delete') }}</button>
+            </form>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <div class="empty">{{ t('settings.categories_empty') }}</div>
+    {% endif %}
+  </div>
+</div>
+
+<div class="card">
+  <h2>{{ t('settings.cash_categories_title') }}</h2>
+  <p style="color:var(--ink-secondary);font-size:.85rem;margin-bottom:.9rem">{{ t('settings.cash_categories_note') }}</p>
+  <form class="form-grid" method="post" action="/settings/cash-category/add">
+    <div class="field full"><label>{{ t('settings.category_name') }}</label><input type="text" name="name" required></div>
+    <div class="field"><label>{{ t('settings.cash_category_section') }}</label>
+      <select name="section">
+        {% for sec_key, sec_label in cash_sections %}
+        <option value="{{sec_key}}">{{ t_cash_section(sec_key) }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="field"><label>{{ t('settings.cash_category_type') }}</label>
+      <select name="type">
+        <option value="income">{{ t('common.income') }}</option>
+        <option value="expense">{{ t('common.expense') }}</option>
+      </select>
+    </div>
+    <div class="field"><button class="btn primary" type="submit">{{ t('settings.category_add') }}</button></div>
+  </form>
+  <div class="overflow-x" style="margin-top:1rem">
+    {% if custom_cash_categories %}
+    <table class="data-table">
+      <thead><tr>
+        <th>{{ t('settings.category_code') }}</th><th>{{ t('settings.category_name') }}</th>
+        <th>{{ t('settings.cash_category_section') }}</th><th>{{ t('settings.cash_category_type') }}</th><th></th>
+      </tr></thead>
+      <tbody>
+        {% for c in custom_cash_categories %}
+        <tr>
+          <td>{{ c.code }}</td>
+          <td>{{ t_cash_cat(c.name) }}</td>
+          <td>{{ t_cash_section(c.section) }}</td>
+          <td>{{ t('common.income') if c.type == 'income' else t('common.expense') }}</td>
+          <td>
+            <form method="post" action="/settings/cash-category/{{c.id}}/delete" data-confirm="{{ t('settings.category_delete_confirm') }}">
+              <button class="btn danger" type="submit">{{ t('settings.asset_delete') }}</button>
+            </form>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <div class="empty">{{ t('settings.categories_empty') }}</div>
+    {% endif %}
+  </div>
+</div>
 {% endblock %}

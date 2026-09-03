@@ -1,11 +1,36 @@
 {% extends "base.html" %}
 {% block title %}{{ t('nav.bookings') }}{% endblock %}
+{% block head %}
+<style>
+  .btn.disabled { opacity: .4; pointer-events: none; }
+</style>
+{% endblock %}
 {% block content %}
 <div class="card">
   <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:.8rem;margin-bottom:1rem;">
     <h2 style="margin-bottom:0">{{ t('bookings.title') }}</h2>
-    {% include "_period_filter.html" %}
+    <div style="display:flex;gap:.6rem;flex-wrap:wrap;align-items:center">
+      {% include "_period_filter.html" %}
+      <form method="get" id="currencyFilterForm" class="period-select">
+        <input type="hidden" name="year" value="{{ year or '' }}">
+        <input type="hidden" name="month" value="{{ month or '' }}">
+        <select name="currency" onchange="document.getElementById('currencyFilterForm').submit()">
+          <option value="">{{ t('bookings.filter_all_currencies') }}</option>
+          <option value="UZS" {{ 'selected' if currency == 'UZS' else '' }}>UZS</option>
+          <option value="USD" {{ 'selected' if currency == 'USD' else '' }}>USD</option>
+        </select>
+      </form>
+    </div>
   </div>
+  {% if total_rows %}<div class="note" style="margin-top:-.4rem;margin-bottom:.8rem;font-size:.8rem">{{ t('cash.showing_of').replace('{shown}', rows|length|string).replace('{total}', total_rows|string) }}{% if currency %} — {{ t('bookings.sum_revenue') }}: {{ sum_revenue|money }} {{ currency }}, {{ t('bookings.sum_prepaid') }}: {{ sum_prepaid|money }} {{ currency }}{% endif %}</div>{% endif %}
+  {% if total_pages and total_pages > 1 %}
+  {% set qs_page = (('year='~year~'&' if year) ~ ('month='~month~'&' if month) ~ ('currency='~currency~'&' if currency)) %}
+  <div style="display:flex;align-items:center;justify-content:center;gap:.5rem;margin-bottom:1rem;flex-wrap:wrap">
+    <a class="btn {{ 'disabled' if page <= 1 else '' }}" href="?{{ qs_page }}page={{ page-1 }}">‹ {{ t('cash.page_prev') }}</a>
+    <span style="font-size:.85rem;color:var(--ink-secondary)">{{ t('cash.page_of').replace('{page}', page|string).replace('{total}', total_pages|string) }}</span>
+    <a class="btn {{ 'disabled' if page >= total_pages else '' }}" href="?{{ qs_page }}page={{ page+1 }}">{{ t('cash.page_next') }} ›</a>
+  </div>
+  {% endif %}
   <input type="text" id="searchBox" placeholder="{{ t('bookings.search_placeholder') }}"
     style="width:100%;padding:.6rem .8rem;border-radius:8px;border:1px solid var(--border);
     background:var(--bg-surface-2);font-family:inherit;font-size:.88rem;margin-bottom:1rem;">

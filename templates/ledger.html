@@ -23,7 +23,10 @@
       <h1 style="font-size:1.55rem">{{ t('ledger.title') }}</h1>
       <p style="color:var(--ink-secondary);font-size:.85rem;margin-top:.3rem;">{{ t('ledger.subtitle') }}</p>
     </div>
-    {% include "_period_filter.html" %}
+    <div style="display:flex;gap:.6rem;flex-wrap:wrap;align-items:center">
+      <a class="btn" href="/ledger/counterparties">{{ t('cp.title') }}</a>
+      {% include "_period_filter.html" %}
+    </div>
   </div>
 
   {% set active_report = 'ledger' %}
@@ -81,5 +84,74 @@
       {% endif %}
     </div>
     <div class="note" style="margin-top:1rem">{{ t('ledger.note') }}</div>
+  </div>
+
+  <div class="card" style="margin-top:1.2rem">
+    <h2 style="margin-bottom:1rem">{{ t('ledger.bookings_title') }}</h2>
+    <div class="overflow-x">
+      {% if booking_rows %}
+      <table class="data-table">
+        <thead><tr>
+          <th>{{ t('ledger.th_booking') }}</th><th>{{ t('ledger.th_guest') }}</th><th>{{ t('ledger.th_arrival') }}</th>
+          <th class="num">{{ t('ledger.th_revenue') }}</th><th class="num">{{ t('ledger.th_paid') }}</th><th class="num">{{ t('ledger.th_owed') }}</th>
+        </tr></thead>
+        <tbody>
+          {% for r in booking_rows %}
+          <tr>
+            <td>{{ r.number }}</td>
+            <td>{{ r.guest }}</td>
+            <td>{{ r.arrival[:10] if r.arrival else t('common.dash') }}</td>
+            <td class="num">{{ r.revenue|money }}</td>
+            <td class="num">{{ r.prepaid|money }}</td>
+            <td class="num kt-val">{{ r.owed|money }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+        <tfoot>
+          <tr style="font-weight:700;background:var(--bg-surface-2)">
+            <td colspan="5">{{ t('ledger.total') }}</td>
+            <td class="num kt-val">{{ booking_total|money }}</td>
+          </tr>
+        </tfoot>
+      </table>
+      {% else %}
+      <div class="empty">{{ t('ledger.bookings_empty') }}</div>
+      {% endif %}
+    </div>
+    <div class="note" style="margin-top:1rem">{{ t('ledger.bookings_note') }}</div>
+  </div>
+
+  <div class="card" style="margin-top:1.2rem">
+    <h2 style="margin-bottom:1rem">{{ t('ledger.channel_title') }}</h2>
+    <div class="overflow-x">
+      {% if channel_rows %}
+      <table class="data-table">
+        <thead><tr>
+          <th>{{ t('ledger.th_channel') }}</th><th class="num">{{ t('ledger.th_bookings_count') }}</th>
+          <th class="num">{{ t('ledger.th_revenue') }}</th><th class="num">{{ t('ledger.th_paid') }}</th><th class="num">{{ t('ledger.th_owed') }}</th>
+        </tr></thead>
+        <tbody>
+          {% for r in channel_rows %}
+          <tr>
+            <td>{{ r.channel }}</td>
+            <td class="num">{{ r.count }}</td>
+            <td class="num">{{ r.amount|money }}</td>
+            <td class="num dt-val">{{ r.paid|money }}</td>
+            <td class="num kt-val">{{ r.owed|money }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+        <tfoot>
+          <tr style="font-weight:700;background:var(--bg-surface-2)">
+            <td colspan="4">{{ t('ledger.total') }}</td>
+            <td class="num kt-val">{{ channel_total|money }}</td>
+          </tr>
+        </tfoot>
+      </table>
+      {% else %}
+      <div class="empty">{{ t('ledger.channel_empty') }}</div>
+      {% endif %}
+    </div>
+    <div class="note" style="margin-top:1rem">{{ t('ledger.channel_note') }}</div>
   </div>
 {% endblock %}

@@ -2,6 +2,7 @@
 """SQLite baza: qo'lda kiritiladigan xarajatlar + foydalanuvchilar/huquqlar."""
 import calendar
 import json
+import re
 import secrets
 import sqlite3
 from datetime import date, datetime, timedelta
@@ -275,6 +276,42 @@ def init_db():
         conn.execute("ALTER TABLE cash_transactions ADD COLUMN note_label TEXT")
     if "transaction_id" not in cash_tx_cols:
         conn.execute("ALTER TABLE cash_transactions ADD COLUMN transaction_id INTEGER")
+
+    # Sozlamalar orqali qo'shiladigan qo'shimcha turkumlar — o'rnatilgan
+    # CATEGORIES/CASH_CATEGORIES ro'yxatlariga qo'shimcha (ularni
+    # o'chirmaydi/almashtirmaydi), mavjud guruh/bo'lim tuzilmasi ichida.
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS custom_categories (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT NOT NULL UNIQUE,
+            group_key TEXT NOT NULL,
+            created_at TEXT DEFAULT (datetime('now'))
+        )
+    """)
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS custom_cash_categories (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            code TEXT NOT NULL UNIQUE,
+            name TEXT NOT NULL UNIQUE,
+            section TEXT NOT NULL CHECK(section IN ('operatsion', 'investitsion', 'moliyaviy')),
+            type TEXT NOT NULL CHECK(type IN ('income', 'expense')),
+            created_at TEXT DEFAULT (datetime('now'))
+        )
+    """)
+
+    # Hamkorlar (kontragentlar) ma'lumotnomasi — nomi/INN bo'yicha oldindan
+    # kiritilgan kompaniyalar ro'yxati, "counterparty" matn maydonlari
+    # bo'lgan barcha formalarda (Xarajatlar, Kassa/Bank, Bar/Sklad,
+    # Xizmatlar) avtomatik taklif (datalist) sifatida ishlatiladi.
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS counterparties (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT NOT NULL,
+            inn TEXT,
+            created_at TEXT DEFAULT (datetime('now')),
+            UNIQUE(name, inn)
+        )
+    """)
 
     # Xizmatlar (Услуги) — QQS (NDS) hisob-kitobi bilan olingan/ko'rsatilgan
     # xizmatlar reestri. Har bir yozuv `transactions`da mos xarajat/daromad
@@ -796,6 +833,7 @@ def list_transactions(year=None, month=None, category=None):
 
 def summarize_transactions(year=None, month=None):
     rows = list_transactions(year, month)
+    cat_group_map = all_category_group_map()
     summary = {
         "income": {"UZS": 0.0, "USD": 0.0},
         "expense": {"UZS": 0.0, "USD": 0.0},
@@ -819,7 +857,7 @@ def summarize_transactions(year=None, month=None):
         sign = 1 if r["type"] == "income" else -1
         cat[r["currency"]] += sign * r["amount"]
         if r["type"] == "expense":
-            group = CATEGORY_GROUP.get(r["category"], "boshqa_operatsion")
+            group = cat_group_map.get(r["category"], "boshqa_operatsion")
             summary["by_group"].setdefault(group, {"UZS": 0.0, "USD": 0.0})
             summary["by_group"][group][r["currency"]] += r["amount"]
         elif r["category"] == SERVICE_REVENUE_CATEGORY:
@@ -851,6 +889,7 @@ def summarize_transactions_upto(upto_date=None):
         params.append(upto_date)
     rows = [dict(r) for r in conn.execute(q, params).fetchall()]
     conn.close()
+    cat_group_map = all_category_group_map()
 
     summary = {
         "income": {"UZS": 0.0, "USD": 0.0},
@@ -871,7 +910,7 @@ def summarize_transactions_upto(upto_date=None):
         sign = 1 if r["type"] == "income" else -1
         cat[r["currency"]] += sign * r["amount"]
         if r["type"] == "expense":
-            group = CATEGORY_GROUP.get(r["category"], "boshqa_operatsion")
+            group = cat_group_map.get(r["category"], "boshqa_operatsion")
             summary["by_group"].setdefault(group, {"UZS": 0.0, "USD": 0.0})
             summary["by_group"][group][r["currency"]] += r["amount"]
         elif r["category"] == SERVICE_REVENUE_CATEGORY:
@@ -1519,7 +1558,7 @@ def add_cash_transaction(date, source, ttype, section, category, counterparty, d
     (Kassa/Bank, Forma 1/3) tomonida qoladi."""
     tx_id = None
     if forma2_category:
-        f2_ttype = "expense" if forma2_category in CATEGORY_GROUP else "income"
+        f2_ttype = "expense" if forma2_category in all_category_group_map() else "income"
         tx_id = add_transaction(
             date=date, ttype=f2_ttype, category=forma2_category, counterparty=counterparty,
             description=description, amount=amount, currency=currency, status="paid",
@@ -1727,6 +1766,186 @@ def get_cash_balance(currency, upto_date=None, source=None):
     return opening + income - expense
 
 
+def list_custom_categories():
+    conn = get_conn()
+    rows = conn.execute("SELECT * FROM custom_categories ORDER BY name COLLATE NOCASE").fetchall()
+    conn.close()
+    return [dict(r) for r in rows]
+
+
+def add_custom_category(name, group_key):
+    if group_key not in FORMA2_GROUP_LABELS:
+        raise ValueError("invalid_group")
+    conn = get_conn()
+    conn.execute(
+        "INSERT INTO custom_categories (name, group_key) VALUES (?,?)",
+        (name.strip(), group_key),
+    )
+    conn.commit()
+    conn.close()
+
+
+def delete_custom_category(cat_id):
+    conn = get_conn()
+    conn.execute("DELETE FROM custom_categories WHERE id=?", (cat_id,))
+    conn.commit()
+    conn.close()
+
+
+def all_categories():
+    """CATEGORIES (o'rnatilgan) + Sozlamalar orqali qo'shilgan turkumlar."""
+    return CATEGORIES + [{"name": c["name"], "group": c["group_key"]} for c in list_custom_categories()]
+
+
+def all_category_group_map():
+    m = dict(CATEGORY_GROUP)
+    m.update({c["name"]: c["group_key"] for c in list_custom_categories()})
+    return m
+
+
+def list_custom_cash_categories():
+    conn = get_conn()
+    rows = conn.execute("SELECT * FROM custom_cash_categories ORDER BY code").fetchall()
+    conn.close()
+    return [dict(r) for r in rows]
+
+
+_CASH_CODE_BANDS = {
+    ("operatsion", "income"): (1000, 1999), ("operatsion", "expense"): (2000, 2999),
+    ("investitsion", "income"): (3000, 3499), ("investitsion", "expense"): (3500, 3999),
+    ("moliyaviy", "income"): (4000, 4499), ("moliyaviy", "expense"): (4500, 4999),
+}
+
+
+def _next_cash_category_code(section, ttype):
+    """Bo'lim+tur uchun keyingi bo'sh kodni hosil qiladi — mavjud kodlash
+    sxemasiga mos: operatsion 1xxx(income)/2xxx(expense), investitsion
+    3xxx(income)/35xx(expense), moliyaviy 4xxx(income)/45xx(expense)."""
+    lo, hi = _CASH_CODE_BANDS[(section, ttype)]
+    used = [int(c["code"]) for c in CASH_CATEGORIES + list_custom_cash_categories() if lo <= int(c["code"]) <= hi]
+    return str(max(used, default=lo - 1) + 1)
+
+
+def add_custom_cash_category(name, section, ttype):
+    if section not in CASH_SECTION_LABELS:
+        raise ValueError("invalid_section")
+    if ttype not in ("income", "expense"):
+        raise ValueError("invalid_type")
+    code = _next_cash_category_code(section, ttype)
+    conn = get_conn()
+    conn.execute(
+        "INSERT INTO custom_cash_categories (code, name, section, type) VALUES (?,?,?,?)",
+        (code, name.strip(), section, ttype),
+    )
+    conn.commit()
+    conn.close()
+
+
+def delete_custom_cash_category(cat_id):
+    conn = get_conn()
+    conn.execute("DELETE FROM custom_cash_categories WHERE id=?", (cat_id,))
+    conn.commit()
+    conn.close()
+
+
+def all_cash_categories():
+    """CASH_CATEGORIES (o'rnatilgan) + Sozlamalar orqali qo'shilgan turkumlar."""
+    return CASH_CATEGORIES + [
+        {"code": c["code"], "name": c["name"], "section": c["section"], "type": c["type"]}
+        for c in list_custom_cash_categories()
+    ]
+
+
+def all_cash_category_map():
+    m = dict(CASH_CATEGORY_MAP)
+    m.update({c["name"]: c for c in all_cash_categories() if c["name"] not in CASH_CATEGORY_MAP})
+    return m
+
+
+def list_counterparties():
+    conn = get_conn()
+    rows = conn.execute("SELECT * FROM counterparties ORDER BY name COLLATE NOCASE").fetchall()
+    conn.close()
+    return [dict(r) for r in rows]
+
+
+def add_counterparty(name, inn=""):
+    """Bir xil nom (katta-kichik harfga qaramay) allaqachon mavjud bo'lsa,
+    YANGI qator yaratilmaydi — agar bergan INN mavjud yozuvda yo'q bo'lsa,
+    o'sha yozuv yangilanadi (dublikatlarning oldini olish uchun)."""
+    name = name.strip()
+    inn = (inn or "").strip()
+    conn = get_conn()
+    existing = conn.execute(
+        "SELECT id, inn FROM counterparties WHERE name=? COLLATE NOCASE", (name,)
+    ).fetchone()
+    if existing:
+        if inn and not existing["inn"]:
+            conn.execute("UPDATE counterparties SET inn=? WHERE id=?", (inn, existing["id"]))
+            conn.commit()
+        conn.close()
+        return
+    conn.execute("INSERT OR IGNORE INTO counterparties (name, inn) VALUES (?,?)", (name, inn))
+    conn.commit()
+    conn.close()
+
+
+def update_counterparty(cp_id, name, inn=""):
+    conn = get_conn()
+    conn.execute(
+        "UPDATE counterparties SET name=?, inn=? WHERE id=?",
+        (name.strip(), (inn or "").strip(), cp_id),
+    )
+    conn.commit()
+    conn.close()
+
+
+def delete_counterparty(cp_id):
+    conn = get_conn()
+    conn.execute("DELETE FROM counterparties WHERE id=?", (cp_id,))
+    conn.commit()
+    conn.close()
+
+
+def import_existing_counterparties():
+    """Xarajatlar/Kassa-Bank/Bar-Sklad/Xizmatlar sahifalarida allaqachon
+    erkin matn sifatida kiritilgan barcha kontragent nomlarini
+    `counterparties` ma'lumotnomasiga bir martalik ko'chirib qo'yadi.
+    Oxiridagi 7-12 xonali raqam (INN) topilsa, u nomdan ajratib alohida
+    saqlanadi. Bir xil nom uchun `add_counterparty` o'zi dublikat
+    yaratmaydi (qayta ishga tushirish xavfsiz)."""
+    before = {c["id"] for c in list_counterparties()}
+    for raw in list_all_counterparties():
+        raw = raw.strip()
+        if not raw:
+            continue
+        m = re.match(r"^(.*?)\s+(\d{7,12})$", raw)
+        if m:
+            name, inn = m.group(1).strip(), m.group(2)
+        else:
+            name, inn = raw, ""
+        add_counterparty(name, inn)
+    after = list_counterparties()
+    return sum(1 for c in after if c["id"] not in before)
+
+
+def cash_income_by_counterparty(currency):
+    """Har bir kontragent nomi bo'yicha Kassa/Bank'ga kirim qilingan JAMI
+    summa (barcha vaqt) — OTA platforma qarzini "yopish" uchun: platforma
+    haqiqatda pul o'tkazganda, xodim Kassa/Bank'ga oddiy kirim yozadi va
+    kontragent maydoniga platforma nomini kiritadi (masalan "Booking.com");
+    shu summa o'sha platformaning hisoblangan qarzidan avtomatik ayiriladi."""
+    conn = get_conn()
+    rows = conn.execute(
+        "SELECT counterparty, SUM(amount) s FROM cash_transactions "
+        "WHERE type='income' AND currency=? AND counterparty IS NOT NULL AND counterparty!='' "
+        "GROUP BY counterparty",
+        (currency,),
+    ).fetchall()
+    conn.close()
+    return {r["counterparty"]: r["s"] for r in rows}
+
+
 def cash_flow_by_category(year, month):
     """Forma 3 (batafsil) uchun: har bir Cash Flow turkumi (kod) bo'yicha
     Bank va Kassa alohida-alohida kirim/chiqim yig'indisi."""
@@ -1821,7 +2040,7 @@ def month_checklist(year_month):
     bal_uzs = get_cash_balance("UZS", upto_date=month_end)
     bal_usd = get_cash_balance("USD", upto_date=month_end)
     y, m = (int(x) for x in year_month.split("-"))
-    cats = {c["name"] for c in CASH_CATEGORIES}
+    cats = {c["name"] for c in all_cash_categories()}
     rows = list_cash_transactions(y, m)
     checks = [
         {"key": "not_closed", "ok": status != "closed"},

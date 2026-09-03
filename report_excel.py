@@ -137,8 +137,9 @@ def build_excel_report(agg, manual, output_path):
     ws5.append(["Sana", "Turi", "Kategoriya", "Forma 2 guruhi", "Kompaniya/kontragent", "Tavsif", "Summa", "Valyuta", "Holati"])
     _style_header(ws5, ncols=9)
     import db as _db
+    _cat_group_map = _db.all_category_group_map()
     for t in _db.list_transactions():
-        group_label = _db.FORMA2_GROUP_LABELS.get(_db.CATEGORY_GROUP.get(t["category"]), "—") if t["type"] == "expense" else "—"
+        group_label = _db.FORMA2_GROUP_LABELS.get(_cat_group_map.get(t["category"]), "—") if t["type"] == "expense" else "—"
         ws5.append([t["date"], t["type"], t["category"], group_label, t["counterparty"], t["description"],
                     t["amount"], t["currency"], t["status"]])
     _autofit(ws5, [14, 10, 30, 34, 24, 34, 14, 10, 10])

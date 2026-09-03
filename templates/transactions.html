@@ -40,7 +40,8 @@
       <div class="field"><label>{{ t('tx.status') }}</label>
         <select name="status"><option value="paid">{{ t('common.paid') }}</option><option value="unpaid">{{ t('common.unpaid') }}</option></select>
       </div>
-      <div class="field"><label>{{ t('tx.counterparty') }}</label><input type="text" name="counterparty" placeholder="{{ t('tx.counterparty_placeholder') }}"></div>
+      <div class="field"><label>{{ t('tx.counterparty') }}</label><input type="text" name="counterparty" list="counterpartyList" placeholder="{{ t('tx.counterparty_placeholder') }}"></div>
+      {% include "_counterparty_datalist.html" %}
       <div class="field full"><label>{{ t('tx.description') }}</label><input type="text" name="description" placeholder="{{ t('tx.description_placeholder') }}"></div>
       <div class="field"><button class="btn primary" type="submit">{{ t('tx.submit') }}</button></div>
     </form>

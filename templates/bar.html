@@ -173,7 +173,8 @@
           <option value="bank">{{ t('bar.source_card') }}</option>
         </select>
       </div>
-      <div class="field"><label>{{ t('services.counterparty') }}</label><input type="text" name="counterparty" id="editBarCounterparty"></div>
+      <div class="field"><label>{{ t('services.counterparty') }}</label><input type="text" name="counterparty" id="editBarCounterparty" list="counterpartyList"></div>
+      {% include "_counterparty_datalist.html" %}
       <div class="field"><label>{{ t('services.description') }}</label><input type="text" name="description" id="editBarDescription"></div>
       <div class="field"><button class="btn primary" type="submit">{{ t('bar.save') }}</button></div>
     </form>

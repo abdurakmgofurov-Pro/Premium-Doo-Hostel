@@ -71,7 +71,8 @@
           <option value="rendered">{{ t('services.direction_rendered') }}</option>
         </select>
       </div>
-      <div class="field"><label>{{ t('services.counterparty') }}</label><input type="text" name="counterparty" required></div>
+      <div class="field"><label>{{ t('services.counterparty') }}</label><input type="text" name="counterparty" list="counterpartyList" required></div>
+      {% include "_counterparty_datalist.html" %}
       <div class="field"><label>{{ t('services.service_type') }}</label><input type="text" name="service_type" required></div>
       <div class="field"><label>{{ t('services.amount_no_vat') }}</label><input type="text" inputmode="decimal" class="money-input" name="amount_no_vat" id="svcAmountNoVat" required></div>
       <div class="field"><label>{{ t('services.vat_amount') }} (12%)</label><input type="text" id="svcVatDisplay" readonly></div>
@@ -154,7 +155,7 @@
     </div>
     <form method="post" id="serviceEditForm" class="form-grid" style="grid-template-columns:1fr 1fr">
       <div class="field"><label>{{ t('services.date') }}</label><input type="date" name="date" id="editSvcDate" required></div>
-      <div class="field"><label>{{ t('services.counterparty') }}</label><input type="text" name="counterparty" id="editSvcCounterparty" required></div>
+      <div class="field"><label>{{ t('services.counterparty') }}</label><input type="text" name="counterparty" id="editSvcCounterparty" list="counterpartyList" required></div>
       <div class="field full"><label>{{ t('services.service_type') }}</label><input type="text" name="service_type" id="editSvcServiceType" required></div>
       <div class="field"><label>{{ t('services.amount_no_vat') }}</label><input type="text" inputmode="decimal" class="money-input" name="amount_no_vat" id="editSvcAmountNoVat" required></div>
       <div class="field"><label>{{ t('services.vat_amount') }} (12%)</label><input type="text" id="editSvcVatDisplay" readonly></div>

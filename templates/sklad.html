@@ -256,7 +256,8 @@
     </div>
     <form method="post" action="/bar/restock" id="intakeForm" class="form-grid">
       <div class="field"><label>{{ t('bar.date') }}</label><input type="date" name="date" required value="{{today}}"></div>
-      <div class="field"><label>{{ t('sklad.supplier') }}</label><input type="text" name="counterparty" id="intakeCounterparty"></div>
+      <div class="field"><label>{{ t('sklad.supplier') }}</label><input type="text" name="counterparty" id="intakeCounterparty" list="counterpartyList"></div>
+      {% include "_counterparty_datalist.html" %}
       <div class="field"><label>{{ t('sklad.pay_status') }}</label>
         <select name="status" id="intakeStatus">
           <option value="paid">{{ t('common.paid') }}</option>

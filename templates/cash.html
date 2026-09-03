@@ -199,7 +199,8 @@
       <div class="field"><label>{{ t('cash.currency') }}</label>
         <select name="currency"><option value="UZS">UZS</option><option value="USD">USD</option></select>
       </div>
-      <div class="field"><label>{{ t('cash.counterparty') }}</label><input type="text" name="counterparty"></div>
+      <div class="field"><label>{{ t('cash.counterparty') }}</label><input type="text" name="counterparty" list="counterpartyList"></div>
+      {% include "_counterparty_datalist.html" %}
       <div class="field"><label>{{ t('cash.note_label') }}</label><input type="text" name="note_label" placeholder="{{ t('cash.note_label_placeholder') }}"></div>
       <div class="field full"><label>{{ t('cash.description') }}</label><input type="text" name="description"></div>
       <div class="field"><button class="btn primary" type="submit">{{ t('cash.submit') }}</button></div>
@@ -323,7 +324,7 @@
       <div class="field"><label>{{ t('cash.currency') }}</label>
         <select name="currency" id="editCurrency"><option value="UZS">UZS</option><option value="USD">USD</option></select>
       </div>
-      <div class="field"><label>{{ t('cash.counterparty') }}</label><input type="text" name="counterparty" id="editCounterparty"></div>
+      <div class="field"><label>{{ t('cash.counterparty') }}</label><input type="text" name="counterparty" id="editCounterparty" list="counterpartyList"></div>
       <div class="field"><label>{{ t('cash.note_label') }}</label><input type="text" name="note_label" id="editNoteLabel"></div>
       <div class="field full"><label>{{ t('cash.description') }}</label><input type="text" name="description" id="editDescription"></div>
       <div class="field"><button class="btn primary" type="submit">{{ t('cash.save') }}</button></div>

@@ -29,7 +29,7 @@ from pathlib import Path
 from flask import Flask, jsonify, request, send_file, redirect, url_for, render_template, session, flash, abort, g
 
 import db
-from aggregate import aggregate_bookings, flatten as flatten_booking
+from aggregate import aggregate_bookings, flatten as flatten_booking, payment_method_name
 from auth import authenticate, current_user, login_required, permission_required
 from exely_api import ExelyApiClient
 from exely_expense_import import parse_expense_xlsx
@@ -314,6 +314,10 @@ def inject_user():
         "is_date_locked": db.is_date_locked,
         "display_currency": g.display_currency,
         "to_display": lambda uzs, usd, rate: to_display_amount(uzs, usd, rate),
+        "counterparty_options": [
+            (f"{cp['name']} {cp['inn']}".strip() if cp["inn"] else cp["name"])
+            for cp in db.list_counterparties()
+        ],
     }
 
 
@@ -360,6 +364,122 @@ def cumulative_net_profit(upto_date):
     uzs = next((r["uzs"] for r in f2 if r["key"] == "f2.100"), 0.0)
     usd = next((r["usd"] for r in f2 if r["key"] == "f2.100"), 0.0)
     return uzs, usd
+
+
+OTA_PAYMENT_METHOD = payment_method_name("ExternalSystem")
+
+
+def _booking_owed_parts(flat):
+    """Bitta bron uchun ikkita alohida qarz manbaini ajratadi:
+    - guest_owed: mehmon o'zi hali to'lamagan qism (revenue - prepaid);
+    - platform_owed: mehmon OTA (Booking.com/Airbnb va h.k.) orqali
+      "to'lagan" deb Exely'da belgilangan, lekin bu pul hali bizning
+      Kassa/Bank'ga kirim qilinmagan qism (prepaid, agar to'lov usuli
+      "Tashqi tizim (OTA/onlayn to'lov)" bo'lsa) — chunki bu pulni
+      OTA platformasi hali bizga o'tkazib bermagan bo'lishi mumkin."""
+    revenue = flat.get("revenue") or 0.0
+    prepaid = flat.get("prepaid") or 0.0
+    guest_owed = revenue - prepaid
+    platform_owed = prepaid if (flat.get("payment_method") == OTA_PAYMENT_METHOD and prepaid > 0) else 0.0
+    return max(guest_owed, 0.0), platform_owed
+
+
+def booking_receivables(upto_date):
+    """Forma 1'dagi "Дебиторская задолженность" uchun: Exely'dan kelgan
+    Active bronlarning mehmon hali to'lamagan qismi (revenue - prepaid).
+
+    Eslatma: OTA orqali "to'landi" deb belgilangan (platform_owed) qismi
+    ATAYLAB bu yerga QO'SHILMAYDI — chunki amalda bu pulning katta qismi
+    keyinchalik Kassa/Bank'ga umumiy (bron bilan bog'lanmagan) kirim
+    sifatida allaqachon kiritilgan bo'ladi; buni Forma 1'ga qo'shib
+    ko'rish real tekshiruvda balansni tuzatish o'rniga yana ham battar
+    buzganini ko'rsatdi (haqiqiy bank ko'chirmasi bilan solishtirmasdan
+    qay bir OTA to'lovi "hali kelmagan"ligini ishonchli ajratib
+    bo'lmaydi). Shu sabab platform_owed faqat Дт/Кт'da (channel_platform_debts)
+    KO'RISH uchun ko'rsatiladi, Forma 1 balansiga ta'sir qilmaydi."""
+    raw = [b for b in db.load_all_bookings() if not b.get("_error")]
+    if upto_date:
+        raw = [b for b in raw if flatten_booking(b).get("arrival", "")[:10] <= upto_date]
+    uzs = usd = 0.0
+    for b in raw:
+        flat = flatten_booking(b)
+        if flat.get("status") != "Active":
+            continue
+        if (flat.get("currency") or "UZS") not in ("UZS", "USD"):
+            continue
+        guest_owed, _ = _booking_owed_parts(flat)
+        if guest_owed <= 0:
+            continue
+        if flat.get("currency") == "USD":
+            usd += guest_owed
+        else:
+            uzs += guest_owed
+    return uzs, usd
+
+
+def booking_debtors(year, month, currency):
+    """Дт/Кт sahifasi uchun: Форма 1'dagi umumiy Debitorlik summasini
+    tashkil qiluvchi har bir Exely bronni alohida-alohida ko'rsatadi
+    (kontragent jadvalidagi "Shodibek aka" kabi qatorlardan farqli —
+    bular mehmon-darajasidagi, hali to'lanmagan bron qoldiqlari;
+    OTA orqali to'langan-lekin-bizga-tushmagan qism bu yerga kirmaydi —
+    u channel_platform_debts()da kanal bo'yicha alohida ko'rsatiladi)."""
+    rows = []
+    for b in bookings_for_period(year, month):
+        flat = flatten_booking(b)
+        if flat.get("status") != "Active":
+            continue
+        if (flat.get("currency") or "UZS") != currency:
+            continue
+        guest_owed, _ = _booking_owed_parts(flat)
+        if guest_owed <= 0:
+            continue
+        rows.append({
+            "number": flat.get("number"),
+            "guest": flat.get("guest") or "-",
+            "arrival": flat.get("arrival"),
+            "revenue": flat.get("revenue") or 0.0,
+            "prepaid": flat.get("prepaid") or 0.0,
+            "owed": guest_owed,
+        })
+    rows.sort(key=lambda r: r["arrival"] or "", reverse=True)
+    return rows
+
+
+def channel_platform_debts(currency):
+    """Дт/Кт sahifasi uchun: OTA orqali (Booking.com, Airbnb va h.k.)
+    "to'landi" deb belgilangan summalar — har bir kanal (platforma)
+    bo'yicha JAMLANGAN (barcha vaqt, davr filtriga bog'liq emas — bu
+    "hozirgi qarz qoldig'i" ko'rsatkichi). Platforma haqiqatda pul
+    o'tkazganda, xodim Kassa/Bank'ga oddiy kirim kiritadi va kontragent
+    maydoniga platforma nomini yozadi (masalan "Booking.com") — o'sha
+    summa shu yerda avtomatik AYIRILADI (db.cash_income_by_counterparty
+    orqali), ya'ni qarz real ravishda kamayib boradi."""
+    from collections import defaultdict
+    totals = defaultdict(float)
+    counts = defaultdict(int)
+    for b in bookings_for_period(None, None):
+        flat = flatten_booking(b)
+        if flat.get("status") != "Active":
+            continue
+        if (flat.get("currency") or "UZS") != currency:
+            continue
+        _, platform_owed = _booking_owed_parts(flat)
+        if platform_owed <= 0:
+            continue
+        ch = flat.get("channel_name") or "-"
+        totals[ch] += platform_owed
+        counts[ch] += 1
+    paid_by_cp = db.cash_income_by_counterparty(currency)
+    rows = []
+    for k, v in totals.items():
+        paid = paid_by_cp.get(k, 0.0)
+        remaining = v - paid
+        if remaining <= 0.01:
+            continue
+        rows.append({"channel": k, "count": counts[k], "amount": v, "paid": paid, "owed": remaining})
+    rows.sort(key=lambda r: -r["owed"])
+    return rows
 
 
 # ---- Dashboard ----
@@ -431,8 +551,30 @@ def bookings_page():
         with STATE_LOCK:
             data = STATE["data"]
         rows = data["rows"] if data else []
-    return render_template("bookings.html", active_page="bookings", rows=rows,
-                            year=year, month=month, years=available_years())
+
+    currency = request.args.get("currency") or None
+    if currency:
+        rows = [r for r in rows if r.get("currency") == currency]
+
+    rows = sorted(rows, key=lambda r: r.get("arrival") or "", reverse=True)
+
+    sum_revenue = sum(r.get("revenue") or 0.0 for r in rows)
+    sum_prepaid = sum(r.get("prepaid") or 0.0 for r in rows)
+
+    per_page = 50
+    total_rows = len(rows)
+    total_pages = max((total_rows + per_page - 1) // per_page, 1)
+    page = max(request.args.get("page", 1, type=int) or 1, 1)
+    page = min(page, total_pages)
+    offset = (page - 1) * per_page
+    page_rows = rows[offset:offset + per_page]
+
+    return render_template(
+        "bookings.html", active_page="bookings", rows=page_rows,
+        year=year, month=month, years=available_years(),
+        page=page, total_pages=total_pages, total_rows=total_rows, per_page=per_page,
+        currency=currency, sum_revenue=sum_revenue, sum_prepaid=sum_prepaid,
+    )
 
 
 # ---- Xarajatlar ----
@@ -447,7 +589,7 @@ def transactions_page():
         "transactions.html",
         active_page="transactions",
         transactions=db.list_transactions(year, month, category=category),
-        categories=db.CATEGORIES,
+        categories=db.all_categories(),
         income_categories=db.INCOME_CATEGORIES,
         forma2_groups=db.FORMA2_GROUPS,
         today=datetime.now().strftime("%Y-%m-%d"),
@@ -535,7 +677,7 @@ def transactions_import_preview():
     return render_template(
         "transactions_import_preview.html", active_page="transactions",
         upload_id=upload_id, rows=rows, unique_categories=seen,
-        categories=db.CATEGORIES, forma2_groups=db.FORMA2_GROUPS,
+        categories=db.all_categories(), forma2_groups=db.FORMA2_GROUPS,
         new_count=new_count, dup_count=dup_count,
     )
 
@@ -619,6 +761,12 @@ def reports_page():
     recv_uzs, pay_uzs = db.outstanding_balance("UZS", upto_date=period_end)
     recv_usd, pay_usd = db.outstanding_balance("USD", upto_date=period_end)
 
+    booking_recv_uzs, booking_recv_usd = booking_receivables(period_end)
+    recv_uzs += booking_recv_uzs
+    recv_usd += booking_recv_usd
+
+    inv = db.bar_stock_value()
+
     fa_uzs = db.total_fixed_assets_value("UZS", upto_date=period_end)
     fa_usd = db.total_fixed_assets_value("USD", upto_date=period_end)
 
@@ -630,6 +778,7 @@ def reports_page():
     f1 = build_forma1(
         cash={"UZS": cash_uzs, "USD": cash_usd},
         receivables={"UZS": recv_uzs, "USD": recv_usd},
+        inventory={"UZS": inv["UZS"], "USD": inv["USD"]},
         fixed_assets={"UZS": fa_uzs, "USD": fa_usd},
         payables={"UZS": pay_uzs, "USD": pay_usd},
         charter={"UZS": charter_uzs, "USD": charter_usd},
@@ -644,7 +793,7 @@ def reports_page():
     cash_by_cat = db.cash_flow_by_category(year, month)
     cash_flow_rows = []
     cf_bank_in = cf_bank_out = cf_kassa_in = cf_kassa_out = 0.0
-    for c in db.CASH_CATEGORIES:
+    for c in db.all_cash_categories():
         d = cash_by_cat.get(c["name"])
         if not d:
             continue
@@ -764,8 +913,8 @@ def cash_page():
     rate = db.get_exchange_rate_on(period_end)
     return render_template(
         "cash.html", active_page="cash", rows=rows,
-        sources=db.CASH_SOURCES, sections=db.CASH_SECTIONS, categories=db.CASH_CATEGORIES,
-        forma2_expense_categories=db.CATEGORIES, forma2_groups=db.FORMA2_GROUPS,
+        sources=db.CASH_SOURCES, sections=db.CASH_SECTIONS, categories=db.all_cash_categories(),
+        forma2_expense_categories=db.all_categories(), forma2_groups=db.FORMA2_GROUPS,
         forma2_income_categories=db.INCOME_CATEGORIES,
         counterparties=db.list_cash_counterparties(),
         today=datetime.now().strftime("%Y-%m-%d"),
@@ -791,7 +940,7 @@ def cash_add():
     if rate_missing_for(f["date"]):
         flash(t("flash.rate_required", g.lang), "error")
         return redirect(url_for("cash_page"))
-    cat = db.CASH_CATEGORY_MAP.get(f["category"])
+    cat = db.all_cash_category_map().get(f["category"])
     if not cat:
         abort(400)
     db.add_cash_transaction(
@@ -885,7 +1034,7 @@ def cash_import_preview():
     dup_count = len(rows) - new_count
     return render_template(
         "cash_import_preview.html", active_page="cash",
-        upload_id=upload_id, rows=rows, categories=db.CASH_CATEGORIES, sections=db.CASH_SECTIONS,
+        upload_id=upload_id, rows=rows, categories=db.all_cash_categories(), sections=db.CASH_SECTIONS,
         new_count=new_count, dup_count=dup_count,
     )
 
@@ -902,7 +1051,7 @@ def cash_import_commit():
 
     source = request.form.get("source", "kassa")
     category = request.form.get("category", "")
-    cat = db.CASH_CATEGORY_MAP.get(category)
+    cat = db.all_cash_category_map().get(category)
     if not cat:
         abort(400)
 
@@ -1122,9 +1271,15 @@ def ledger_page():
         k: sum(r[k] for r in rows)
         for k in ("open_dt", "open_kt", "turn_dt", "turn_kt", "close_dt", "close_kt")
     }
+    booking_rows = booking_debtors(year, month, currency)
+    booking_total = sum(r["owed"] for r in booking_rows)
+    channel_rows = channel_platform_debts(currency)
+    channel_total = sum(r["owed"] for r in channel_rows)
     return render_template(
         "ledger.html", active_page="ledger", rows=rows, totals=totals, currency=currency,
         year=year, month=month, years=available_years(),
+        booking_rows=booking_rows, booking_total=booking_total,
+        channel_rows=channel_rows, channel_total=channel_total,
     )
 
 
@@ -1179,6 +1334,54 @@ def ledger_payment_delete(payment_id):
         return back
     db.delete_payment(payment_id)
     return back
+
+
+# ---- Hamkorlar (kontragentlar ma'lumotnomasi) ----
+
+@app.route("/ledger/counterparties")
+@permission_required("ledger", "view")
+def counterparties_page():
+    u = current_user()
+    return render_template(
+        "counterparties.html", active_page="ledger", rows=db.list_counterparties(),
+        can_create=db.has_permission(u, "ledger", "create"),
+        can_delete=db.has_permission(u, "ledger", "delete"),
+    )
+
+
+@app.route("/ledger/counterparties/import", methods=["POST"])
+@permission_required("ledger", "create")
+def counterparties_import():
+    added = db.import_existing_counterparties()
+    flash(t("cp.import_done", g.lang).replace("{n}", str(added)), "success")
+    return redirect(url_for("counterparties_page"))
+
+
+@app.route("/ledger/counterparties/add", methods=["POST"])
+@permission_required("ledger", "create")
+def counterparties_add():
+    f = request.form
+    name = (f.get("name") or "").strip()
+    if name:
+        db.add_counterparty(name, f.get("inn", ""))
+    return redirect(url_for("counterparties_page"))
+
+
+@app.route("/ledger/counterparties/<int:cp_id>/edit", methods=["POST"])
+@permission_required("ledger", "create")
+def counterparties_edit(cp_id):
+    f = request.form
+    name = (f.get("name") or "").strip()
+    if name:
+        db.update_counterparty(cp_id, name, f.get("inn", ""))
+    return redirect(url_for("counterparties_page"))
+
+
+@app.route("/ledger/counterparties/<int:cp_id>/delete", methods=["POST"])
+@permission_required("ledger", "delete")
+def counterparties_delete(cp_id):
+    db.delete_counterparty(cp_id)
+    return redirect(url_for("counterparties_page"))
 
 
 # ---- Xizmatlar (Услуги) — QQS bilan olingan/ko'rsatilgan xizmatlar ----
@@ -1476,6 +1679,9 @@ def settings_page():
         charter_usd=db.get_setting("charter_capital_usd", "0"),
         fixed_assets=db.list_fixed_assets(),
         today=datetime.now().strftime("%Y-%m-%d"),
+        custom_categories=db.list_custom_categories(), forma2_groups=db.FORMA2_GROUPS,
+        custom_cash_categories=db.list_custom_cash_categories(),
+        cash_sections=db.CASH_SECTIONS,
     )
 
 
@@ -1591,6 +1797,56 @@ def settings_fixed_asset_delete(asset_id):
     if current_user()["role"] != "super_admin":
         abort(403)
     db.delete_fixed_asset(asset_id)
+    return redirect(url_for("settings_page"))
+
+
+@app.route("/settings/category/add", methods=["POST"])
+@login_required
+def settings_category_add():
+    if current_user()["role"] != "super_admin":
+        abort(403)
+    f = request.form
+    name = (f.get("name") or "").strip()
+    if name:
+        try:
+            db.add_custom_category(name, f["group_key"])
+            flash(t("flash.settings_saved", g.lang), "success")
+        except ValueError:
+            flash(t("flash.error_prefix", g.lang) + "invalid_group", "error")
+    return redirect(url_for("settings_page"))
+
+
+@app.route("/settings/category/<int:cat_id>/delete", methods=["POST"])
+@login_required
+def settings_category_delete(cat_id):
+    if current_user()["role"] != "super_admin":
+        abort(403)
+    db.delete_custom_category(cat_id)
+    return redirect(url_for("settings_page"))
+
+
+@app.route("/settings/cash-category/add", methods=["POST"])
+@login_required
+def settings_cash_category_add():
+    if current_user()["role"] != "super_admin":
+        abort(403)
+    f = request.form
+    name = (f.get("name") or "").strip()
+    if name:
+        try:
+            db.add_custom_cash_category(name, f["section"], f["type"])
+            flash(t("flash.settings_saved", g.lang), "success")
+        except ValueError:
+            flash(t("flash.error_prefix", g.lang) + "invalid_section_or_type", "error")
+    return redirect(url_for("settings_page"))
+
+
+@app.route("/settings/cash-category/<int:cat_id>/delete", methods=["POST"])
+@login_required
+def settings_cash_category_delete(cat_id):
+    if current_user()["role"] != "super_admin":
+        abort(403)
+    db.delete_custom_cash_category(cat_id)
     return redirect(url_for("settings_page"))
 
 
