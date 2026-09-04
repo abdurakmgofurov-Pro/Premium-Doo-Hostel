@@ -471,6 +471,9 @@ def init_db():
             updated_at TEXT DEFAULT (datetime('now'))
         )
     """)
+    rate_cols = [r["name"] for r in conn.execute("PRAGMA table_info(exchange_rates)").fetchall()]
+    if "uzs_per_eur" not in rate_cols:
+        conn.execute("ALTER TABLE exchange_rates ADD COLUMN uzs_per_eur REAL")
     conn.execute("""
         CREATE TABLE IF NOT EXISTS app_settings (
             key TEXT PRIMARY KEY,
@@ -873,6 +876,30 @@ def summarize_transactions(year=None, month=None):
             summary["expense"][bt["currency"]] += bt["amount"]
             summary["by_group"]["tannarx"][bt["currency"]] += bt["amount"]
     return summary
+
+
+def category_breakdown(year, month, group_key):
+    """Berilgan Forma 2 xarajat guruhi (masalan 'tannarx', 'mamuriy') qanday
+    turkumlardan tarkib topganini ko'rsatadi — hisobotda qatorni bosganda
+    tafsilotini chiqarish uchun."""
+    cat_group_map = all_category_group_map()
+    totals = {}
+    for r in list_transactions(year, month):
+        if r["type"] != "expense":
+            continue
+        group = cat_group_map.get(r["category"], "boshqa_operatsion")
+        if group != group_key:
+            continue
+        t = totals.setdefault(r["category"], {"UZS": 0.0, "USD": 0.0})
+        t[r["currency"]] += r["amount"]
+    if group_key == "tannarx":
+        for bt in list_bar_transactions(year, month):
+            if bt["ttype"] != "sale":
+                t = totals.setdefault("Bar mahsulotlari xaridi (tannarx)", {"UZS": 0.0, "USD": 0.0})
+                t[bt["currency"]] += bt["amount"]
+    rows = [{"category": k, "uzs": v["UZS"], "usd": v["USD"]} for k, v in totals.items()]
+    rows.sort(key=lambda r: -(r["uzs"] + r["usd"]))
+    return rows
 
 
 def summarize_transactions_upto(upto_date=None):
@@ -1493,45 +1520,71 @@ def set_setting(key, value):
 # ---- Valyuta kursi (KUNLIK — istalgan sanaga qo'yiladi, keyingi yozuv
 #      kiritilmaguncha o'sha kurs "amal qiladi" deb hisoblanadi) ----
 
-def set_exchange_rate(date, rate):
+def set_exchange_rate(date, rate, currency="USD"):
+    """`currency` — 'USD' (standart) yoki 'EUR'. Bir xil sana uchun ikkala
+    valyuta kursi alohida-alohida saqlanadi (bir qatorda, ikki ustunda) —
+    biri yangilanganda ikkinchisi tegilmay qoladi."""
     conn = get_conn()
+    existing = conn.execute(
+        "SELECT uzs_per_usd, uzs_per_eur FROM exchange_rates WHERE date=?", (date,)
+    ).fetchone()
+    usd_val = existing["uzs_per_usd"] if existing else 0.0
+    eur_val = existing["uzs_per_eur"] if existing else None
+    if currency == "EUR":
+        eur_val = rate
+    else:
+        usd_val = rate
     conn.execute(
-        "INSERT INTO exchange_rates (date, uzs_per_usd, updated_at) VALUES (?,?,datetime('now'))"
-        " ON CONFLICT(date) DO UPDATE SET uzs_per_usd=excluded.uzs_per_usd, updated_at=excluded.updated_at",
-        (date, rate),
+        "INSERT INTO exchange_rates (date, uzs_per_usd, uzs_per_eur, updated_at) VALUES (?,?,?,datetime('now'))"
+        " ON CONFLICT(date) DO UPDATE SET uzs_per_usd=excluded.uzs_per_usd, uzs_per_eur=excluded.uzs_per_eur,"
+        " updated_at=excluded.updated_at",
+        (date, usd_val, eur_val),
     )
     conn.commit()
     conn.close()
 
 
-def delete_exchange_rate(date):
+def delete_exchange_rate(date, currency="USD"):
+    """Faqat berilgan valyuta ustunini bo'shatadi (0/NULL) — sananing
+    o'zi va ikkinchi valyuta kursi saqlanib qoladi."""
     conn = get_conn()
-    conn.execute("DELETE FROM exchange_rates WHERE date=?", (date,))
+    if currency == "EUR":
+        conn.execute("UPDATE exchange_rates SET uzs_per_eur=NULL WHERE date=?", (date,))
+    else:
+        conn.execute("UPDATE exchange_rates SET uzs_per_usd=0 WHERE date=?", (date,))
+    conn.execute(
+        "DELETE FROM exchange_rates WHERE date=? AND (uzs_per_usd IS NULL OR uzs_per_usd=0) AND uzs_per_eur IS NULL",
+        (date,),
+    )
     conn.commit()
     conn.close()
 
 
-def get_exchange_rate_on(upto_date=None):
+def get_exchange_rate_on(upto_date=None, currency="USD"):
     """Berilgan sanada AMALDA bo'lgan kurs — shu sanagacha (yoki teng)
     kiritilgan ENG SO'NGGI kurs. `upto_date=None` bo'lsa — umuman eng
     so'nggi (bugungi) kurs qaytariladi."""
+    col = "uzs_per_eur" if currency == "EUR" else "uzs_per_usd"
     conn = get_conn()
     if upto_date:
         row = conn.execute(
-            "SELECT uzs_per_usd FROM exchange_rates WHERE date<=? ORDER BY date DESC LIMIT 1", (upto_date,)
+            f"SELECT {col} v FROM exchange_rates WHERE date<=? AND {col} IS NOT NULL AND {col}>0 ORDER BY date DESC LIMIT 1",
+            (upto_date,),
         ).fetchone()
     else:
-        row = conn.execute("SELECT uzs_per_usd FROM exchange_rates ORDER BY date DESC LIMIT 1").fetchone()
+        row = conn.execute(
+            f"SELECT {col} v FROM exchange_rates WHERE {col} IS NOT NULL AND {col}>0 ORDER BY date DESC LIMIT 1"
+        ).fetchone()
     conn.close()
-    return row["uzs_per_usd"] if row else None
+    return row["v"] if row else None
 
 
-def fetch_cbu_rate(date_str):
+def fetch_cbu_rate(date_str, currency="USD"):
     """O'zbekiston Markaziy banki (cbu.uz) rasmiy saytidan berilgan sana
-    uchun USD/UZS kursini oladi. Tarmoq xatosida yoki kurs topilmasa
-    ValueError ko'taradi."""
+    uchun USD yoki EUR / UZS kursini oladi. Tarmoq xatosida yoki kurs
+    topilmasa ValueError ko'taradi."""
     import requests
-    url = f"https://cbu.uz/uz/arkhiv-kursov-valyut/json/USD/{date_str}/"
+    url = f"https://cbu.uz/uz/arkhiv-kursov-valyut/json/{currency}/{date_str}/"
     resp = requests.get(url, timeout=10)
     resp.raise_for_status()
     data = resp.json()

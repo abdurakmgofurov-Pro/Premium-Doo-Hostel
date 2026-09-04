@@ -94,12 +94,34 @@ def flatten(booking):
             arrival = min(dates)
     customer = booking.get("customer") or {}
     room_type, rate_plan, nights, adults, children = _room_stay_info(booking)
+
+    currency = booking.get("currencyCode")
+    revenue = total.get("priceBeforeTax") or 0.0
+    prepaid = guarantee.get("totalPrepaid") or 0.0
+    if currency and currency not in ("UZS", "USD"):
+        # Bron kamdan-kam EUR (yoki boshqa) valyutada kelishi mumkin — tizim
+        # faqat UZS/USD bilan ishlagani uchun, Markaziy bank kursi asosida
+        # darhol UZS'ga aylantiriladi (kurs topilmasa, xom valyutada qoladi
+        # va boshqa joyda e'tiborsiz qoldiriladi).
+        import db
+        rate = db.get_exchange_rate_on(arrival[:10] if arrival else None, currency)
+        if not rate:
+            # Shu sanaga tegishli tarixiy kurs topilmasa (masalan EUR kursi
+            # kuzatilishi hali yaqinda boshlangan bo'lsa) — eng so'nggi
+            # ma'lum kursdan foydalaniladi, xom valyutada qoldirib
+            # umuman hisobga olinmasligidan ko'ra to'g'riroq.
+            rate = db.get_exchange_rate_on(None, currency)
+        if rate:
+            revenue *= rate
+            prepaid *= rate
+            currency = "UZS"
+
     return {
         "number": booking.get("number"),
         "status": booking.get("status"),
-        "currency": booking.get("currencyCode"),
-        "revenue": total.get("priceBeforeTax") or 0.0,
-        "prepaid": guarantee.get("totalPrepaid") or 0.0,
+        "currency": currency,
+        "revenue": revenue,
+        "prepaid": prepaid,
         "channel_key": channel_key(booking),
         "channel_name": channel_name(channel_key(booking)),
         "created": booking.get("createdDateTime"),

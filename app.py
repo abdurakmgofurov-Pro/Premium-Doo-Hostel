@@ -202,18 +202,25 @@ def refresh_once():
 
 
 def ensure_today_cbu_rate():
-    """Bugungi kun uchun Markaziy bank kursi hali kiritilmagan bo'lsa,
-    avtomatik ravishda cbu.uz'dan olib saqlaydi. Tarmoq xatosida indamay
-    o'tkazib yuboriladi — keyingi urinishda (yoki qo'lda) qayta olinadi."""
+    """Bugungi kun uchun Markaziy bank kursi (USD va EUR) hali kiritilmagan
+    bo'lsa, avtomatik ravishda cbu.uz'dan olib saqlaydi. Tarmoq xatosida
+    indamay o'tkazib yuboriladi — keyingi urinishda (yoki qo'lda) qayta
+    olinadi."""
     today_str = datetime.now().strftime("%Y-%m-%d")
     rates = db.list_exchange_rates()
-    if rates and rates[0]["date"] == today_str:
-        return
-    try:
-        rate = db.fetch_cbu_rate(today_str)
-        db.set_exchange_rate(today_str, rate)
-    except Exception:
-        pass
+    today_row = rates[0] if rates and rates[0]["date"] == today_str else None
+    if not today_row or not today_row["uzs_per_usd"]:
+        try:
+            rate = db.fetch_cbu_rate(today_str, "USD")
+            db.set_exchange_rate(today_str, rate, "USD")
+        except Exception:
+            pass
+    if not today_row or not today_row["uzs_per_eur"]:
+        try:
+            rate = db.fetch_cbu_rate(today_str, "EUR")
+            db.set_exchange_rate(today_str, rate, "EUR")
+        except Exception:
+            pass
 
 
 def background_loop():
@@ -755,15 +762,36 @@ def reports_page():
     manual = db.summarize_transactions(year, month)
     f2 = build_forma2(data, manual)
 
+    # 010-qatorning tarkibi: Хостел (Exely bronlari) / Xizmatlar (Услуги
+    # sahifasidan ko'rsatilgan xizmatlar) / Bar (mini-bar sotuvi).
+    hostel_rev = (data.get("revenue_by_currency", {}) if data else {}) or {}
+    hostel_rev_uzs, hostel_rev_usd = hostel_rev.get("UZS", 0.0), hostel_rev.get("USD", 0.0)
+    extra_rev = manual.get("revenue_extra", {})
+    services_rev = manual.get("by_category", {}).get(db.SERVICE_REVENUE_CATEGORY, {})
+    services_rev_uzs, services_rev_usd = services_rev.get("UZS", 0.0), services_rev.get("USD", 0.0)
+    bar_rev_uzs = extra_rev.get("UZS", 0.0) - services_rev_uzs
+    bar_rev_usd = extra_rev.get("USD", 0.0) - services_rev_usd
+
+    tannarx_breakdown = db.category_breakdown(year, month, "tannarx")
+    sotish_breakdown = db.category_breakdown(year, month, "sotish")
+    mamuriy_breakdown = db.category_breakdown(year, month, "mamuriy")
+    boshqa_op_breakdown = db.category_breakdown(year, month, "boshqa_operatsion")
+    moliyaviy_breakdown = db.category_breakdown(year, month, "moliyaviy")
+    soliq_breakdown = db.category_breakdown(year, month, "soliq")
+
     cash_uzs = db.get_cash_balance("UZS", upto_date=period_end)
     cash_usd = db.get_cash_balance("USD", upto_date=period_end)
+    cash_bank_uzs = db.get_cash_balance("UZS", upto_date=period_end, source="bank")
+    cash_bank_usd = db.get_cash_balance("USD", upto_date=period_end, source="bank")
+    cash_kassa_uzs = db.get_cash_balance("UZS", upto_date=period_end, source="kassa")
+    cash_kassa_usd = db.get_cash_balance("USD", upto_date=period_end, source="kassa")
 
-    recv_uzs, pay_uzs = db.outstanding_balance("UZS", upto_date=period_end)
-    recv_usd, pay_usd = db.outstanding_balance("USD", upto_date=period_end)
+    cp_recv_uzs, pay_uzs = db.outstanding_balance("UZS", upto_date=period_end)
+    cp_recv_usd, pay_usd = db.outstanding_balance("USD", upto_date=period_end)
 
     booking_recv_uzs, booking_recv_usd = booking_receivables(period_end)
-    recv_uzs += booking_recv_uzs
-    recv_usd += booking_recv_usd
+    recv_uzs = cp_recv_uzs + booking_recv_uzs
+    recv_usd = cp_recv_usd + booking_recv_usd
 
     inv = db.bar_stock_value()
 
@@ -876,6 +904,16 @@ def reports_page():
         kpi_revenue=kpi_revenue, kpi_net_profit=kpi_net_profit, kpi_gross_profit=kpi_gross_profit,
         kpi_gross_margin=gross_margin, kpi_net_margin=net_margin,
         rate=rate,
+        cash_bank_uzs=cash_bank_uzs, cash_bank_usd=cash_bank_usd,
+        cash_kassa_uzs=cash_kassa_uzs, cash_kassa_usd=cash_kassa_usd,
+        cp_recv_uzs=cp_recv_uzs, cp_recv_usd=cp_recv_usd,
+        booking_recv_uzs=booking_recv_uzs, booking_recv_usd=booking_recv_usd,
+        hostel_rev_uzs=hostel_rev_uzs, hostel_rev_usd=hostel_rev_usd,
+        services_rev_uzs=services_rev_uzs, services_rev_usd=services_rev_usd,
+        bar_rev_uzs=bar_rev_uzs, bar_rev_usd=bar_rev_usd,
+        tannarx_breakdown=tannarx_breakdown, sotish_breakdown=sotish_breakdown,
+        mamuriy_breakdown=mamuriy_breakdown, boshqa_op_breakdown=boshqa_op_breakdown,
+        moliyaviy_breakdown=moliyaviy_breakdown, soliq_breakdown=soliq_breakdown,
     )
 
 
@@ -1728,7 +1766,8 @@ def exchange_rate_page():
     rates = db.list_exchange_rates()
     return render_template(
         "exchange_rate.html", active_page="exchange_rate", rates=rates,
-        latest=rates[0]["uzs_per_usd"] if rates else None,
+        latest_usd=rates[0]["uzs_per_usd"] if rates else None,
+        latest_eur=next((r["uzs_per_eur"] for r in rates if r["uzs_per_eur"]), None),
         today=datetime.now().strftime("%Y-%m-%d"),
     )
 
@@ -1739,7 +1778,8 @@ def exchange_rate_add():
     if current_user()["role"] != "super_admin":
         abort(403)
     f = request.form
-    db.set_exchange_rate(f["date"], parse_amount(f["rate"]))
+    currency = f.get("currency") or "USD"
+    db.set_exchange_rate(f["date"], parse_amount(f["rate"]), currency)
     flash(t("flash.settings_saved", g.lang), "success")
     return redirect(url_for("exchange_rate_page"))
 
@@ -1749,7 +1789,8 @@ def exchange_rate_add():
 def exchange_rate_delete(date_str):
     if current_user()["role"] != "super_admin":
         abort(403)
-    db.delete_exchange_rate(date_str)
+    currency = request.form.get("currency") or "USD"
+    db.delete_exchange_rate(date_str, currency)
     return redirect(url_for("exchange_rate_page"))
 
 
@@ -1759,9 +1800,10 @@ def exchange_rate_fetch_cbu():
     if current_user()["role"] != "super_admin":
         abort(403)
     date_str = request.form.get("date") or datetime.now().strftime("%Y-%m-%d")
+    currency = request.form.get("currency") or "USD"
     try:
-        rate = db.fetch_cbu_rate(date_str)
-        db.set_exchange_rate(date_str, rate)
+        rate = db.fetch_cbu_rate(date_str, currency)
+        db.set_exchange_rate(date_str, rate, currency)
         flash(t("rate.cbu_fetch_success", g.lang).format(rate=format_money(rate)), "success")
     except Exception:
         flash(t("rate.cbu_fetch_error", g.lang), "error")

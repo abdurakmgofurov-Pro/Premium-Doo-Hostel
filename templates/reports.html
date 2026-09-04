@@ -6,6 +6,15 @@
   .report-tabs a { padding: .5rem 1rem; border-radius: 10px; font-size: .84rem; font-weight: 600;
     text-decoration: none; color: var(--ink-secondary); background: var(--bg-surface-2); border: 1px solid var(--border); }
   .report-tabs a.active { background: linear-gradient(135deg, var(--accent), var(--accent-deep)); color: #fff; border-color: transparent; }
+  .breakdown-details { margin: .2rem 0 .4rem 1.4rem; }
+  .breakdown-details summary { cursor: pointer; font-size: .78rem; color: var(--accent-light); list-style: none; user-select: none; }
+  .breakdown-details summary::-webkit-details-marker { display: none; }
+  .breakdown-details summary::before { content: "▸ "; }
+  .breakdown-details[open] summary::before { content: "▾ "; }
+  .breakdown-list { margin-top: .5rem; padding: .6rem .9rem; background: var(--bg-surface-2); border-radius: 9px; }
+  .breakdown-row { display: flex; justify-content: space-between; gap: 1rem; font-size: .82rem; padding: .28rem 0; color: var(--ink-secondary); border-bottom: 1px solid var(--border); }
+  .breakdown-row:last-child { border-bottom: none; }
+  .breakdown-row span:last-child { color: var(--ink-primary); font-weight: 600; white-space: nowrap; }
 </style>
 {% endblock %}
 {% block content %}
@@ -58,6 +67,29 @@
             <td>{{ row.indent * "&nbsp;&nbsp;&nbsp;&nbsp;" | safe }}{{ t(row.key) }}</td>
             <td class="num">{{ to_display(row.uzs, row.usd, rate)|money }}</td>
           </tr>
+          {% if row.key == 'f1.cash' %}
+          <tr><td colspan="2" style="padding:0 0 .4rem">
+            <details class="breakdown-details">
+              <summary>{{ t('f1.cash_breakdown_toggle') }}</summary>
+              <div class="breakdown-list">
+                <div class="breakdown-row"><span>{{ t('f1.cash_kassa') }}</span><span>{{ to_display(cash_kassa_uzs, cash_kassa_usd, rate)|money }}</span></div>
+                <div class="breakdown-row"><span>{{ t('f1.cash_bank') }}</span><span>{{ to_display(cash_bank_uzs, cash_bank_usd, rate)|money }}</span></div>
+              </div>
+            </details>
+          </td></tr>
+          {% endif %}
+          {% if row.key == 'f1.receivables' %}
+          <tr><td colspan="2" style="padding:0 0 .4rem">
+            <details class="breakdown-details">
+              <summary>{{ t('f1.recv_breakdown_toggle') }}</summary>
+              <div class="breakdown-list">
+                <div class="breakdown-row"><span>{{ t('f1.recv_counterparty') }}</span><span>{{ to_display(cp_recv_uzs, cp_recv_usd, rate)|money }}</span></div>
+                <div class="breakdown-row"><span>{{ t('f1.recv_bookings') }}</span><span>{{ to_display(booking_recv_uzs, booking_recv_usd, rate)|money }}</span></div>
+              </div>
+              <div class="note" style="margin-top:.5rem">{{ t('f1.recv_ota_note') }}</div>
+            </details>
+          </td></tr>
+          {% endif %}
           {% endif %}
           {% endfor %}
         </tbody>
@@ -231,6 +263,102 @@
             <td>{{ row.indent * "&nbsp;&nbsp;&nbsp;&nbsp;" | safe }}{{ t(row.key) }}</td>
             <td class="num">{{ to_display(row.uzs, row.usd, rate)|money }}</td>
           </tr>
+          {% if row.key == 'f2.010' %}
+          <tr><td colspan="2" style="padding:0 0 .4rem">
+            <details class="breakdown-details">
+              <summary>{{ t('f2.rev_breakdown_toggle') }}</summary>
+              <div class="breakdown-list">
+                <div class="breakdown-row"><span>{{ t('f2.rev_hostel') }}</span><span>{{ to_display(hostel_rev_uzs, hostel_rev_usd, rate)|money }}</span></div>
+                <div class="breakdown-row"><span>{{ t('f2.rev_services') }}</span><span>{{ to_display(services_rev_uzs, services_rev_usd, rate)|money }}</span></div>
+                <div class="breakdown-row"><span>{{ t('f2.rev_bar') }}</span><span>{{ to_display(bar_rev_uzs, bar_rev_usd, rate)|money }}</span></div>
+              </div>
+            </details>
+          </td></tr>
+          {% endif %}
+          {% if row.key == 'f2.020' %}
+          <tr><td colspan="2" style="padding:0 0 .4rem">
+            <details class="breakdown-details">
+              <summary>{{ t('f2.cat_breakdown_toggle') }}</summary>
+              <div class="breakdown-list">
+                {% for c in tannarx_breakdown %}
+                <div class="breakdown-row"><span>{{ c.category }}</span><span>{{ to_display(c.uzs, c.usd, rate)|money }}</span></div>
+                {% else %}
+                <div class="breakdown-row"><span>{{ t('common.dash') }}</span><span>—</span></div>
+                {% endfor %}
+              </div>
+            </details>
+          </td></tr>
+          {% endif %}
+          {% if row.key == 'f2.040_sotish' %}
+          <tr><td colspan="2" style="padding:0 0 .4rem">
+            <details class="breakdown-details">
+              <summary>{{ t('f2.cat_breakdown_toggle') }}</summary>
+              <div class="breakdown-list">
+                {% for c in sotish_breakdown %}
+                <div class="breakdown-row"><span>{{ c.category }}</span><span>{{ to_display(c.uzs, c.usd, rate)|money }}</span></div>
+                {% else %}
+                <div class="breakdown-row"><span>{{ t('common.dash') }}</span><span>—</span></div>
+                {% endfor %}
+              </div>
+            </details>
+          </td></tr>
+          {% endif %}
+          {% if row.key == 'f2.040_mamuriy' %}
+          <tr><td colspan="2" style="padding:0 0 .4rem">
+            <details class="breakdown-details">
+              <summary>{{ t('f2.cat_breakdown_toggle') }}</summary>
+              <div class="breakdown-list">
+                {% for c in mamuriy_breakdown %}
+                <div class="breakdown-row"><span>{{ c.category }}</span><span>{{ to_display(c.uzs, c.usd, rate)|money }}</span></div>
+                {% else %}
+                <div class="breakdown-row"><span>{{ t('common.dash') }}</span><span>—</span></div>
+                {% endfor %}
+              </div>
+            </details>
+          </td></tr>
+          {% endif %}
+          {% if row.key == 'f2.040_boshqa' %}
+          <tr><td colspan="2" style="padding:0 0 .4rem">
+            <details class="breakdown-details">
+              <summary>{{ t('f2.cat_breakdown_toggle') }}</summary>
+              <div class="breakdown-list">
+                {% for c in boshqa_op_breakdown %}
+                <div class="breakdown-row"><span>{{ c.category }}</span><span>{{ to_display(c.uzs, c.usd, rate)|money }}</span></div>
+                {% else %}
+                <div class="breakdown-row"><span>{{ t('common.dash') }}</span><span>—</span></div>
+                {% endfor %}
+              </div>
+            </details>
+          </td></tr>
+          {% endif %}
+          {% if row.key == 'f2.060' %}
+          <tr><td colspan="2" style="padding:0 0 .4rem">
+            <details class="breakdown-details">
+              <summary>{{ t('f2.cat_breakdown_toggle') }}</summary>
+              <div class="breakdown-list">
+                {% for c in moliyaviy_breakdown %}
+                <div class="breakdown-row"><span>{{ c.category }}</span><span>{{ to_display(c.uzs, c.usd, rate)|money }}</span></div>
+                {% else %}
+                <div class="breakdown-row"><span>{{ t('common.dash') }}</span><span>—</span></div>
+                {% endfor %}
+              </div>
+            </details>
+          </td></tr>
+          {% endif %}
+          {% if row.key == 'f2.090' %}
+          <tr><td colspan="2" style="padding:0 0 .4rem">
+            <details class="breakdown-details">
+              <summary>{{ t('f2.cat_breakdown_toggle') }}</summary>
+              <div class="breakdown-list">
+                {% for c in soliq_breakdown %}
+                <div class="breakdown-row"><span>{{ c.category }}</span><span>{{ to_display(c.uzs, c.usd, rate)|money }}</span></div>
+                {% else %}
+                <div class="breakdown-row"><span>{{ t('common.dash') }}</span><span>—</span></div>
+                {% endfor %}
+              </div>
+            </details>
+          </td></tr>
+          {% endif %}
           {% endfor %}
         </tbody>
       </table>
