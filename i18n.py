@@ -32,6 +32,7 @@ TR = {
     "login.username": {"ru": "Логин", "en": "Username", "uz": "Login"},
     "login.password": {"ru": "Пароль", "en": "Password", "uz": "Parol"},
     "login.submit": {"ru": "Войти", "en": "Sign in", "uz": "Kirish"},
+    "login.footer_rights": {"ru": "Все права защищены", "en": "All rights reserved", "uz": "Barcha huquqlar himoyalangan"},
     "login.card_title": {"ru": "Вход в систему", "en": "Sign in", "uz": "Tizimga kirish"},
     "login.card_subtitle": {"ru": "Введите учётные данные для продолжения", "en": "Enter your credentials to continue", "uz": "Davom etish uchun login/parolingizni kiriting"},
     "login.headline": {"ru": "Финансы хостела — в одном месте", "en": "Hostel finances, all in one place", "uz": "Mehmonxona moliyasi — bir joyda"},
@@ -525,6 +526,7 @@ TR = {
     "ledger.payment_date": {"ru": "Дата платежа", "en": "Payment date", "uz": "To'lov sanasi"},
     "ledger.payment_amount": {"ru": "Сумма платежа", "en": "Payment amount", "uz": "To'lov summasi"},
     "ledger.payment_note": {"ru": "Примечание", "en": "Note", "uz": "Izoh"},
+    "ledger.payment_cash_source": {"ru": "Касса/Банк", "en": "Cash/Bank account", "uz": "Kassa/Bank"},
     "ledger.payment_submit": {"ru": "Сохранить платёж", "en": "Save payment", "uz": "To'lovni saqlash"},
     "ledger.payment_history": {"ru": "История платежей", "en": "Payment history", "uz": "To'lovlar tarixi"},
     "ledger.payment_delete": {"ru": "Удалить", "en": "Delete", "uz": "O'chirish"},
@@ -678,6 +680,11 @@ TR = {
         "ru": "Долги OTA-платформ (Booking.com, Agoda и т.п.) сюда не входят — они показаны отдельно на странице «Дт/Кт» и не включаются в баланс, так как деньги от них обычно уже поступили на счёт общей суммой, без привязки к конкретной брони.",
         "en": "OTA platform debts (Booking.com, Agoda, etc.) are not included here — they are shown separately on the \"Dt/Kt\" page and excluded from the balance sheet, since that money has usually already arrived as a lump sum not traceable to a specific booking.",
         "uz": "OTA-platformalar (Booking.com, Agoda va h.k.) qarzi bu yerga kirmaydi — ular alohida «Дт/Кт» sahifasida ko'rsatiladi va balansga qo'shilmaydi, chunki bu pul odatda hisobga umumiy summa sifatida allaqachon tushgan bo'ladi, aniq bronga bog'lanmagan holda.",
+    },
+    "f1.recv_currency_skipped_note": {
+        "ru": "{n} брон(и) в валюте, для которой ни разу не был введён курс (например EUR), не включены в дебиторскую задолженность — введите курс на странице «Курс доллара», чтобы учесть их.",
+        "en": "{n} booking(s) in a currency with no exchange rate ever entered (e.g. EUR) are not included in receivables — enter a rate on the Exchange Rate page to include them.",
+        "uz": "Kursi hech qachon kiritilmagan valyutadagi (masalan EUR) {n} ta bron debitorlikka qo'shilmagan — ularni hisobga olish uchun \"Dollar kursi\" sahifasida kurs kiriting.",
     },
     "f1.note": {
         "ru": "Дебиторская/кредиторская задолженность рассчитывается автоматически по контрагентам со страниц «Расходы» и «Услуги» (с учётом платежей на странице «Дт/Кт»). Основные средства и уставный капитал вносятся вручную в «Настройках». «Разница» показывает, насколько актив и пассив расходятся — в идеале должна быть близка к нулю; при существенном отклонении отчёт следует проверить с бухгалтером. Это внутренний (управленческий) отчёт, а не официальный бухгалтерский документ.",

@@ -5,7 +5,12 @@
   <h2>{{ t('settings.title') }}</h2>
   <form class="form-grid" method="post" action="/settings/save">
     <div class="field full"><label>{{ t('settings.client_id') }}</label><input type="text" name="api_client_id" value="{{cfg.api_client_id}}" required></div>
-    <div class="field full"><label>{{ t('settings.client_secret') }}</label><input type="text" name="api_client_secret" value="{{cfg.api_client_secret}}" required></div>
+    <div class="field full"><label>{{ t('settings.client_secret') }}</label>
+      <div style="display:flex;gap:.5rem;align-items:center">
+        <input type="password" name="api_client_secret" id="apiClientSecretInput" value="{{cfg.api_client_secret}}" required style="flex:1">
+        <button type="button" class="btn" id="toggleSecretBtn">👁</button>
+      </div>
+    </div>
     <div class="field"><label>{{ t('settings.property_id') }}</label><input type="text" name="property_id" value="{{cfg.property_id}}" required></div>
     <div class="field"><label>{{ t('settings.refresh_minutes') }}</label><input type="number" name="refresh_minutes" value="{{cfg.refresh_minutes}}" required></div>
     <div class="field"><button class="btn primary" type="submit">{{ t('settings.save') }}</button></div>
@@ -172,4 +177,16 @@
     {% endif %}
   </div>
 </div>
+{% endblock %}
+{% block scripts %}
+<script>
+(function () {
+  var input = document.getElementById("apiClientSecretInput");
+  var btn = document.getElementById("toggleSecretBtn");
+  if (!input || !btn) return;
+  btn.addEventListener("click", function () {
+    input.type = input.type === "password" ? "text" : "password";
+  });
+})();
+</script>
 {% endblock %}

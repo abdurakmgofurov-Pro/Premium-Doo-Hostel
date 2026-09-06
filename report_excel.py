@@ -145,10 +145,10 @@ def build_excel_report(agg, manual, output_path):
     _autofit(ws5, [14, 10, 30, 34, 24, 34, 14, 10, 10])
 
     note = (
-        "Eslatma: 'Tushum' — Exely'dagi bron qiymati (priceAfterTax), 'Oldindan to'langan' — "
-        "guest tomonidan oldindan kiritilgan summa. Bekor qilingan (Cancelled) bronlar "
-        "tushumga kiritilmagan. Xarajatlar/kompaniyalar bilan hisob-kitob qo'lda kiritiladi "
-        "(dashboard'dagi \"Xarajatlar\" sahifasi orqali)."
+        "Eslatma: 'Tushum' — Exely'dagi bron qiymati soliqsiz (priceBeforeTax, sof tushum), "
+        "'Oldindan to'langan' — guest tomonidan oldindan kiritilgan summa. Bekor qilingan "
+        "(Cancelled) bronlar tushumga kiritilmagan. Xarajatlar/kompaniyalar bilan hisob-kitob "
+        "qo'lda kiritiladi (dashboard'dagi \"Xarajatlar\" sahifasi orqali)."
     )
     ws1.cell(row=ws1.max_row + 2, column=1, value=note).alignment = Alignment(wrap_text=True)
     ws1.merge_cells(start_row=ws1.max_row, start_column=1, end_row=ws1.max_row, end_column=4)

@@ -231,6 +231,12 @@
     return parts.join(".");
   }
 
+  function escapeHtml(s) {
+    var div = document.createElement("div");
+    div.textContent = String(s == null ? "" : s);
+    return div.innerHTML;
+  }
+
   function removeRow(id) {
     delete cart[id];
     var row = cartRows.querySelector('.cart-row[data-id="' + id + '"]');
@@ -247,7 +253,7 @@
     row.setAttribute("data-id", id);
     row.innerHTML =
       '<input type="hidden" name="product_id[]" value="' + id + '">' +
-      '<div class="cr-name">' + p.name + '</div>' +
+      '<div class="cr-name">' + escapeHtml(p.name) + '</div>' +
       '<input type="number" class="cr-qty" name="qty[]" step="0.01" min="0.01"' +
       (p.stock ? ' max="' + p.stock + '"' : '') + ' value="' + cart[id] + '">' +
       '<div class="cr-sub"></div>' +

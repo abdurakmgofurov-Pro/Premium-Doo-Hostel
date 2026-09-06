@@ -232,7 +232,7 @@
   }
 </style>
 {% block head %}{% endblock %}
-<script>window.T = {{ T_JSON | safe }}; window.LANG = "{{ LANG }}";</script>
+<script>window.T = {{ T_JSON | safe }}; window.LANG = "{{ LANG }}"; window.CSRF_TOKEN = {{ csrf_token() | tojson }};</script>
 </head>
 <body>
 {% set u = current_user %}
@@ -390,6 +390,20 @@
 document.addEventListener("submit", function (e) {
   var msg = e.target.getAttribute && e.target.getAttribute("data-confirm");
   if (msg && !window.confirm(msg)) e.preventDefault();
+});
+
+// CSRF himoyasi: har bir POST formaga (agar hali qo'shilmagan bo'lsa)
+// yuborilishdan oldin sessiya tokeni avtomatik qo'shiladi — shablonlarni
+// birma-bir tahrirlash o'rniga shu yerda markazlashtirilgan.
+document.addEventListener("submit", function (e) {
+  var form = e.target;
+  if (!form.method || form.method.toLowerCase() !== "post") return;
+  if (form.querySelector('input[name="csrf_token"]')) return;
+  var inp = document.createElement("input");
+  inp.type = "hidden";
+  inp.name = "csrf_token";
+  inp.value = window.CSRF_TOKEN || "";
+  form.appendChild(inp);
 });
 </script>
 {% block scripts %}{% endblock %}

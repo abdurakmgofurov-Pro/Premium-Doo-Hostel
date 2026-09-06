@@ -87,6 +87,9 @@
                 <div class="breakdown-row"><span>{{ t('f1.recv_bookings') }}</span><span>{{ to_display(booking_recv_uzs, booking_recv_usd, rate)|money }}</span></div>
               </div>
               <div class="note" style="margin-top:.5rem">{{ t('f1.recv_ota_note') }}</div>
+              {% if booking_recv_skipped %}
+              <div class="note" style="margin-top:.5rem">{{ t('f1.recv_currency_skipped_note').replace('{n}', booking_recv_skipped|string) }}</div>
+              {% endif %}
             </details>
           </td></tr>
           {% endif %}

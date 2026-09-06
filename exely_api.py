@@ -111,11 +111,18 @@ class ExelyApiClient:
         if wait > 0:
             time.sleep(wait)
 
+    # Sahifalash sikllari uchun qattiq chegara — server "hasMoreData: true"ni
+    # bir xil/tsiklik continueToken bilan cheksiz qaytarib yuborsa ham, fon
+    # oqimi abadiy osilib qolmasligi uchun (har sahifada 1000 tagacha bron
+    # kelishini hisobga olsak, bu chegara haqiqiy foydalanishda hech qachon
+    # yetib bo'lmaydigan darajada katta).
+    MAX_PAGES = 10000
+
     def list_booking_numbers(self, modified_from=None):
         """Barcha bron raqamlarini (sahifalab) qaytaradi."""
         numbers = []
         continue_token = None
-        while True:
+        for _ in range(self.MAX_PAGES):
             self._throttle("list")
             params = {}
             if continue_token:
@@ -131,11 +138,11 @@ class ExelyApiClient:
             for s in data.get("bookingSummaries", []):
                 numbers.append(s["number"])
             if not data.get("hasMoreData"):
-                break
+                return numbers
             continue_token = data.get("continueToken")
             if not continue_token:
-                break
-        return numbers
+                return numbers
+        raise RuntimeError(f"list_booking_numbers: {self.MAX_PAGES} sahifadan keyin ham tugamadi")
 
     def list_booking_summaries(self):
         """Barcha bronlarning qisqa ma'lumotini (number, status, modifiedDateTime)
@@ -146,7 +153,7 @@ class ExelyApiClient:
         (sahifalab, 1000 tadan)."""
         summaries = []
         continue_token = None
-        while True:
+        for _ in range(self.MAX_PAGES):
             self._throttle("list")
             params = {"continueToken": continue_token} if continue_token else {}
             resp = self._get_session().get(
@@ -157,11 +164,11 @@ class ExelyApiClient:
             data = resp.json()
             summaries.extend(data.get("bookingSummaries", []))
             if not data.get("hasMoreData"):
-                break
+                return summaries
             continue_token = data.get("continueToken")
             if not continue_token:
-                break
-        return summaries
+                return summaries
+        raise RuntimeError(f"list_booking_summaries: {self.MAX_PAGES} sahifadan keyin ham tugamadi")
 
     def get_booking(self, number):
         self._throttle("detail")

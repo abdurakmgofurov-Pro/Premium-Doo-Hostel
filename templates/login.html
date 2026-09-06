@@ -99,7 +99,7 @@
         <img class="mark" src="{{ url_for('static', filename='img/logo.png') }}" alt="Premium Doo Hostel">
         <div>
           <div class="name">Premium Doo Hostel</div>
-          <div class="sub">Moliyaviy tizim</div>
+          <div class="sub">{{ t('topbar.crumb') }}</div>
         </div>
       </div>
       <h1>{{ t('login.headline') }}</h1>
@@ -121,6 +121,7 @@
           {% endfor %}
         {% endwith %}
         <form method="post">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
           <div class="field">
             <label>{{ t('login.username') }}</label>
             <input type="text" name="username" required autofocus>
@@ -135,6 +136,6 @@
     </div>
   </div>
 
-  <footer class="site-footer">© 2026 UstunSyS · Все права защищены</footer>
+  <footer class="site-footer">© 2026 UstunSyS · {{ t('login.footer_rights') }}</footer>
 </body>
 </html>

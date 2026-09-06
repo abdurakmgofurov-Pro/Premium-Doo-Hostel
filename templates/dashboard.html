@@ -291,7 +291,12 @@ function render(payload) {
     tag: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.6 12.3l-8.3 8.3a2 2 0 0 1-2.8 0l-6.8-6.8a2 2 0 0 1 0-2.8L11 2.7a2 2 0 0 1 1.4-.6H19a2 2 0 0 1 2 2v6.9a2 2 0 0 1-.4 1.3z"/><circle cx="16" cy="8" r="1.5"/></svg>',
     card: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2.5" y="5.5" width="19" height="13" rx="2"/><line x1="2.5" y1="10" x2="21.5" y2="10"/></svg>',
   };
+  const otherCurAmount = DISPLAY_CURRENCY === 'USD'
+    ? (revenue.UZS||0) + (manual.income.UZS||0) + (manual.expense.UZS||0)
+    : (revenue.USD||0) + (manual.income.USD||0) + (manual.expense.USD||0);
+  const rateWarn = !EXCHANGE_RATE && otherCurAmount > 0;
   content.innerHTML = `
+    ${rateWarn ? '<div class="note">' + T['reports.no_rate_note'] + '</div>' : ''}
     <div class="kpi-row">
       <div class="kpi">
         <div class="kpi-top"><div class="label">${T['dash.kpi_total_bookings']}</div><div class="kpi-icon indigo">${ICONS.hash}</div></div>
@@ -359,7 +364,7 @@ async function poll() {
 }
 
 document.getElementById('refreshBtn').addEventListener('click', async () => {
-  await fetch('/api/refresh', {method: 'POST'});
+  await fetch('/api/refresh', {method: 'POST', headers: {'X-CSRFToken': window.CSRF_TOKEN || ''}});
   poll();
 });
 if (CAN_VIEW_REPORTS) {

@@ -51,6 +51,9 @@
             <td class="num">{{ r.overpayment|money if r.overpayment else t('common.dash') }}</td>
             {% if can_create %}
             <td style="display:flex;gap:.4rem">
+              {% if locked %}
+              <span class="tag role-custom">🔒</span>
+              {% else %}
               <button type="button" class="btn tax-edit" data-name="{{r.tax_name}}" data-accrued="{{r.accrued}}" data-paid="{{r.paid}}">✎</button>
               {% if can_delete and (r.accrued or r.paid) %}
               <form method="post" action="/taxes/delete" data-confirm="{{ t('taxes.delete_confirm') }}">
@@ -59,6 +62,7 @@
                 <input type="hidden" name="tax_name" value="{{r.tax_name}}">
                 <button type="submit" class="btn danger">✕</button>
               </form>
+              {% endif %}
               {% endif %}
             </td>
             {% endif %}

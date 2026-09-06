@@ -52,6 +52,14 @@
                   <input type="hidden" name="counterparty" value="{{counterparty}}">
                   <div class="field"><label>{{ t('ledger.payment_date') }}</label><input type="date" name="date" value="{{today}}" required></div>
                   <div class="field"><label>{{ t('ledger.payment_amount') }}</label><input type="text" inputmode="decimal" class="money-input" name="amount" value="{{ e.remaining|money }}" required></div>
+                  {% if e.source_type in ('transaction', 'bar_transaction') %}
+                  <div class="field"><label>{{ t('ledger.payment_cash_source') }}</label>
+                    <select name="cash_source">
+                      <option value="kassa">{{ t('cash.source_kassa') }}</option>
+                      <option value="bank">{{ t('cash.source_bank') }}</option>
+                    </select>
+                  </div>
+                  {% endif %}
                   <div class="field full"><label>{{ t('ledger.payment_note') }}</label><input type="text" name="note"></div>
                   <div class="field"><button class="btn primary" type="submit">{{ t('ledger.payment_submit') }}</button></div>
                 </form>

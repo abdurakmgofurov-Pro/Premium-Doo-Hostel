@@ -176,6 +176,12 @@ def get_conn():
     return conn
 
 
+def _table_exists(conn, name):
+    return conn.execute(
+        "SELECT 1 FROM sqlite_master WHERE type='table' AND name=?", (name,)
+    ).fetchone() is not None
+
+
 def init_db():
     conn = get_conn()
     conn.execute("""
@@ -369,9 +375,10 @@ def init_db():
             created_at TEXT DEFAULT (datetime('now'))
         )
     """)
-    old_bar_tx_cols = [r["name"] for r in conn.execute("PRAGMA table_info(bar_transactions)").fetchall()]
-    if old_bar_tx_cols and "status" not in old_bar_tx_cols:
-        conn.execute("ALTER TABLE bar_transactions RENAME TO bar_transactions_old_nostatus")
+    if _table_exists(conn, "bar_transactions") and not _table_exists(conn, "bar_transactions_old_nostatus"):
+        old_bar_tx_cols = [r["name"] for r in conn.execute("PRAGMA table_info(bar_transactions)").fetchall()]
+        if "status" not in old_bar_tx_cols:
+            conn.execute("ALTER TABLE bar_transactions RENAME TO bar_transactions_old_nostatus")
     conn.execute("""
         CREATE TABLE IF NOT EXISTS bar_transactions (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -391,7 +398,7 @@ def init_db():
             created_at TEXT DEFAULT (datetime('now'))
         )
     """)
-    if old_bar_tx_cols and "status" not in old_bar_tx_cols:
+    if _table_exists(conn, "bar_transactions_old_nostatus"):
         conn.execute("""
             INSERT INTO bar_transactions (id, date, product_id, product_name, ttype, qty, unit_price,
                 amount, currency, source, counterparty, description, cash_transaction_id, status, created_at)
@@ -401,11 +408,12 @@ def init_db():
         """)
         conn.execute("DROP TABLE bar_transactions_old_nostatus")
 
-    old_payments_sql = conn.execute(
-        "SELECT sql FROM sqlite_master WHERE type='table' AND name='payments'"
-    ).fetchone()
-    if old_payments_sql and "'cash_transaction'" not in old_payments_sql["sql"]:
-        conn.execute("ALTER TABLE payments RENAME TO payments_old_srctype")
+    if _table_exists(conn, "payments") and not _table_exists(conn, "payments_old_srctype"):
+        old_payments_sql = conn.execute(
+            "SELECT sql FROM sqlite_master WHERE type='table' AND name='payments'"
+        ).fetchone()
+        if old_payments_sql and "'cash_transaction'" not in old_payments_sql["sql"]:
+            conn.execute("ALTER TABLE payments RENAME TO payments_old_srctype")
     conn.execute("""
         CREATE TABLE IF NOT EXISTS payments (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -418,13 +426,16 @@ def init_db():
             created_at TEXT DEFAULT (datetime('now'))
         )
     """)
-    if old_payments_sql and "'cash_transaction'" not in old_payments_sql["sql"]:
+    if _table_exists(conn, "payments_old_srctype"):
         conn.execute("""
             INSERT INTO payments (id, source_type, source_id, date, amount, currency, note, created_at)
             SELECT id, source_type, source_id, date, amount, currency, note, created_at
             FROM payments_old_srctype
         """)
         conn.execute("DROP TABLE payments_old_srctype")
+    payments_cols = [r["name"] for r in conn.execute("PRAGMA table_info(payments)").fetchall()]
+    if "cash_transaction_id" not in payments_cols:
+        conn.execute("ALTER TABLE payments ADD COLUMN cash_transaction_id INTEGER")
     conn.execute("""
         CREATE TABLE IF NOT EXISTS fixed_assets (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -446,16 +457,18 @@ def init_db():
     # Kurs jadvali avval oylik (year_month) edi, endi KUNLIK (date) — eski
     # o'rnatishlarda mavjud oylik yozuvlarni yo'qotmaslik uchun ko'chiriladi
     # (har oy oxirgi kuniga qo'yiladi).
-    old_cols = [r["name"] for r in conn.execute("PRAGMA table_info(exchange_rates)").fetchall()]
-    if old_cols and "year_month" in old_cols:
-        conn.execute("ALTER TABLE exchange_rates RENAME TO exchange_rates_old_ym")
-        conn.execute("""
-            CREATE TABLE exchange_rates (
-                date TEXT PRIMARY KEY,
-                uzs_per_usd REAL NOT NULL,
-                updated_at TEXT DEFAULT (datetime('now'))
-            )
-        """)
+    if _table_exists(conn, "exchange_rates") and not _table_exists(conn, "exchange_rates_old_ym"):
+        old_cols = [r["name"] for r in conn.execute("PRAGMA table_info(exchange_rates)").fetchall()]
+        if "year_month" in old_cols:
+            conn.execute("ALTER TABLE exchange_rates RENAME TO exchange_rates_old_ym")
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS exchange_rates (
+            date TEXT PRIMARY KEY,
+            uzs_per_usd REAL NOT NULL,
+            updated_at TEXT DEFAULT (datetime('now'))
+        )
+    """)
+    if _table_exists(conn, "exchange_rates_old_ym"):
         for r in conn.execute("SELECT * FROM exchange_rates_old_ym").fetchall():
             y, m = (int(x) for x in r["year_month"].split("-"))
             last_day = calendar.monthrange(y, m)[1]
@@ -464,13 +477,6 @@ def init_db():
                 (f"{y:04d}-{m:02d}-{last_day:02d}", r["uzs_per_usd"], r["updated_at"]),
             )
         conn.execute("DROP TABLE exchange_rates_old_ym")
-    conn.execute("""
-        CREATE TABLE IF NOT EXISTS exchange_rates (
-            date TEXT PRIMARY KEY,
-            uzs_per_usd REAL NOT NULL,
-            updated_at TEXT DEFAULT (datetime('now'))
-        )
-    """)
     rate_cols = [r["name"] for r in conn.execute("PRAGMA table_info(exchange_rates)").fetchall()]
     if "uzs_per_eur" not in rate_cols:
         conn.execute("ALTER TABLE exchange_rates ADD COLUMN uzs_per_eur REAL")
@@ -755,7 +761,20 @@ def delete_tax(year, month, tax_name, currency="UZS"):
     conn.close()
 
 
-def exely_import_fingerprint(date_str, amount, currency, description, counterparty):
+def exely_import_fingerprint(date_str, amount, currency, description, counterparty, category_raw="", payment_method=""):
+    """Turkum va to'lov usulini ham hisobga oladi — aks holda bir xil
+    sana/summa/nom/kontragentga ega, lekin haqiqatan FARQLI ikkita qator
+    (masalan bitta kunda naqd va karta orqali qilingan ikkita to'lov)
+    bitta deb noto'g'ri hisoblanib, biri tashlab yuborilardi."""
+    import hashlib
+    raw = f"{date_str}|{amount}|{currency}|{description}|{counterparty}|{category_raw}|{payment_method}"
+    return hashlib.sha256(raw.encode("utf-8")).hexdigest()
+
+
+def exely_import_fingerprint_legacy(date_str, amount, currency, description, counterparty):
+    """Eski (turkum/to'lov usulisiz) barmoq izi formulasi — faqat shu
+    tuzatishdan OLDIN import qilingan qatorlarni qayta import qilib
+    yubormaslik uchun, moslik tekshiruvida ishlatiladi."""
     import hashlib
     raw = f"{date_str}|{amount}|{currency}|{description}|{counterparty}"
     return hashlib.sha256(raw.encode("utf-8")).hexdigest()
@@ -811,7 +830,14 @@ def get_transaction(tx_id):
 
 
 def delete_transaction(tx_id):
+    """`services` va `cash_transactions`dagi shu tranzaksiyaga bog'langan
+    (forma2_category ko'prigi orqali avtomatik yaratilgan) yozuvlar ham
+    birga o'chiriladi — aks holda ular osilib qolgan `transaction_id`
+    bilan qoladi va keyingi tahrirlashlar jim ravishda hech narsaga
+    ta'sir qilmay qoladi."""
     conn = get_conn()
+    conn.execute("DELETE FROM services WHERE transaction_id=?", (tx_id,))
+    conn.execute("DELETE FROM cash_transactions WHERE transaction_id=?", (tx_id,))
     conn.execute("DELETE FROM payments WHERE source_type='transaction' AND source_id=?", (tx_id,))
     conn.execute("DELETE FROM transactions WHERE id=?", (tx_id,))
     conn.commit()
@@ -1175,11 +1201,49 @@ def list_all_counterparties():
     return sorted({e["counterparty"] for e in _debt_entries()})
 
 
-def add_payment(source_type, source_id, date, amount, currency, note=""):
+def _source_debt_polarity(source_type, source_id):
+    """Berilgan manba yozuvi debitorlik (dt, bizga qarzdor) yoki
+    kreditorlik (kt, biz qarzdormiz) ekanini aniqlaydi — to'lov
+    qo'shilganda Kassa/Bank'da qaysi yo'nalishda pul harakati yozish
+    kerakligini bilish uchun. `cash_transaction` manbali yozuvlar uchun
+    None qaytaradi (ular allaqachon pul harakati sifatida qayd etilgan,
+    to'lov faqat hisob-kitob yozuvi)."""
+    if source_type == "transaction":
+        row = get_transaction(source_id)
+        if not row:
+            return None
+        return "dt" if row["type"] == "income" else "kt"
+    if source_type == "bar_transaction":
+        return "kt"
+    return None
+
+
+def add_payment(source_type, source_id, date, amount, currency, note="", cash_source=None):
+    """`cash_source` ('kassa' yoki 'bank') berilsa va manba turi shunga mos
+    bo'lsa (transaction/bar_transaction), to'lovga qo'shimcha ravishda
+    Kassa/Bank'da ham mos pul harakati yoziladi (qarz TO'LANSA — chiqim,
+    qarz UNDIRILSA — kirim) — aks holda to'lov faqat hisob-kitob
+    yozuvi sifatida saqlanadi va balansga ta'sir qilmaydi."""
     conn = get_conn()
+    cash_id = None
+    if cash_source:
+        polarity = _source_debt_polarity(source_type, source_id)
+        if polarity == "kt":
+            cash_ttype, category = "expense", "Yetkazib beruvchilarga to'lov"
+        elif polarity == "dt":
+            cash_ttype, category = "income", "Boshqa operatsion tushum"
+        else:
+            cash_ttype = None
+        if cash_ttype:
+            cur = conn.execute(
+                "INSERT INTO cash_transactions (date, source, type, section, category, counterparty, description, amount, currency)"
+                " VALUES (?,?,?,'operatsion',?,?,?,?,?)",
+                (date, cash_source, cash_ttype, category, note or "", note or "", amount, currency),
+            )
+            cash_id = cur.lastrowid
     conn.execute(
-        "INSERT INTO payments (source_type, source_id, date, amount, currency, note) VALUES (?,?,?,?,?,?)",
-        (source_type, source_id, date, amount, currency, note),
+        "INSERT INTO payments (source_type, source_id, date, amount, currency, note, cash_transaction_id) VALUES (?,?,?,?,?,?,?)",
+        (source_type, source_id, date, amount, currency, note, cash_id),
     )
     conn.commit()
     conn.close()
@@ -1187,6 +1251,9 @@ def add_payment(source_type, source_id, date, amount, currency, note=""):
 
 def delete_payment(payment_id):
     conn = get_conn()
+    row = conn.execute("SELECT * FROM payments WHERE id=?", (payment_id,)).fetchone()
+    if row and row["cash_transaction_id"]:
+        conn.execute("DELETE FROM cash_transactions WHERE id=?", (row["cash_transaction_id"],))
     conn.execute("DELETE FROM payments WHERE id=?", (payment_id,))
     conn.commit()
     conn.close()
@@ -1563,8 +1630,15 @@ def delete_exchange_rate(date, currency="USD"):
 def get_exchange_rate_on(upto_date=None, currency="USD"):
     """Berilgan sanada AMALDA bo'lgan kurs — shu sanagacha (yoki teng)
     kiritilgan ENG SO'NGGI kurs. `upto_date=None` bo'lsa — umuman eng
-    so'nggi (bugungi) kurs qaytariladi."""
-    col = "uzs_per_eur" if currency == "EUR" else "uzs_per_usd"
+    so'nggi (bugungi) kurs qaytariladi. Faqat USD va EUR uchun kurs
+    ustuni mavjud — boshqa har qanday valyuta uchun None qaytariladi
+    (avval bunday valyutalar xato ravishda USD kursiga tushib qolardi)."""
+    if currency == "EUR":
+        col = "uzs_per_eur"
+    elif currency == "USD":
+        col = "uzs_per_usd"
+    else:
+        return None
     conn = get_conn()
     if upto_date:
         row = conn.execute(
@@ -2092,6 +2166,14 @@ def month_checklist(year_month):
     month_end = month_end_date(year_month)
     bal_uzs = get_cash_balance("UZS", upto_date=month_end)
     bal_usd = get_cash_balance("USD", upto_date=month_end)
+    # Kassa va Bank ALOHIDA tekshiriladi (jamlangan holda emas) — aks
+    # holda birining manfiy qoldig'i ikkinchisining musbat qoldig'i bilan
+    # "yashirinib" qolishi mumkin edi (masalan Kassa -500, Bank +1000 bo'lsa,
+    # jami +500 bo'lib, haqiqiy manfiy Kassa qoldig'i sezilmay qolardi).
+    no_negative = all(
+        get_cash_balance(cur, upto_date=month_end, source=src) >= -0.01
+        for cur in ("UZS", "USD") for src in ("kassa", "bank")
+    )
     y, m = (int(x) for x in year_month.split("-"))
     cats = {c["name"] for c in all_cash_categories()}
     rows = list_cash_transactions(y, m)
@@ -2100,7 +2182,7 @@ def month_checklist(year_month):
         {"key": "sequence", "ok": status in ("next", "closed")},
         {"key": "ended", "ok": status != "ongoing"},
         {"key": "rate", "ok": get_exchange_rate_on(month_end) is not None},
-        {"key": "no_negative", "ok": bal_uzs >= -0.01 and bal_usd >= -0.01},
+        {"key": "no_negative", "ok": no_negative},
         {"key": "codes", "ok": all(r["category"] in cats for r in rows)},
     ]
     return checks, bal_uzs, bal_usd

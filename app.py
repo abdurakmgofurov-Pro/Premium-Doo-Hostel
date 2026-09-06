@@ -30,7 +30,10 @@ from flask import Flask, jsonify, request, send_file, redirect, url_for, render_
 
 import db
 from aggregate import aggregate_bookings, flatten as flatten_booking, payment_method_name
-from auth import authenticate, current_user, login_required, permission_required
+from auth import (
+    authenticate, current_user, login_required, permission_required, super_admin_required,
+    get_csrf_token, csrf_valid,
+)
 from exely_api import ExelyApiClient
 from exely_expense_import import parse_expense_xlsx
 from forma1 import build_forma1
@@ -251,6 +254,17 @@ def set_lang():
     g.display_currency = cur
 
 
+@app.before_request
+def check_csrf():
+    """Har bir holat o'zgartiruvchi (POST) so'rov uchun CSRF tokenini
+    tekshiradi — formalar orqali kelgan token `base.html`dagi umumiy JS
+    tomonidan avtomatik qo'shiladi, `fetch()` orqali yuborilgan so'rovlar
+    esa `X-CSRFToken` headerini o'zi qo'shishi kerak (masalan
+    dashboard.html'dagi "Yangilash" tugmasi)."""
+    if request.method == "POST" and not csrf_valid(request):
+        abort(400)
+
+
 @app.route("/set_language/<lang>")
 def set_language(lang):
     if lang in LANGS:
@@ -269,7 +283,8 @@ def to_display_amount(uzs, usd, rate):
     """Ikkala valyutadagi summani foydalanuvchi tanlagan YAGONA ko'rsatish
     valyutasiga aylantiradi (joriy kunlik kursga asosan). Kurs bo'lmasa,
     boshqa valyutadagi qism e'tiborga olinmaydi (0 deb hisoblanadi) —
-    xato chiqarish o'rniga xavfsiz fallback."""
+    xato chiqarish o'rniga xavfsiz fallback (chaqiruvchi sahifalar
+    `rate` bo'sh bo'lsa alohida ogohlantirish ko'rsatadi)."""
     cur = getattr(g, "display_currency", "UZS")
     uzs = uzs or 0
     usd = usd or 0
@@ -319,6 +334,7 @@ def inject_user():
         "LANG_LABELS": LANG_LABELS,
         "T_JSON": json.dumps(t_all(g.lang), ensure_ascii=False),
         "is_date_locked": db.is_date_locked,
+        "csrf_token": get_csrf_token,
         "display_currency": g.display_currency,
         "to_display": lambda uzs, usd, rate: to_display_amount(uzs, usd, rate),
         "counterparty_options": [
@@ -408,20 +424,27 @@ def booking_receivables(upto_date):
     if upto_date:
         raw = [b for b in raw if flatten_booking(b).get("arrival", "")[:10] <= upto_date]
     uzs = usd = 0.0
+    skipped = 0
     for b in raw:
         flat = flatten_booking(b)
         if flat.get("status") != "Active":
             continue
-        if (flat.get("currency") or "UZS") not in ("UZS", "USD"):
-            continue
         guest_owed, _ = _booking_owed_parts(flat)
         if guest_owed <= 0:
             continue
-        if flat.get("currency") == "USD":
+        cur = flat.get("currency") or "UZS"
+        if cur not in ("UZS", "USD"):
+            # Kurs hech qachon topilmagani uchun UZS'ga aylantirilmagan
+            # xom valyutadagi (masalan EUR) bron — Forma 1'ga qo'shib
+            # bo'lmaydi, lekin jim yo'qotib yuborish o'rniga sanab,
+            # shablonda ogohlantirish ko'rsatish uchun qaytariladi.
+            skipped += 1
+            continue
+        if cur == "USD":
             usd += guest_owed
         else:
             uzs += guest_owed
-    return uzs, usd
+    return uzs, usd, skipped
 
 
 def booking_debtors(year, month, currency):
@@ -506,7 +529,7 @@ def index():
 
 
 @app.route("/api/data")
-@login_required
+@permission_required("dashboard", "view")
 def api_data():
     year, month = get_period()
     with STATE_LOCK:
@@ -530,7 +553,7 @@ def api_data():
 
 
 @app.route("/api/refresh", methods=["POST"])
-@login_required
+@permission_required("dashboard", "view")
 def api_refresh():
     threading.Thread(target=refresh_once, daemon=True).start()
     return jsonify({"started": True})
@@ -660,6 +683,7 @@ def transactions_import_preview():
     try:
         rows, error = parse_expense_xlsx(file.read())
     except Exception:
+        log("EXCEL IMPORT PARSE XATOSI:\n" + traceback.format_exc())
         rows, error = [], "col_not_found"
     if error or not rows:
         flash(t("tx.import_parse_error", g.lang), "error")
@@ -667,8 +691,11 @@ def transactions_import_preview():
 
     for r in rows:
         r["fingerprint"] = db.exely_import_fingerprint(
+            r["date"], r["amount"], r["currency"], r["name"], r["counterparty"],
+            r["category_raw"], r["payment_method"])
+        legacy_fp = db.exely_import_fingerprint_legacy(
             r["date"], r["amount"], r["currency"], r["name"], r["counterparty"])
-        r["already_imported"] = db.exely_import_exists(r["fingerprint"])
+        r["already_imported"] = db.exely_import_exists(r["fingerprint"]) or db.exely_import_exists(legacy_fp)
 
     seen = []
     for r in rows:
@@ -789,7 +816,7 @@ def reports_page():
     cp_recv_uzs, pay_uzs = db.outstanding_balance("UZS", upto_date=period_end)
     cp_recv_usd, pay_usd = db.outstanding_balance("USD", upto_date=period_end)
 
-    booking_recv_uzs, booking_recv_usd = booking_receivables(period_end)
+    booking_recv_uzs, booking_recv_usd, booking_recv_skipped = booking_receivables(period_end)
     recv_uzs = cp_recv_uzs + booking_recv_uzs
     recv_usd = cp_recv_usd + booking_recv_usd
 
@@ -908,6 +935,7 @@ def reports_page():
         cash_kassa_uzs=cash_kassa_uzs, cash_kassa_usd=cash_kassa_usd,
         cp_recv_uzs=cp_recv_uzs, cp_recv_usd=cp_recv_usd,
         booking_recv_uzs=booking_recv_uzs, booking_recv_usd=booking_recv_usd,
+        booking_recv_skipped=booking_recv_skipped,
         hostel_rev_uzs=hostel_rev_uzs, hostel_rev_usd=hostel_rev_usd,
         services_rev_uzs=services_rev_uzs, services_rev_usd=services_rev_usd,
         bar_rev_uzs=bar_rev_uzs, bar_rev_usd=bar_rev_usd,
@@ -1054,6 +1082,7 @@ def cash_import_preview():
     try:
         rows, error = parse_expense_xlsx(file.read())
     except Exception:
+        log("EXCEL IMPORT PARSE XATOSI:\n" + traceback.format_exc())
         rows, error = [], "col_not_found"
     if error or not rows:
         flash(t("tx.import_parse_error", g.lang), "error")
@@ -1061,8 +1090,11 @@ def cash_import_preview():
 
     for r in rows:
         r["fingerprint"] = db.exely_import_fingerprint(
+            r["date"], r["amount"], r["currency"], r["name"], r["counterparty"],
+            r["category_raw"], r["payment_method"])
+        legacy_fp = db.exely_import_fingerprint_legacy(
             r["date"], r["amount"], r["currency"], r["name"], r["counterparty"])
-        r["already_imported"] = db.exely_cash_import_exists(r["fingerprint"])
+        r["already_imported"] = db.exely_cash_import_exists(r["fingerprint"]) or db.exely_cash_import_exists(legacy_fp)
 
     upload_id = secrets.token_hex(16)
     with IMPORT_STASH_LOCK:
@@ -1214,20 +1246,32 @@ def bar_restock():
         return redirect(url_for("sklad_page"))
     product_ids = request.form.getlist("product_id[]")
     qtys = request.form.getlist("qty[]")
+    lines = []
     for pid, qty in zip(product_ids, qtys):
         if not pid or not qty:
             continue
         try:
+            pid_i, qty_f = int(pid), float(qty)
+        except ValueError:
+            flash(t("flash.error_prefix", g.lang) + "invalid_qty", "error")
+            return redirect(url_for("sklad_page"))
+        if qty_f <= 0 or not db.get_bar_product(pid_i):
+            flash(t("flash.error_prefix", g.lang) + "invalid_line", "error")
+            return redirect(url_for("sklad_page"))
+        lines.append((pid_i, qty_f))
+    # Avval BARCHA qatorlar tekshirilib bo'lingandan keyingina saqlanadi —
+    # aks holda savatdagi 3-qator xato bersa, 1- va 2-qator allaqachon
+    # bazaga yozilib, zaxira/kassa qisman o'zgargan holda qolib ketardi.
+    for pid_i, qty_f in lines:
+        try:
             db.add_bar_transaction(
-                date=date_str, product_id=int(pid), ttype="restock",
-                qty=float(qty), source=source,
+                date=date_str, product_id=pid_i, ttype="restock",
+                qty=qty_f, source=source,
                 counterparty=counterparty, description="", status=status,
             )
         except ValueError as e:
-            if str(e) == "insufficient_stock":
-                flash(t("bar.insufficient_stock_error", g.lang), "error")
-            else:
-                flash(t("flash.error_prefix", g.lang) + str(e), "error")
+            flash(t("flash.error_prefix", g.lang) + str(e), "error")
+            break
     return redirect(url_for("sklad_page"))
 
 
@@ -1244,20 +1288,39 @@ def bar_sell():
     source = request.form.get("source", "kassa")
     product_ids = request.form.getlist("product_id[]")
     qtys = request.form.getlist("qty[]")
+    lines = []
     for pid, qty in zip(product_ids, qtys):
         if not pid or not qty:
             continue
         try:
-            db.add_bar_transaction(
-                date=date_str, product_id=int(pid), ttype="sale",
-                qty=float(qty), source=source,
-                counterparty="", description="",
-            )
-        except ValueError as e:
-            if str(e) == "insufficient_stock":
-                flash(t("bar.insufficient_stock_error", g.lang), "error")
-            else:
-                flash(t("flash.error_prefix", g.lang) + str(e), "error")
+            pid_i, qty_f = int(pid), float(qty)
+        except ValueError:
+            flash(t("flash.error_prefix", g.lang) + "invalid_qty", "error")
+            return redirect(url_for("bar_page"))
+        product = db.get_bar_product(pid_i)
+        if qty_f <= 0 or not product:
+            flash(t("flash.error_prefix", g.lang) + "invalid_line", "error")
+            return redirect(url_for("bar_page"))
+        lines.append((pid_i, qty_f))
+    # Bitta savatda bir xil mahsulot bir necha marta bo'lishi mumkin —
+    # zaxira YETARLILIGI qatorlar YIG'INDISI bo'yicha OLDINDAN tekshiriladi,
+    # keyingina hech biri saqlanadi. Aks holda savatdagi keyingi qator
+    # yetishmovchilik bilan rad etilganda, oldingi qatorlar allaqachon
+    # saqlanib, zaxira/kassa qisman o'zgargan holda qolib ketardi.
+    requested_by_product = {}
+    for pid_i, qty_f in lines:
+        requested_by_product[pid_i] = requested_by_product.get(pid_i, 0.0) + qty_f
+    for pid_i, total_qty in requested_by_product.items():
+        product = db.get_bar_product(pid_i)
+        if product["stock_qty"] + 1e-9 < total_qty:
+            flash(t("bar.insufficient_stock_error", g.lang), "error")
+            return redirect(url_for("bar_page"))
+    for pid_i, qty_f in lines:
+        db.add_bar_transaction(
+            date=date_str, product_id=pid_i, ttype="sale",
+            qty=qty_f, source=source,
+            counterparty="", description="",
+        )
     return redirect(url_for("bar_page"))
 
 
@@ -1345,15 +1408,26 @@ def ledger_payment_add():
     source_id = int(f["source_id"])
     if source_type == "transaction":
         src = db.get_transaction(source_id)
-    else:
+    elif source_type == "bar_transaction":
         src = db.get_bar_transaction(source_id)
+    elif source_type == "cash_transaction":
+        src = db.get_cash_transaction(source_id)
+    else:
+        src = None
     if not src:
         abort(404)
     back = redirect(url_for("ledger_detail_page", name=f["counterparty"], currency=f["currency"]))
     if db.is_date_locked(f["date"]) or db.is_date_locked(src["date"]):
         flash(t("close.locked_error", g.lang), "error")
         return back
-    db.add_payment(source_type, source_id, f["date"], parse_amount(f["amount"]), f["currency"], f.get("note", ""))
+    cash_source = f.get("cash_source") or None
+    if cash_source and f["currency"] == "USD" and rate_missing_for(f["date"]):
+        flash(t("flash.rate_required", g.lang), "error")
+        return back
+    db.add_payment(
+        source_type, source_id, f["date"], parse_amount(f["amount"]), f["currency"], f.get("note", ""),
+        cash_source=cash_source,
+    )
     return back
 
 
@@ -1505,12 +1579,13 @@ def taxes_page():
     totals = {
         k: sum(r[k] for r in rows) for k in ("opening", "accrued", "paid", "closing", "debt", "overpayment")
     }
+    locked = db.is_month_closed(f"{year:04d}-{month:02d}")
     return render_template(
         "taxes.html", active_page="taxes", rows=rows, totals=totals,
         tax_types=db.TAX_TYPES, existing_names=[r["tax_name"] for r in rows if r["accrued"] or r["paid"]],
         can_create=db.has_permission(u, "taxes", "create"),
         can_delete=db.has_permission(u, "taxes", "delete"),
-        year=year, month=month, years=available_years(),
+        year=year, month=month, years=available_years(), locked=locked,
     )
 
 
@@ -1518,28 +1593,34 @@ def taxes_page():
 @permission_required("taxes", "create")
 def taxes_save():
     f = request.form
+    year, month = int(f["year"]), int(f["month"])
+    if db.is_month_closed(f"{year:04d}-{month:02d}"):
+        flash(t("close.locked_error", g.lang), "error")
+        return redirect(url_for("taxes_page", year=year, month=month))
     db.upsert_tax(
-        year=int(f["year"]), month=int(f["month"]), tax_name=f["tax_name"],
+        year=year, month=month, tax_name=f["tax_name"],
         accrued=parse_amount(f.get("accrued") or "0"), paid=parse_amount(f.get("paid") or "0"),
     )
-    return redirect(url_for("taxes_page", year=f["year"], month=f["month"]))
+    return redirect(url_for("taxes_page", year=year, month=month))
 
 
 @app.route("/taxes/delete", methods=["POST"])
 @permission_required("taxes", "delete")
 def taxes_delete():
     f = request.form
-    db.delete_tax(year=int(f["year"]), month=int(f["month"]), tax_name=f["tax_name"])
-    return redirect(url_for("taxes_page", year=f["year"], month=f["month"]))
+    year, month = int(f["year"]), int(f["month"])
+    if db.is_month_closed(f"{year:04d}-{month:02d}"):
+        flash(t("close.locked_error", g.lang), "error")
+        return redirect(url_for("taxes_page", year=year, month=month))
+    db.delete_tax(year=year, month=month, tax_name=f["tax_name"])
+    return redirect(url_for("taxes_page", year=year, month=month))
 
 
 # ---- Oy yopish ----
 
 @app.route("/period-close")
-@login_required
+@super_admin_required
 def period_close_page():
-    if current_user()["role"] != "super_admin":
-        abort(403)
     months = list(reversed(db.list_relevant_months()))
     selected = request.args.get("ym") or (months[0] if months else None)
     checks, bal_uzs, bal_usd = ([], 0.0, 0.0) if not selected else db.month_checklist(selected)
@@ -1552,10 +1633,8 @@ def period_close_page():
 
 
 @app.route("/period-close/<ym>/close", methods=["POST"])
-@login_required
+@super_admin_required
 def period_close_close(ym):
-    if current_user()["role"] != "super_admin":
-        abort(403)
     try:
         db.close_month(ym, current_user()["id"])
         flash(t("close.closed_success", g.lang), "success")
@@ -1565,10 +1644,8 @@ def period_close_close(ym):
 
 
 @app.route("/period-close/<ym>/reopen", methods=["POST"])
-@login_required
+@super_admin_required
 def period_close_reopen(ym):
-    if current_user()["role"] != "super_admin":
-        abort(403)
     try:
         db.reopen_month(ym)
         flash(t("close.reopened_success", g.lang), "success")
@@ -1580,10 +1657,8 @@ def period_close_reopen(ym):
 # ---- Foydalanuvchilar (faqat Super Admin) ----
 
 @app.route("/users")
-@login_required
+@super_admin_required
 def users_page():
-    if current_user()["role"] != "super_admin":
-        abort(403)
     roles = db.list_roles()
     role_names = {r["id"]: r["name"] for r in roles}
     users = db.list_users()
@@ -1593,10 +1668,8 @@ def users_page():
 
 
 @app.route("/users/add", methods=["POST"])
-@login_required
+@super_admin_required
 def users_add():
-    if current_user()["role"] != "super_admin":
-        abort(403)
     f = request.form
     try:
         db.add_user(f["username"], f["password"], f.get("full_name", ""), int(f["role_id"]))
@@ -1607,10 +1680,8 @@ def users_add():
 
 
 @app.route("/users/<int:user_id>/edit", methods=["POST"])
-@login_required
+@super_admin_required
 def users_edit(user_id):
-    if current_user()["role"] != "super_admin":
-        abort(403)
     target = db.get_user_by_id(user_id)
     if not target or target["role"] == "super_admin":
         abort(404)
@@ -1623,10 +1694,8 @@ def users_edit(user_id):
 
 
 @app.route("/users/<int:user_id>/delete", methods=["POST"])
-@login_required
+@super_admin_required
 def users_delete(user_id):
-    if current_user()["role"] != "super_admin":
-        abort(403)
     target = db.get_user_by_id(user_id)
     if target and target["role"] == "super_admin":
         flash(t("flash.cannot_delete_super", g.lang), "error")
@@ -1647,10 +1716,8 @@ def _parse_role_permissions(form):
 
 
 @app.route("/roles")
-@login_required
+@super_admin_required
 def roles_page():
-    if current_user()["role"] != "super_admin":
-        abort(403)
     roles = db.list_roles()
     for r in roles:
         r["perm_count"] = sum(len(v) for v in r["permissions"].values())
@@ -1661,10 +1728,8 @@ def roles_page():
 
 
 @app.route("/roles/add", methods=["POST"])
-@login_required
+@super_admin_required
 def roles_add():
-    if current_user()["role"] != "super_admin":
-        abort(403)
     f = request.form
     try:
         db.add_role(f["name"], f.get("description", ""), _parse_role_permissions(f))
@@ -1675,20 +1740,16 @@ def roles_add():
 
 
 @app.route("/roles/<int:role_id>/edit", methods=["POST"])
-@login_required
+@super_admin_required
 def roles_edit(role_id):
-    if current_user()["role"] != "super_admin":
-        abort(403)
     f = request.form
     db.update_role(role_id, f["name"], f.get("description", ""), _parse_role_permissions(f))
     return redirect(url_for("roles_page"))
 
 
 @app.route("/roles/<int:role_id>/delete", methods=["POST"])
-@login_required
+@super_admin_required
 def roles_delete(role_id):
-    if current_user()["role"] != "super_admin":
-        abort(403)
     try:
         db.delete_role(role_id)
     except ValueError as e:
@@ -1700,10 +1761,8 @@ def roles_delete(role_id):
 # ---- Sozlamalar (faqat Super Admin) ----
 
 @app.route("/settings")
-@login_required
+@super_admin_required
 def settings_page():
-    if current_user()["role"] != "super_admin":
-        abort(403)
     with open(CONFIG_PATH, encoding="utf-8-sig") as f:
         cfg = json.load(f)
     return render_template(
@@ -1724,10 +1783,8 @@ def settings_page():
 
 
 @app.route("/settings/save", methods=["POST"])
-@login_required
+@super_admin_required
 def settings_save():
-    if current_user()["role"] != "super_admin":
-        abort(403)
     with open(CONFIG_PATH, encoding="utf-8-sig") as f:
         cfg = json.load(f)
     f = request.form
@@ -1742,10 +1799,8 @@ def settings_save():
 
 
 @app.route("/settings/opening-balance", methods=["POST"])
-@login_required
+@super_admin_required
 def settings_opening_balance():
-    if current_user()["role"] != "super_admin":
-        abort(403)
     f = request.form
     db.set_setting("cash_opening_kassa_uzs", parse_amount(f.get("opening_kassa_uzs") or 0))
     db.set_setting("cash_opening_kassa_usd", parse_amount(f.get("opening_kassa_usd") or 0))
@@ -1759,10 +1814,8 @@ def settings_opening_balance():
 # ---- Valyuta kursi (kunlik) — faqat Super Admin ----
 
 @app.route("/exchange-rate")
-@login_required
+@super_admin_required
 def exchange_rate_page():
-    if current_user()["role"] != "super_admin":
-        abort(403)
     rates = db.list_exchange_rates()
     return render_template(
         "exchange_rate.html", active_page="exchange_rate", rates=rates,
@@ -1773,10 +1826,8 @@ def exchange_rate_page():
 
 
 @app.route("/exchange-rate/add", methods=["POST"])
-@login_required
+@super_admin_required
 def exchange_rate_add():
-    if current_user()["role"] != "super_admin":
-        abort(403)
     f = request.form
     currency = f.get("currency") or "USD"
     db.set_exchange_rate(f["date"], parse_amount(f["rate"]), currency)
@@ -1785,20 +1836,16 @@ def exchange_rate_add():
 
 
 @app.route("/exchange-rate/<date_str>/delete", methods=["POST"])
-@login_required
+@super_admin_required
 def exchange_rate_delete(date_str):
-    if current_user()["role"] != "super_admin":
-        abort(403)
     currency = request.form.get("currency") or "USD"
     db.delete_exchange_rate(date_str, currency)
     return redirect(url_for("exchange_rate_page"))
 
 
 @app.route("/exchange-rate/fetch-cbu", methods=["POST"])
-@login_required
+@super_admin_required
 def exchange_rate_fetch_cbu():
-    if current_user()["role"] != "super_admin":
-        abort(403)
     date_str = request.form.get("date") or datetime.now().strftime("%Y-%m-%d")
     currency = request.form.get("currency") or "USD"
     try:
@@ -1811,10 +1858,8 @@ def exchange_rate_fetch_cbu():
 
 
 @app.route("/settings/charter-capital", methods=["POST"])
-@login_required
+@super_admin_required
 def settings_charter_capital():
-    if current_user()["role"] != "super_admin":
-        abort(403)
     f = request.form
     db.set_setting("charter_capital_uzs", parse_amount(f.get("charter_uzs") or 0))
     db.set_setting("charter_capital_usd", parse_amount(f.get("charter_usd") or 0))
@@ -1823,10 +1868,8 @@ def settings_charter_capital():
 
 
 @app.route("/settings/fixed-asset/add", methods=["POST"])
-@login_required
+@super_admin_required
 def settings_fixed_asset_add():
-    if current_user()["role"] != "super_admin":
-        abort(403)
     f = request.form
     db.add_fixed_asset(f["name"], parse_amount(f["value"]), f["currency"], f["purchase_date"])
     flash(t("flash.settings_saved", g.lang), "success")
@@ -1834,19 +1877,15 @@ def settings_fixed_asset_add():
 
 
 @app.route("/settings/fixed-asset/<int:asset_id>/delete", methods=["POST"])
-@login_required
+@super_admin_required
 def settings_fixed_asset_delete(asset_id):
-    if current_user()["role"] != "super_admin":
-        abort(403)
     db.delete_fixed_asset(asset_id)
     return redirect(url_for("settings_page"))
 
 
 @app.route("/settings/category/add", methods=["POST"])
-@login_required
+@super_admin_required
 def settings_category_add():
-    if current_user()["role"] != "super_admin":
-        abort(403)
     f = request.form
     name = (f.get("name") or "").strip()
     if name:
@@ -1859,19 +1898,15 @@ def settings_category_add():
 
 
 @app.route("/settings/category/<int:cat_id>/delete", methods=["POST"])
-@login_required
+@super_admin_required
 def settings_category_delete(cat_id):
-    if current_user()["role"] != "super_admin":
-        abort(403)
     db.delete_custom_category(cat_id)
     return redirect(url_for("settings_page"))
 
 
 @app.route("/settings/cash-category/add", methods=["POST"])
-@login_required
+@super_admin_required
 def settings_cash_category_add():
-    if current_user()["role"] != "super_admin":
-        abort(403)
     f = request.form
     name = (f.get("name") or "").strip()
     if name:
@@ -1884,10 +1919,8 @@ def settings_cash_category_add():
 
 
 @app.route("/settings/cash-category/<int:cat_id>/delete", methods=["POST"])
-@login_required
+@super_admin_required
 def settings_cash_category_delete(cat_id):
-    if current_user()["role"] != "super_admin":
-        abort(403)
     db.delete_custom_cash_category(cat_id)
     return redirect(url_for("settings_page"))
 
@@ -1895,7 +1928,11 @@ def settings_cash_category_delete(cat_id):
 if __name__ == "__main__":
     initial_password = db.init_db()
     if initial_password:
-        log(f"BIRINCHI MARTA ISHGA TUSHIRILDI. Super Admin login: admin | parol: {initial_password}")
+        # Parol atayin log() (run_log.txt, doimiy saqlanadigan fayl) ga
+        # yozilmaydi — faqat konsolda bir martalik ko'rsatiladi, aks holda
+        # log fayliga kirish huquqi bo'lgan har kim uni istalgan vaqt
+        # o'qib olishi mumkin bo'lardi.
+        log("BIRINCHI MARTA ISHGA TUSHIRILDI. Super Admin hisobi yaratildi (parol konsolda ko'rsatildi).")
         print(f"\n{'='*60}\nSUPER ADMIN HISOBI YARATILDI:\n  Login: admin\n  Parol: {initial_password}\n"
               f"Bu parolni saqlab qo'ying, keyin uni /users orqali xohlagan\nfoydalanuvchiga bering.\n{'='*60}\n")
     threading.Thread(target=background_loop, daemon=True).start()
