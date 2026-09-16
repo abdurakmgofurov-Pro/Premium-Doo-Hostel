@@ -108,27 +108,5 @@
   </div>
 {% endblock %}
 {% block scripts %}
-{% if can_create %}
-<script>
-(function () {
-  var typeSelect = document.getElementById("txType");
-  var expenseField = document.getElementById("expenseCategoryField");
-  var incomeField = document.getElementById("incomeCategoryField");
-  var expenseSelect = document.getElementById("expenseCategorySelect");
-  var incomeSelect = document.getElementById("incomeCategorySelect");
-  if (!typeSelect) return;
-
-  function sync() {
-    var isIncome = typeSelect.value === "income";
-    expenseField.style.display = isIncome ? "none" : "";
-    incomeField.style.display = isIncome ? "" : "none";
-    expenseSelect.disabled = isIncome;
-    incomeSelect.disabled = !isIncome;
-  }
-
-  typeSelect.addEventListener("change", sync);
-  sync();
-})();
-</script>
-{% endif %}
+<script src="{{ url_for('static', filename='js/transactions.js') }}"></script>
 {% endblock %}

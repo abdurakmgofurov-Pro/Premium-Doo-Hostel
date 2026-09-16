@@ -42,3 +42,23 @@ MUHIM CHEKLOV
 ---------------
 Bu tizim to'liq buxgalteriya (Forma 1/2/3) hisobotini bermaydi — faqat
 Exely'dan tushum va qo'lda kiritilgan xarajatlarni birlashtiradi.
+
+FRONTEND (TypeScript/CSS)
+----------------------------
+Har bir sahifaning JS kodi `frontend/src/*.ts` da (TypeScript, tur
+tekshiruvi bilan), CSS'i `static/css/*.css` da saqlanadi. Tayyor
+`static/js/*.js` fayllari repога qo'shilgan (dastur ishlashi uchun
+qayta build qilish shart emas) — faqat `frontend/src/*.ts` fayllaridan
+birini tahrirlagandan keyin qayta yig'ish kerak:
+
+  cd frontend
+  ./build.sh          (yoki: npm install && npm run build)
+
+DOCKER (ixtiyoriy)
+--------------------
+Asosiy ishga tushirish usuli hamon `py -3 app.py` / Windows Task
+Scheduler (yuqorida). Docker — shu bilan bir qatorda ishlaydigan
+muqobil variant:
+
+  docker build -t exely-moliyaviy-hisobot .
+  docker run -p 5000:5000 -v %cd%\data.db:/app/data.db exely-moliyaviy-hisobot

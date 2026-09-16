@@ -1,20 +1,7 @@
 {% extends "base.html" %}
 {% block title %}{{ t('nav.services') }}{% endblock %}
 {% block head %}
-<style>
-  .filter-tabs { display: flex; gap: .4rem; margin-bottom: 1rem; }
-  .filter-tabs a { padding: .4rem .9rem; border-radius: 999px; font-size: .8rem; font-weight: 600;
-    text-decoration: none; color: var(--ink-secondary); background: var(--bg-surface-2); border: 1px solid var(--border); }
-  .filter-tabs a.active { background: var(--accent-tint); color: var(--accent-light); border-color: transparent; }
-  dialog#serviceEditModal, dialog#serviceAddModal { border: 1px solid var(--border); border-radius: var(--radius); background: var(--bg-surface);
-    box-shadow: var(--shadow); color: var(--ink-primary); padding: 1.4rem; width: min(480px, 94vw); box-sizing: border-box; }
-  dialog#serviceAddModal { width: min(760px, 94vw); }
-  dialog#serviceEditModal::backdrop, dialog#serviceAddModal::backdrop { background: rgba(0,0,0,.55); }
-  .modal-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.1rem; }
-  .modal-head h2 { margin: 0; font-size: 1.15rem; }
-  .modal-close-btn { background: none; border: none; color: var(--ink-secondary); font-size: 1.3rem; cursor: pointer; line-height: 1; }
-  .row-actions { display: flex; gap: .4rem; }
-</style>
+<link rel="stylesheet" href="{{ url_for('static', filename='css/services.css') }}">
 {% endblock %}
 {% block content %}
   {% set qs_dir = ('year='~year~'&' if year) ~ ('month='~month~'&' if month) ~ ('counterparty='~(counterparty|urlencode)~'&' if counterparty) ~ ('service_type='~(service_type|urlencode)~'&' if service_type) %}
@@ -173,66 +160,6 @@
   {% endif %}
 {% endblock %}
 {% block scripts %}
-{% if can_create %}
-<script>
-(function () {
-  var VAT_RATE = {{ vat_rate }};
-  var modal = document.getElementById("serviceEditModal");
-  var form = document.getElementById("serviceEditForm");
-  var noVat = document.getElementById("editSvcAmountNoVat");
-  var vatDisplay = document.getElementById("editSvcVatDisplay");
-  var totalDisplay = document.getElementById("editSvcTotalDisplay");
-  function recalcEdit() {
-    var raw = noVat.value.replace(/\s/g, "");
-    var n = parseFloat(raw) || 0;
-    var vat = Math.round(n * VAT_RATE * 100) / 100;
-    vatDisplay.value = vat.toLocaleString("ru-RU");
-    totalDisplay.value = (n + vat).toLocaleString("ru-RU");
-  }
-  noVat.addEventListener("input", recalcEdit);
-  document.querySelectorAll(".service-edit-btn").forEach(function (btn) {
-    btn.addEventListener("click", function () {
-      form.action = "/services/" + btn.getAttribute("data-id") + "/edit";
-      document.getElementById("editSvcDate").value = btn.getAttribute("data-date");
-      document.getElementById("editSvcCounterparty").value = btn.getAttribute("data-counterparty");
-      document.getElementById("editSvcServiceType").value = btn.getAttribute("data-service-type");
-      noVat.value = btn.getAttribute("data-amount-no-vat");
-      document.getElementById("editSvcCurrency").value = btn.getAttribute("data-currency");
-      document.getElementById("editSvcStatus").value = btn.getAttribute("data-status");
-      document.getElementById("editSvcDescription").value = btn.getAttribute("data-description");
-      recalcEdit();
-      modal.showModal();
-    });
-  });
-  document.getElementById("closeServiceEditBtn").addEventListener("click", function () { modal.close(); });
-})();
-</script>
-<script>
-(function () {
-  var modal = document.getElementById("serviceAddModal");
-  var openBtn = document.getElementById("openServiceAddBtn");
-  if (!modal || !openBtn) return;
-  openBtn.addEventListener("click", function () { modal.showModal(); });
-  document.getElementById("closeServiceAddBtn").addEventListener("click", function () { modal.close(); });
-})();
-</script>
-{% endif %}
-<script>
-(function () {
-  var VAT_RATE = {{ vat_rate }};
-  var noVatInput = document.getElementById("svcAmountNoVat");
-  var vatDisplay = document.getElementById("svcVatDisplay");
-  var totalDisplay = document.getElementById("svcTotalDisplay");
-  if (!noVatInput) return;
-  function recalc() {
-    var raw = noVatInput.value.replace(/\s/g, "").replace(/ /g, "");
-    var n = parseFloat(raw) || 0;
-    var vat = Math.round(n * VAT_RATE * 100) / 100;
-    vatDisplay.value = vat.toLocaleString("ru-RU");
-    totalDisplay.value = (n + vat).toLocaleString("ru-RU");
-  }
-  noVatInput.addEventListener("input", recalc);
-  recalc();
-})();
-</script>
+<script>window.VAT_RATE = {{ vat_rate }};</script>
+<script src="{{ url_for('static', filename='js/services.js') }}"></script>
 {% endblock %}

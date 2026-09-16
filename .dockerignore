@@ -1,0 +1,17 @@
+__pycache__/
+*.pyc
+*.pyo
+config.json
+secret_key.txt
+data.db
+data_backup_*.db
+*.db
+reports/
+*.log
+run_log.txt
+run_out.log
+app_run.log
+server_out*.log
+.git/
+.claude/
+frontend/node_modules/

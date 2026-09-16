@@ -1,9 +1,7 @@
 {% extends "base.html" %}
 {% block title %}{{ t('nav.bookings') }}{% endblock %}
 {% block head %}
-<style>
-  .btn.disabled { opacity: .4; pointer-events: none; }
-</style>
+<link rel="stylesheet" href="{{ url_for('static', filename='css/bookings.css') }}">
 {% endblock %}
 {% block content %}
 <div class="card">
@@ -65,12 +63,5 @@
 </div>
 {% endblock %}
 {% block scripts %}
-<script>
-document.getElementById('searchBox').addEventListener('input', function() {
-  const q = this.value.toLowerCase();
-  document.querySelectorAll('#bookingsTable tbody tr').forEach(tr => {
-    tr.style.display = tr.textContent.toLowerCase().includes(q) ? '' : 'none';
-  });
-});
-</script>
+<script src="{{ url_for('static', filename='js/bookings.js') }}"></script>
 {% endblock %}

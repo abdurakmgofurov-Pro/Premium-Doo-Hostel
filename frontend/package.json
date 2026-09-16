@@ -1,0 +1,13 @@
+{
+  "name": "exely-moliyaviy-hisobot-frontend",
+  "private": true,
+  "version": "1.0.0",
+  "description": "TypeScript source for the Flask app's client-side pages. Run `npm run build` after editing anything in src/ to regenerate ../static/js/*.js.",
+  "scripts": {
+    "build": "tsc --noEmit -p tsconfig.json && node build.js"
+  },
+  "devDependencies": {
+    "esbuild": "^0.24.0",
+    "typescript": "^5.6.0"
+  }
+}

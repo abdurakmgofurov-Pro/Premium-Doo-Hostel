@@ -1,0 +1,10 @@
+dialog#userEditModal { border: 1px solid var(--border); border-radius: var(--radius); background: var(--bg-surface);
+  box-shadow: var(--shadow); color: var(--ink-primary); padding: 1.4rem; width: min(480px, 94vw); max-width: 100%;
+  box-sizing: border-box; }
+dialog#userEditModal::backdrop { background: rgba(0,0,0,.55); }
+.modal-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.1rem; }
+.modal-head h2 { margin: 0; font-size: 1.15rem; }
+.modal-close-btn { background: none; border: none; color: var(--ink-secondary); font-size: 1.3rem; cursor: pointer; line-height: 1; }
+.row-actions { display: flex; gap: .5rem; }
+#userEditForm input[type=checkbox] { width: auto; min-width: auto; max-width: none; padding: 0;
+  border-radius: 3px; background: none; }

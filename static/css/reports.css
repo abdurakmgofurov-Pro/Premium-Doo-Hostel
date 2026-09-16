@@ -1,0 +1,13 @@
+.report-tabs { display: flex; gap: .5rem; flex-wrap: wrap; margin-bottom: 1.4rem; }
+.report-tabs a { padding: .5rem 1rem; border-radius: 10px; font-size: .84rem; font-weight: 600;
+  text-decoration: none; color: var(--ink-secondary); background: var(--bg-surface-2); border: 1px solid var(--border); }
+.report-tabs a.active { background: linear-gradient(135deg, var(--accent), var(--accent-deep)); color: #fff; border-color: transparent; }
+.breakdown-details { margin: .2rem 0 .4rem 1.4rem; }
+.breakdown-details summary { cursor: pointer; font-size: .78rem; color: var(--accent-light); list-style: none; user-select: none; }
+.breakdown-details summary::-webkit-details-marker { display: none; }
+.breakdown-details summary::before { content: "▸ "; }
+.breakdown-details[open] summary::before { content: "▾ "; }
+.breakdown-list { margin-top: .5rem; padding: .6rem .9rem; background: var(--bg-surface-2); border-radius: 9px; }
+.breakdown-row { display: flex; justify-content: space-between; gap: 1rem; font-size: .82rem; padding: .28rem 0; color: var(--ink-secondary); border-bottom: 1px solid var(--border); }
+.breakdown-row:last-child { border-bottom: none; }
+.breakdown-row span:last-child { color: var(--ink-primary); font-weight: 600; white-space: nowrap; }

@@ -1,28 +1,7 @@
 {% extends "base.html" %}
 {% block title %}{{ t('nav.cash') }}{% endblock %}
 {% block head %}
-<style>
-  .filter-tabs { display: flex; gap: .4rem; margin-bottom: 1rem; }
-  .filter-tabs a { padding: .4rem .9rem; border-radius: 999px; font-size: .8rem; font-weight: 600;
-    text-decoration: none; color: var(--ink-secondary); background: var(--bg-surface-2); border: 1px solid var(--border); }
-  .filter-tabs a.active { background: var(--accent-tint); color: var(--accent-light); border-color: transparent; }
-  .btn.disabled { opacity: .4; pointer-events: none; }
-  #searchForm input[type=text] {
-    font-family: inherit; font-size: .88rem; padding: .55rem .65rem; border-radius: 9px;
-    border: 1px solid var(--border); background: var(--bg-surface-2); color: var(--ink-primary);
-    outline: none; transition: border-color .15s ease, box-shadow .15s ease; min-width: 0;
-  }
-  #searchForm input[type=text]:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-tint); }
-  #searchForm input[type=text]::placeholder { color: var(--ink-muted); }
-  dialog#cashEditModal, dialog#cashAddModal { border: 1px solid var(--border); border-radius: var(--radius); background: var(--bg-surface);
-    box-shadow: var(--shadow); color: var(--ink-primary); padding: 1.4rem; width: min(480px, 94vw); box-sizing: border-box; }
-  dialog#cashAddModal { width: min(760px, 94vw); }
-  dialog#cashEditModal::backdrop, dialog#cashAddModal::backdrop { background: rgba(0,0,0,.55); }
-  .modal-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.1rem; }
-  .modal-head h2 { margin: 0; font-size: 1.15rem; }
-  .modal-close-btn { background: none; border: none; color: var(--ink-secondary); font-size: 1.3rem; cursor: pointer; line-height: 1; }
-  .row-actions { display: flex; gap: .4rem; }
-</style>
+<link rel="stylesheet" href="{{ url_for('static', filename='css/cash.css') }}">
 {% endblock %}
 {% block content %}
   {% set qs_common = ('year='~year~'&' if year) ~ ('month='~month~'&' if month) ~ ('source='~(source|urlencode)~'&' if source) ~ ('category='~(category|urlencode)~'&' if category) ~ ('counterparty='~(counterparty|urlencode)~'&' if counterparty) ~ ('per_page='~per_page~'&' if per_page and per_page != '50') ~ ('q='~(search|urlencode)~'&' if search) %}
@@ -333,62 +312,5 @@
   {% endif %}
 {% endblock %}
 {% block scripts %}
-{% if can_create %}
-<script>
-(function () {
-  var modal = document.getElementById("cashEditModal");
-  if (!modal) return;
-  var form = document.getElementById("cashEditForm");
-  document.querySelectorAll(".cash-edit-btn").forEach(function (btn) {
-    btn.addEventListener("click", function () {
-      form.action = "/cash/" + btn.getAttribute("data-id") + "/edit";
-      document.getElementById("editDate").value = btn.getAttribute("data-date");
-      document.getElementById("editSource").value = btn.getAttribute("data-source");
-      document.getElementById("editAmount").value = btn.getAttribute("data-amount");
-      document.getElementById("editCurrency").value = btn.getAttribute("data-currency");
-      document.getElementById("editCounterparty").value = btn.getAttribute("data-counterparty");
-      document.getElementById("editNoteLabel").value = btn.getAttribute("data-note-label");
-      document.getElementById("editDescription").value = btn.getAttribute("data-description");
-      modal.showModal();
-    });
-  });
-  document.getElementById("closeCashEditBtn").addEventListener("click", function () { modal.close(); });
-})();
-</script>
-<script>
-(function () {
-  var modal = document.getElementById("cashAddModal");
-  var openBtn = document.getElementById("openCashAddBtn");
-  if (!modal || !openBtn) return;
-  openBtn.addEventListener("click", function () { modal.showModal(); });
-  document.getElementById("closeCashAddBtn").addEventListener("click", function () { modal.close(); });
-})();
-</script>
-{% endif %}
-<script>
-(function () {
-  var typeSelect = document.getElementById("cashTypeSelect");
-  if (!typeSelect) return;
-  var incomeField = document.getElementById("incomeCatField");
-  var expenseField = document.getElementById("expenseCatField");
-  var incomeSelect = document.getElementById("incomeCatSelect");
-  var expenseSelect = document.getElementById("expenseCatSelect");
-  var forma2Field = document.getElementById("forma2Field");
-  var forma2Select = document.getElementById("forma2Select");
-
-  function sync() {
-    var isExpense = typeSelect.value === "expense";
-    incomeField.style.display = isExpense ? "none" : "";
-    incomeSelect.disabled = isExpense;
-    expenseField.style.display = isExpense ? "" : "none";
-    expenseSelect.disabled = !isExpense;
-    forma2Field.style.display = isExpense ? "" : "none";
-    forma2Select.disabled = !isExpense;
-    if (!isExpense) forma2Select.value = "";
-  }
-
-  typeSelect.addEventListener("change", sync);
-  sync();
-})();
-</script>
+<script src="{{ url_for('static', filename='js/cash.js') }}"></script>
 {% endblock %}

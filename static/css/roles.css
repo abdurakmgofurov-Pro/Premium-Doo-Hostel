@@ -1,0 +1,42 @@
+.role-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 1rem; }
+.role-card { background: var(--bg-surface); border: 1px solid var(--border); border-radius: var(--radius);
+  box-shadow: var(--shadow); padding: 1.2rem 1.3rem; display: flex; flex-direction: column; gap: .8rem; }
+.role-card .rc-top { display: flex; align-items: flex-start; justify-content: space-between; gap: .6rem; }
+.role-card .rc-name { font-weight: 700; font-size: 1.02rem; }
+.role-card .rc-desc { font-size: .82rem; color: var(--ink-secondary); min-height: 1.2em; }
+.role-card .rc-actions { display: flex; gap: .4rem; flex-shrink: 0; }
+.role-card .rc-actions button { background: none; border: 1px solid var(--border); border-radius: 8px;
+  width: 30px; height: 30px; color: var(--ink-secondary); cursor: pointer; font-size: .85rem; }
+.role-card .rc-actions button:hover { color: var(--accent-light); border-color: var(--accent); }
+.role-card .rc-actions button.rc-del:hover { color: var(--bad); border-color: var(--bad); }
+.role-card .rc-count { display: flex; align-items: baseline; gap: .4rem; }
+.role-card .rc-count b { font-size: 1.4rem; font-family: "IBM Plex Mono", monospace; }
+.role-card .rc-count span { font-size: .78rem; color: var(--ink-muted); }
+
+dialog#roleModal { border: 1px solid var(--border); border-radius: var(--radius); background: var(--bg-surface);
+  box-shadow: var(--shadow); color: var(--ink-primary); padding: 1.4rem; width: min(760px, 94vw); max-width: 100%;
+  max-height: 88vh; overflow-y: auto; overflow-x: hidden; box-sizing: border-box; }
+dialog#roleModal::backdrop { background: rgba(0,0,0,.55); }
+.modal-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.1rem; }
+.modal-head h2 { margin: 0; font-size: 1.15rem; }
+.modal-close-btn { background: none; border: none; color: var(--ink-secondary); font-size: 1.3rem; cursor: pointer; line-height: 1; }
+
+.matrix-row { border: 1px solid var(--border); border-radius: 12px; padding: .8rem 1rem; margin-bottom: .7rem; }
+.matrix-row .mr-head { display: flex; align-items: center; gap: .6rem; font-weight: 700; font-size: .9rem; margin-bottom: .6rem; }
+.matrix-row .mr-actions { display: flex; gap: .5rem; flex-wrap: wrap; }
+/* form.form-grid input{width:100%;padding:...} tarqatiladigan qoida
+   matn maydonlari uchun mo'ljallangan — checkboxlarga tegmasligi kerak. */
+#roleForm input[type=checkbox] { width: auto; min-width: auto; max-width: none; padding: 0;
+  border-radius: 3px; background: none; }
+.matrix-row label.mr-chip { display: inline-flex; align-items: center; gap: .35rem; font-size: .8rem; font-weight: 500;
+  text-transform: none; letter-spacing: normal;
+  padding: .35rem .7rem; border-radius: 8px; background: var(--bg-surface-2); border: 1px solid var(--border);
+  cursor: pointer; color: var(--ink-secondary); }
+.matrix-row label.mr-chip:has(input:disabled) { opacity: .35; cursor: not-allowed; }
+.matrix-row label.mr-chip:has(input:checked) { background: var(--accent-tint); color: var(--accent-light); border-color: transparent; }
+
+.modal-footer { display: flex; align-items: center; justify-content: space-between; gap: .8rem; margin-top: 1rem;
+  padding-top: 1rem; border-top: 1px solid var(--border); flex-wrap: wrap; }
+.modal-footer .mf-count { font-size: .85rem; color: var(--ink-secondary); }
+.modal-footer .mf-count b { color: var(--ink-primary); }
+.modal-footer .mf-btns { display: flex; gap: .6rem; margin-left: auto; }

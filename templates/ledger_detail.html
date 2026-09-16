@@ -1,16 +1,7 @@
 {% extends "base.html" %}
 {% block title %}{{ counterparty }} — {{ t('nav.ledger') }}{% endblock %}
 {% block head %}
-<style>
-  .pay-details summary { cursor: pointer; font-size: .8rem; color: var(--accent-light); font-weight: 600; list-style: none; }
-  .pay-details summary::-webkit-details-marker { display: none; }
-  .pay-details[open] summary { margin-bottom: .5rem; }
-  .pay-form { min-width: 300px; }
-  .hist-details summary { cursor: pointer; font-size: .76rem; color: var(--ink-secondary); list-style: none; margin-top: .4rem; }
-  .hist-details summary::-webkit-details-marker { display: none; }
-  .pay-row { display: flex; justify-content: space-between; align-items: center; padding: .35rem 0; font-size: .8rem; border-bottom: 1px solid var(--border); }
-  .settled { color: var(--good); font-size: .78rem; font-weight: 600; }
-</style>
+<link rel="stylesheet" href="{{ url_for('static', filename='css/ledger_detail.css') }}">
 {% endblock %}
 {% block content %}
   <div style="margin-bottom:1rem;">

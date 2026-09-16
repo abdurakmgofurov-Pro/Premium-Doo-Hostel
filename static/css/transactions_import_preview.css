@@ -1,0 +1,7 @@
+.catmap-row { display: flex; align-items: center; gap: .8rem; padding: .6rem 0; border-bottom: 1px solid var(--border); flex-wrap: wrap; }
+.catmap-row:last-child { border-bottom: none; }
+.catmap-row .cm-name { flex: 1 1 260px; font-weight: 600; font-size: .88rem; min-width: 0; }
+.catmap-row select { flex: 1 1 280px; min-width: 0; }
+.import-badge { font-size: .7rem; font-weight: 700; padding: .15rem .5rem; border-radius: 999px; }
+.import-badge.new { background: var(--good-bg); color: var(--good); }
+.import-badge.dup { background: var(--bad-bg); color: var(--bad); }

@@ -1,0 +1,12 @@
+.report-tabs { display: flex; gap: .5rem; flex-wrap: wrap; margin-bottom: 1.4rem; }
+.report-tabs a { padding: .5rem 1rem; border-radius: 10px; font-size: .84rem; font-weight: 600;
+  text-decoration: none; color: var(--ink-secondary); background: var(--bg-surface-2); border: 1px solid var(--border); }
+.report-tabs a.active { background: linear-gradient(135deg, var(--accent), var(--accent-deep)); color: #fff; border-color: transparent; }
+dialog#taxModal { border: 1px solid var(--border); border-radius: var(--radius); background: var(--bg-surface);
+  box-shadow: var(--shadow); color: var(--ink-primary); padding: 1.4rem; width: min(420px, 94vw); box-sizing: border-box; }
+dialog#taxModal::backdrop { background: rgba(0,0,0,.55); }
+.modal-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.1rem; }
+.modal-head h2 { margin: 0; font-size: 1.15rem; }
+.modal-close-btn { background: none; border: none; color: var(--ink-secondary); font-size: 1.3rem; cursor: pointer; line-height: 1; }
+.auto-badge { font-size: .68rem; font-weight: 700; padding: .1rem .45rem; border-radius: 999px;
+  background: var(--bg-surface-2); color: var(--ink-muted); margin-left: .4rem; }

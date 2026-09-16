@@ -1,0 +1,12 @@
+.rate-chart-wrap { width: 100%; overflow-x: auto; }
+.rate-chart-wrap svg { width: 100%; height: 280px; display: block; }
+.rate-add-details summary { cursor: pointer; list-style: none; display: inline-block; }
+.rate-add-details summary::-webkit-details-marker { display: none; }
+.rate-add-details summary .btn { display: inline-flex; }
+.rate-add-details[open] summary { margin-bottom: .8rem; }
+.rate-form { max-width: 420px; }
+.rate-empty { color: var(--ink-secondary); font-size: .85rem; padding: 2rem 0; text-align: center; }
+.rate-legend { display: flex; gap: 1.2rem; font-size: .78rem; color: var(--ink-secondary); margin-top: .6rem; }
+.rate-legend span { display: inline-flex; align-items: center; gap: .35rem; }
+.rate-legend i { width: 10px; height: 10px; border-radius: 3px; display: inline-block; }
+.row-actions { display: flex; gap: .4rem; flex-wrap: wrap; }

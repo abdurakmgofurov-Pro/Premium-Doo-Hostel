@@ -1,0 +1,4 @@
+# static/js/*.js is esbuild output compiled from frontend/src/*.ts (see
+# frontend/build.js) -- mark it generated so GitHub's language stats
+# attribute this code to TypeScript (the actual source), not JavaScript.
+static/js/*.js linguist-generated=true

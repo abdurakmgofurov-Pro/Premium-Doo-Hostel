@@ -1,50 +1,7 @@
 {% extends "base.html" %}
 {% block title %}{{ t('roles.title') }}{% endblock %}
 {% block head %}
-<style>
-  .role-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 1rem; }
-  .role-card { background: var(--bg-surface); border: 1px solid var(--border); border-radius: var(--radius);
-    box-shadow: var(--shadow); padding: 1.2rem 1.3rem; display: flex; flex-direction: column; gap: .8rem; }
-  .role-card .rc-top { display: flex; align-items: flex-start; justify-content: space-between; gap: .6rem; }
-  .role-card .rc-name { font-weight: 700; font-size: 1.02rem; }
-  .role-card .rc-desc { font-size: .82rem; color: var(--ink-secondary); min-height: 1.2em; }
-  .role-card .rc-actions { display: flex; gap: .4rem; flex-shrink: 0; }
-  .role-card .rc-actions button { background: none; border: 1px solid var(--border); border-radius: 8px;
-    width: 30px; height: 30px; color: var(--ink-secondary); cursor: pointer; font-size: .85rem; }
-  .role-card .rc-actions button:hover { color: var(--accent-light); border-color: var(--accent); }
-  .role-card .rc-actions button.rc-del:hover { color: var(--bad); border-color: var(--bad); }
-  .role-card .rc-count { display: flex; align-items: baseline; gap: .4rem; }
-  .role-card .rc-count b { font-size: 1.4rem; font-family: "IBM Plex Mono", monospace; }
-  .role-card .rc-count span { font-size: .78rem; color: var(--ink-muted); }
-
-  dialog#roleModal { border: 1px solid var(--border); border-radius: var(--radius); background: var(--bg-surface);
-    box-shadow: var(--shadow); color: var(--ink-primary); padding: 1.4rem; width: min(760px, 94vw); max-width: 100%;
-    max-height: 88vh; overflow-y: auto; overflow-x: hidden; box-sizing: border-box; }
-  dialog#roleModal::backdrop { background: rgba(0,0,0,.55); }
-  .modal-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.1rem; }
-  .modal-head h2 { margin: 0; font-size: 1.15rem; }
-  .modal-close-btn { background: none; border: none; color: var(--ink-secondary); font-size: 1.3rem; cursor: pointer; line-height: 1; }
-
-  .matrix-row { border: 1px solid var(--border); border-radius: 12px; padding: .8rem 1rem; margin-bottom: .7rem; }
-  .matrix-row .mr-head { display: flex; align-items: center; gap: .6rem; font-weight: 700; font-size: .9rem; margin-bottom: .6rem; }
-  .matrix-row .mr-actions { display: flex; gap: .5rem; flex-wrap: wrap; }
-  /* form.form-grid input{width:100%;padding:...} tarqatiladigan qoida
-     matn maydonlari uchun mo'ljallangan — checkboxlarga tegmasligi kerak. */
-  #roleForm input[type=checkbox] { width: auto; min-width: auto; max-width: none; padding: 0;
-    border-radius: 3px; background: none; }
-  .matrix-row label.mr-chip { display: inline-flex; align-items: center; gap: .35rem; font-size: .8rem; font-weight: 500;
-    text-transform: none; letter-spacing: normal;
-    padding: .35rem .7rem; border-radius: 8px; background: var(--bg-surface-2); border: 1px solid var(--border);
-    cursor: pointer; color: var(--ink-secondary); }
-  .matrix-row label.mr-chip:has(input:disabled) { opacity: .35; cursor: not-allowed; }
-  .matrix-row label.mr-chip:has(input:checked) { background: var(--accent-tint); color: var(--accent-light); border-color: transparent; }
-
-  .modal-footer { display: flex; align-items: center; justify-content: space-between; gap: .8rem; margin-top: 1rem;
-    padding-top: 1rem; border-top: 1px solid var(--border); flex-wrap: wrap; }
-  .modal-footer .mf-count { font-size: .85rem; color: var(--ink-secondary); }
-  .modal-footer .mf-count b { color: var(--ink-primary); }
-  .modal-footer .mf-btns { display: flex; gap: .6rem; margin-left: auto; }
-</style>
+<link rel="stylesheet" href="{{ url_for('static', filename='css/roles.css') }}">
 {% endblock %}
 {% block content %}
   <div style="display:flex;align-items:flex-end;justify-content:space-between;flex-wrap:wrap;gap:1rem;margin-bottom:1.4rem;">
@@ -121,80 +78,5 @@
 {% endblock %}
 {% block scripts %}
 <script id="rolesData" type="application/json">{{ roles | tojson }}</script>
-<script>
-(function () {
-  var ROLES = JSON.parse(document.getElementById("rolesData").textContent);
-  var modal = document.getElementById("roleModal");
-  var form = document.getElementById("roleForm");
-  var title = document.getElementById("roleModalTitle");
-  var nameInput = document.getElementById("roleNameInput");
-  var descInput = document.getElementById("roleDescInput");
-  var countEl = document.getElementById("selectedCount");
-  var allActionBoxes = Array.prototype.slice.call(document.querySelectorAll(".mr-action"));
-  var allSelectAllBoxes = Array.prototype.slice.call(document.querySelectorAll(".mr-select-all"));
-
-  function updateCount() {
-    countEl.textContent = allActionBoxes.filter(function (b) { return b.checked; }).length;
-  }
-
-  function resetForm() {
-    form.reset();
-    allActionBoxes.forEach(function (b) { b.checked = false; });
-    allSelectAllBoxes.forEach(function (b) { b.checked = false; });
-    updateCount();
-  }
-
-  function openForNew() {
-    resetForm();
-    title.textContent = "{{ t('roles.modal_title_new') }}";
-    form.action = "/roles/add";
-    modal.showModal();
-  }
-
-  function openForEdit(role) {
-    resetForm();
-    title.textContent = "{{ t('roles.modal_title_edit') }}: " + role.name;
-    form.action = "/roles/" + role.id + "/edit";
-    nameInput.value = role.name;
-    descInput.value = role.description || "";
-    var perms = role.permissions || {};
-    allActionBoxes.forEach(function (b) {
-      var mod = b.getAttribute("data-module");
-      var action = b.name.split("__")[2];
-      if (perms[mod] && perms[mod][action]) b.checked = true;
-    });
-    allSelectAllBoxes.forEach(function (b) {
-      var mod = b.getAttribute("data-module");
-      var boxes = allActionBoxes.filter(function (x) { return x.getAttribute("data-module") === mod && !x.disabled; });
-      b.checked = boxes.length > 0 && boxes.every(function (x) { return x.checked; });
-    });
-    updateCount();
-    modal.showModal();
-  }
-
-  document.getElementById("newRoleBtn").addEventListener("click", openForNew);
-  document.getElementById("closeRoleModalBtn").addEventListener("click", function () { modal.close(); });
-  document.getElementById("cancelRoleBtn").addEventListener("click", function () { modal.close(); });
-
-  document.querySelectorAll(".rc-edit").forEach(function (btn) {
-    btn.addEventListener("click", function () {
-      var id = parseInt(btn.getAttribute("data-role-id"), 10);
-      var role = ROLES.filter(function (r) { return r.id === id; })[0];
-      if (role) openForEdit(role);
-    });
-  });
-
-  allSelectAllBoxes.forEach(function (master) {
-    master.addEventListener("change", function () {
-      var mod = master.getAttribute("data-module");
-      allActionBoxes.forEach(function (b) {
-        if (b.getAttribute("data-module") === mod && !b.disabled) b.checked = master.checked;
-      });
-      updateCount();
-    });
-  });
-
-  allActionBoxes.forEach(function (b) { b.addEventListener("change", updateCount); });
-})();
-</script>
+<script src="{{ url_for('static', filename='js/roles.js') }}"></script>
 {% endblock %}

@@ -33,3 +33,8 @@ Thumbs.db
 venv/
 .venv/
 env/
+
+# Frontend (TypeScript) build tooling -- compiled output (static/js/*.js)
+# IS committed since the app has no build step at deploy time; only the
+# installed npm dependency tree is excluded here.
+frontend/node_modules/

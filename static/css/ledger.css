@@ -1,0 +1,13 @@
+.report-tabs { display: flex; gap: .5rem; flex-wrap: wrap; margin-bottom: 1.4rem; }
+.report-tabs a { padding: .5rem 1rem; border-radius: 10px; font-size: .84rem; font-weight: 600;
+  text-decoration: none; color: var(--ink-secondary); background: var(--bg-surface-2); border: 1px solid var(--border); }
+.report-tabs a.active { background: linear-gradient(135deg, var(--accent), var(--accent-deep)); color: #fff; border-color: transparent; }
+.currency-tabs { display: flex; gap: .4rem; margin-bottom: 0; }
+.currency-tabs a { padding: .4rem .9rem; border-radius: 999px; font-size: .8rem; font-weight: 600;
+  text-decoration: none; color: var(--ink-secondary); background: var(--bg-surface-2); border: 1px solid var(--border); }
+.currency-tabs a.active { background: var(--accent-tint); color: var(--accent-light); border-color: transparent; }
+.ledger-table th.grp { text-align: center; border-bottom: 1px solid var(--border); }
+.dt-val { color: var(--good); }
+.kt-val { color: var(--bad); }
+.cp-link { color: var(--ink-primary); text-decoration: none; font-weight: 600; }
+.cp-link:hover { color: var(--accent-light); text-decoration: underline; }

@@ -1,23 +1,7 @@
 {% extends "base.html" %}
 {% block title %}{{ t('cash.import_title') }}{% endblock %}
 {% block head %}
-<style>
-  .import-badge { font-size: .7rem; font-weight: 700; padding: .15rem .5rem; border-radius: 999px; }
-  .import-badge.new { background: var(--good-bg); color: var(--good); }
-  .import-badge.dup { background: var(--bad-bg); color: var(--bad); }
-  /* form.form-grid'dan nusxa — bu yerda faqat bitta bo'lim (mapping select'lar)
-     grid bo'lishi kerak, butun <form> emas (u pastda jadval/tugma ham
-     o'z ichiga oladi), shuning uchun umumiy klass shu yerda ishlatilmaydi. */
-  .map-grid { display: grid; grid-template-columns: 1fr 1fr; gap: .9rem; align-items: end; }
-  .map-grid .field { display: flex; flex-direction: column; gap: .35rem; min-width: 0; }
-  .map-grid label { font-size: .7rem; text-transform: uppercase; letter-spacing: .05em; color: var(--ink-muted); font-weight: 700; }
-  .map-grid select {
-    font-family: inherit; font-size: .88rem; padding: .55rem .65rem; border-radius: 9px;
-    border: 1px solid var(--border); background: var(--bg-surface-2); color: var(--ink-primary);
-    outline: none; width: 100%; min-width: 0; max-width: 100%;
-  }
-  @media (max-width: 520px) { .map-grid { grid-template-columns: 1fr; } }
-</style>
+<link rel="stylesheet" href="{{ url_for('static', filename='css/cash_import_preview.css') }}">
 {% endblock %}
 {% block content %}
   <div style="display:flex;align-items:flex-end;justify-content:space-between;flex-wrap:wrap;gap:1rem;margin-bottom:1.4rem;">

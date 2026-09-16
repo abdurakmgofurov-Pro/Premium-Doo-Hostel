@@ -179,14 +179,5 @@
 </div>
 {% endblock %}
 {% block scripts %}
-<script>
-(function () {
-  var input = document.getElementById("apiClientSecretInput");
-  var btn = document.getElementById("toggleSecretBtn");
-  if (!input || !btn) return;
-  btn.addEventListener("click", function () {
-    input.type = input.type === "password" ? "text" : "password";
-  });
-})();
-</script>
+<script src="{{ url_for('static', filename='js/settings.js') }}"></script>
 {% endblock %}

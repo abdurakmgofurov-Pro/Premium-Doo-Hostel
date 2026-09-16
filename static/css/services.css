@@ -1,0 +1,12 @@
+.filter-tabs { display: flex; gap: .4rem; margin-bottom: 1rem; }
+.filter-tabs a { padding: .4rem .9rem; border-radius: 999px; font-size: .8rem; font-weight: 600;
+  text-decoration: none; color: var(--ink-secondary); background: var(--bg-surface-2); border: 1px solid var(--border); }
+.filter-tabs a.active { background: var(--accent-tint); color: var(--accent-light); border-color: transparent; }
+dialog#serviceEditModal, dialog#serviceAddModal { border: 1px solid var(--border); border-radius: var(--radius); background: var(--bg-surface);
+  box-shadow: var(--shadow); color: var(--ink-primary); padding: 1.4rem; width: min(480px, 94vw); box-sizing: border-box; }
+dialog#serviceAddModal { width: min(760px, 94vw); }
+dialog#serviceEditModal::backdrop, dialog#serviceAddModal::backdrop { background: rgba(0,0,0,.55); }
+.modal-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.1rem; }
+.modal-head h2 { margin: 0; font-size: 1.15rem; }
+.modal-close-btn { background: none; border: none; color: var(--ink-secondary); font-size: 1.3rem; cursor: pointer; line-height: 1; }
+.row-actions { display: flex; gap: .4rem; }
