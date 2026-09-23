@@ -1,1 +1,14 @@
 .btn.disabled { opacity: .4; pointer-events: none; }
+
+.booking-expand {
+  background: none; border: 1px solid var(--border); border-radius: 6px;
+  width: 26px; height: 26px; cursor: pointer; color: var(--ink-secondary);
+  font-size: .8rem; line-height: 1; transition: transform .15s;
+}
+.booking-expand[aria-expanded="true"] { transform: rotate(90deg); }
+.booking-detail-grid {
+  display: flex; flex-direction: column; gap: .35rem;
+  padding: .8rem 1rem; font-size: .84rem; background: var(--bg-surface-2);
+  border-radius: 8px;
+}
+.booking-detail-grid .muted { color: var(--ink-secondary); }

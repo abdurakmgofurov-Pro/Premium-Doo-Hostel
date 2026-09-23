@@ -35,13 +35,14 @@
   <div class="overflow-x">
     <table class="data-table" id="bookingsTable">
       <thead><tr>
-        <th>{{ t('bookings.th_number') }}</th><th>{{ t('bookings.th_status') }}</th><th>{{ t('bookings.th_guest') }}</th><th>{{ t('bookings.th_channel') }}</th>
+        <th></th><th>{{ t('bookings.th_number') }}</th><th>{{ t('bookings.th_status') }}</th><th>{{ t('bookings.th_guest') }}</th><th>{{ t('bookings.th_channel') }}</th>
         <th>{{ t('bookings.th_currency') }}</th><th>{{ t('bookings.th_revenue') }}</th><th>{{ t('bookings.th_prepaid') }}</th><th>{{ t('bookings.th_checkin') }}</th>
         <th>{{ t('bookings.th_room_type') }}</th><th class="num">{{ t('bookings.th_nights') }}</th><th>{{ t('bookings.th_guests') }}</th><th>{{ t('bookings.th_payment_method') }}</th>
       </tr></thead>
       <tbody>
         {% for r in rows %}
-        <tr>
+        <tr class="booking-row">
+          <td><button type="button" class="booking-expand" aria-expanded="false" title="{{ t('bookings.details') }}">▸</button></td>
           <td>{{r.number}}</td>
           <td>{{ t('bookings.status_active') if r.status == "Active" else t('bookings.status_cancelled') }}</td>
           <td>{{r.guest or t('common.dash')}}</td>
@@ -54,6 +55,24 @@
           <td class="num">{{ r.nights if r.nights is not none else t('common.dash') }}</td>
           <td>{{ r.adults }}{% if r.children %} + {{ r.children }}👶{% endif %}</td>
           <td>{{r.payment_method or t('common.dash')}}</td>
+        </tr>
+        <tr class="booking-detail" hidden>
+          <td colspan="13">
+            <div class="booking-detail-grid">
+              <div>
+                <b>{{ t('bookings.d_price_after_tax') }}:</b> {{ r.price_after_tax|money }} {{r.currency}}
+                {% if r.tax_amount %}<span class="muted">({{ t('bookings.d_tax_amount') }}: {{ r.tax_amount|money }})</span>{% endif %}
+              </div>
+              {% if r.taxes %}<div><b>{{ t('bookings.d_taxes') }}:</b> {% for x in r.taxes %}{{ x.name }} {{ x.amount|money }}{% if not loop.last %}, {% endif %}{% endfor %}</div>{% endif %}
+              {% if r.discounts %}<div><b>{{ t('bookings.d_discounts') }}:</b> {% for x in r.discounts %}{{ x.name }} -{{ x.amount|money }}{% if x.percent %} ({{ x.percent }}%){% endif %}{% if not loop.last %}, {% endif %}{% endfor %}</div>{% endif %}
+              {% if r.daily_rates %}<div><b>{{ t('bookings.d_daily_rates') }}:</b> {% for x in r.daily_rates %}{{ x.date }}: {{ x.price|money }}{% if not loop.last %}, {% endif %}{% endfor %}</div>{% endif %}
+              {% if r.room_services %}<div><b>{{ t('bookings.d_services') }}:</b> {% for x in r.room_services %}{{ x.name }}{% if not x.inclusive and x.price %} ({{ x.price|money }}){% endif %}{% if not loop.last %}, {% endif %}{% endfor %}</div>{% endif %}
+              {% if r.extra_charges %}<div><b>{{ t('bookings.d_extra_charges') }}:</b> {% for x in r.extra_charges %}{{ x.label }}: {{ x.amount|money }}{% if not loop.last %}, {% endif %}{% endfor %}</div>{% endif %}
+              {% if r.guests_all and r.guests_all|length > 1 %}<div><b>{{ t('bookings.d_all_guests') }}:</b> {{ r.guests_all|join(', ') }}</div>{% endif %}
+              {% if r.status == "Cancelled" %}<div><b>{{ t('bookings.d_cancellation') }}:</b> {{ r.cancel_at[:10] if r.cancel_at else t('common.dash') }}{% if r.cancel_penalty %}, {{ t('bookings.d_cancel_penalty') }}: {{ r.cancel_penalty|money }}{% endif %}</div>{% endif %}
+              {% if r.source_url %}<div><b>{{ t('bookings.d_source_url') }}:</b> <a href="{{ r.source_url }}" target="_blank" rel="noopener">{{ r.source_url }}</a></div>{% endif %}
+            </div>
+          </td>
         </tr>
         {% endfor %}
       </tbody>

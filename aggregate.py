@@ -82,6 +82,68 @@ def _payment_method(booking):
     return payment_method_name(code) if code else None
 
 
+def _taxes_and_discounts(total):
+    """Exely javobida bor, lekin hozirgacha o'qilmagan `total.taxes`/`total.discounts`."""
+    taxes = [
+        {"name": t.get("name") or t.get("code") or f"Soliq {t.get('index', '')}".strip(),
+         "amount": t.get("amount") or 0.0}
+        for t in (total.get("taxes") or [])
+    ]
+    discounts = [
+        {"name": d.get("name") or d.get("discountType") or "Chegirma",
+         "amount": d.get("amount") or 0.0, "percent": d.get("percent")}
+        for d in (total.get("discounts") or [])
+    ]
+    return taxes, discounts
+
+
+def _room_services(booking):
+    """roomStays[].services — xonaga qo'shilgan xizmatlar (nonushta, parking, wifi va h.k.)."""
+    services = []
+    for rs in booking.get("roomStays") or []:
+        for s in rs.get("services") or []:
+            services.append({
+                "name": s.get("name"),
+                "price": (s.get("total") or {}).get("priceBeforeTax") or 0.0,
+                "inclusive": bool(s.get("inclusive")),
+            })
+    return services
+
+
+def _daily_rates(booking):
+    """roomStays[].dailyRates — har bir kecha uchun alohida narx."""
+    rates = []
+    for rs in booking.get("roomStays") or []:
+        for dr in rs.get("dailyRates") or []:
+            rates.append({"date": (dr.get("date") or "")[:10], "price": dr.get("priceBeforeTax") or 0.0})
+    return rates
+
+
+def _extra_charges(booking):
+    """roomStays[].extraStayCharges — erta kelish / kech ketish uchun qo'shimcha to'lov."""
+    charges = []
+    for rs in booking.get("roomStays") or []:
+        ec = rs.get("extraStayCharges") or {}
+        for key, label in (("earlyArrival", "Erta kelish"), ("lateDeparture", "Kech ketish")):
+            item = ec.get(key)
+            if item:
+                price = (item.get("total") or {}).get("priceBeforeTax") or 0.0
+                if price:
+                    charges.append({"label": label, "amount": price})
+    return charges
+
+
+def _all_guests(booking):
+    """roomStays[].guests — xonadagi BARCHA mehmonlar (bosh mehmon emas)."""
+    names = []
+    for rs in booking.get("roomStays") or []:
+        for g in rs.get("guests") or []:
+            name = f"{g.get('firstName', '')} {g.get('lastName', '')}".strip()
+            if name and name not in names:
+                names.append(name)
+    return names
+
+
 def flatten(booking):
     total = booking.get("total") or {}
     guarantee = booking.get("guaranteeInfo") or {}
@@ -98,6 +160,8 @@ def flatten(booking):
     currency = booking.get("currencyCode")
     revenue = total.get("priceBeforeTax") or 0.0
     prepaid = guarantee.get("totalPrepaid") or 0.0
+    tax_amount = total.get("taxAmount") or 0.0
+    price_after_tax = total.get("priceAfterTax") or 0.0
     if currency and currency not in ("UZS", "USD"):
         # Bron kamdan-kam EUR (yoki boshqa) valyutada kelishi mumkin — tizim
         # faqat UZS/USD bilan ishlagani uchun, Markaziy bank kursi asosida
@@ -114,7 +178,12 @@ def flatten(booking):
         if rate:
             revenue *= rate
             prepaid *= rate
+            tax_amount *= rate
+            price_after_tax *= rate
             currency = "UZS"
+
+    taxes, discounts = _taxes_and_discounts(total)
+    cancellation = booking.get("cancellation") or {}
 
     return {
         "number": booking.get("number"),
@@ -133,6 +202,18 @@ def flatten(booking):
         "adults": adults,
         "children": children,
         "payment_method": _payment_method(booking),
+        # Exely'dan kelib, ilgari hech qayerda ishlatilmagan qo'shimcha maydonlar:
+        "tax_amount": tax_amount,
+        "price_after_tax": price_after_tax,
+        "taxes": taxes,
+        "discounts": discounts,
+        "room_services": _room_services(booking),
+        "daily_rates": _daily_rates(booking),
+        "extra_charges": _extra_charges(booking),
+        "guests_all": _all_guests(booking),
+        "cancel_penalty": cancellation.get("penaltyAmount"),
+        "cancel_at": cancellation.get("cancelledDateTime"),
+        "source_url": (booking.get("source") or {}).get("sourceUrl") or None,
     }
 
 
