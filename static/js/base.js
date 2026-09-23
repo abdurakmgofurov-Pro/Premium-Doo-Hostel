@@ -44,4 +44,19 @@
     inp.value = window.CSRF_TOKEN || "";
     form.appendChild(inp);
   });
+  var themeToggleBtn = document.getElementById("themeToggle");
+  if (themeToggleBtn) {
+    themeToggleBtn.addEventListener("click", () => {
+      const isLight = document.documentElement.dataset.theme === "light";
+      if (isLight) {
+        delete document.documentElement.dataset.theme;
+      } else {
+        document.documentElement.dataset.theme = "light";
+      }
+      try {
+        localStorage.setItem("theme", isLight ? "dark" : "light");
+      } catch (e) {
+      }
+    });
+  }
 })();

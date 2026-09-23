@@ -58,3 +58,25 @@ document.addEventListener("submit", (e: Event) => {
   inp.value = window.CSRF_TOKEN || "";
   form.appendChild(inp);
 });
+
+// Yorug'/qorong'u mavzu: tanlov har bir tomoshabinning o'z brauzerida
+// (localStorage) saqlanadi — serverga yuborilmaydi, boshqa foydalanuvchilarga
+// ta'sir qilmaydi. base.html'dagi <head> ichidagi skript sahifa chizilishidan
+// oldin shu qiymatni o'qib, "miltillash"ning oldini oladi — bu yerda faqat
+// tugma bosilganda almashtirish mantig'i.
+const themeToggleBtn = document.getElementById("themeToggle");
+if (themeToggleBtn) {
+  themeToggleBtn.addEventListener("click", () => {
+    const isLight = document.documentElement.dataset.theme === "light";
+    if (isLight) {
+      delete document.documentElement.dataset.theme;
+    } else {
+      document.documentElement.dataset.theme = "light";
+    }
+    try {
+      localStorage.setItem("theme", isLight ? "dark" : "light");
+    } catch (e) {
+      /* private/blocked storage — mavzu shu sessiyada ishlayveradi, keyingi safar eslanmaydi */
+    }
+  });
+}

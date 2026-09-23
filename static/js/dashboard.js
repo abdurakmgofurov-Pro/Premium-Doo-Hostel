@@ -189,7 +189,11 @@
       return;
     }
     const revenue = data.revenue_by_currency || {};
-    const counts = data.count_by_currency || {};
+    const realCash = payload.real_cash || {
+      income: { UZS: 0, USD: 0 },
+      expense: { UZS: 0, USD: 0 }
+    };
+    const realCashIncome = toDisplay(realCash.income?.UZS, realCash.income?.USD);
     const otherCurAmount = window.DISPLAY_CURRENCY === "USD" ? (revenue.UZS || 0) + (manual.income.UZS || 0) + (manual.expense.UZS || 0) : (revenue.USD || 0) + (manual.income.USD || 0) + (manual.expense.USD || 0);
     const rateWarn = !window.EXCHANGE_RATE && otherCurAmount > 0;
     content.innerHTML = `
@@ -201,7 +205,7 @@
       </div>
       <div class="kpi">
         <div class="kpi-top"><div class="label">${window.T["dash.kpi_revenue"]}</div><div class="kpi-icon green">${ICONS.up}</div></div>
-        <div class="value mono">${fmtDisp(toDisplay(revenue.UZS, revenue.USD))} ${window.DISPLAY_CURRENCY}</div><div class="sub">${fmtInt((counts.UZS || 0) + (counts.USD || 0))} ${window.T["dash.kpi_in_bookings_suffix"]}</div>
+        <div class="value mono">${fmtDisp(realCashIncome)} ${window.DISPLAY_CURRENCY}</div><div class="sub">${window.T["dash.kpi_revenue_sub"]}</div>
       </div>
       <div class="kpi ${data.cancellation_rate > 15 ? "warn" : ""}">
         <div class="kpi-top"><div class="label">${window.T["dash.kpi_cancel_rate"]}</div><div class="kpi-icon red">${ICONS.down}</div></div>

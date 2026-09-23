@@ -28,7 +28,7 @@
 .trend-dots { position: absolute; inset: 0 0 22px 0; }
 .trend-dot { position: absolute; width: 7px; height: 7px; border-radius: 50%; background: var(--accent-light);
   border: 2px solid var(--bg-surface); transform: translate(-50%, 50%); cursor: pointer; transition: background .15s ease; }
-.trend-dot:hover { background: #fff; }
+.trend-dot:hover { background: var(--ink-primary); }
 .trend-labels { position: absolute; left: 0; right: 0; bottom: 0; height: 20px; }
 .trend-label { position: absolute; transform: translateX(-50%); font-size: .66rem; color: var(--ink-secondary); white-space: nowrap; }
 

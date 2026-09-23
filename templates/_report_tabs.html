@@ -4,6 +4,7 @@
   <a href="/reports?tab=f1{{ _qs }}" class="{{ 'active' if active_report=='f1' else '' }}">{{ t('reports.tab_f1') }}</a>
   <a href="/reports?tab=f3{{ _qs }}" class="{{ 'active' if active_report=='f3' else '' }}">{{ t('reports.tab_f3') }}</a>
   <a href="/reports?tab=bar{{ _qs }}" class="{{ 'active' if active_report=='bar' else '' }}">{{ t('reports.tab_bar') }}</a>
+  <a href="/reports?tab=recon{{ _qs }}" class="{{ 'active' if active_report=='recon' else '' }}">{{ t('reports.tab_recon') }}</a>
   <a href="/ledger{{ ('?'~_qs[1:]) if _qs else '' }}" class="{{ 'active' if active_report=='ledger' else '' }}">{{ t('nav.ledger') }}</a>
   <a href="/taxes{{ ('?'~_qs[1:]) if _qs else '' }}" class="{{ 'active' if active_report=='taxes' else '' }}">{{ t('nav.taxes') }}</a>
 </div>

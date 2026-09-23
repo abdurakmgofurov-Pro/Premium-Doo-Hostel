@@ -447,6 +447,15 @@ def init_db():
         )
     """)
     conn.execute("""
+        CREATE TABLE IF NOT EXISTS booking_real_settlement (
+            booking_number TEXT PRIMARY KEY,
+            currency TEXT NOT NULL CHECK(currency IN ('UZS', 'USD')),
+            amount REAL NOT NULL,
+            source TEXT,
+            updated_at TEXT DEFAULT (datetime('now'))
+        )
+    """)
+    conn.execute("""
         CREATE TABLE IF NOT EXISTS closed_months (
             year_month TEXT PRIMARY KEY,
             closed_by INTEGER,
@@ -1021,6 +1030,38 @@ def load_all_bookings():
     rows = conn.execute("SELECT raw_json FROM bookings_cache").fetchall()
     conn.close()
     return [json.loads(r["raw_json"]) for r in rows]
+
+
+# ---- Bron ↔ haqiqiy to'lov bog'lanishi ----
+# Exely bron narxi (USD bo'lishi mumkin) va mehmon HAQIQATDA to'lagan pul
+# (har doim Kassa/Bank'da UZS) ikki mustaqil raqam edi — bu jadval ularni
+# bog'laydi. Manba: Exely Kassa eksportidagi "Номер счета" ustuni, uning
+# qiymati bron raqamining ichki ID qismiga (masalan "1259242140-01" ->
+# "...-1259242140") mos kelishi 2026-09-23'da tasdiqlangan (1724/1724 mos
+# tushdi). `aggregate.flatten()` shu jadvaldan USD narxli bronlar uchun
+# HAQIQIY to'langan UZS summasini o'qib, daromadni shunga almashtiradi.
+
+def upsert_booking_real_settlement(booking_number, currency, amount, source=None):
+    conn = get_conn()
+    conn.execute(
+        "INSERT INTO booking_real_settlement (booking_number, currency, amount, source, updated_at)"
+        " VALUES (?,?,?,?,datetime('now'))"
+        " ON CONFLICT(booking_number) DO UPDATE SET currency=excluded.currency, amount=excluded.amount,"
+        " source=excluded.source, updated_at=excluded.updated_at",
+        (booking_number, currency, amount, source),
+    )
+    conn.commit()
+    conn.close()
+
+
+def get_booking_real_settlements():
+    """{bron_raqami: {"UZS": summa}} yoki {"USD": summa} — flatten() shundan
+    o'qib, Exely'ning virtual narxi o'rniga HAQIQIY to'langan summani
+    ishlatadi (faqat shu jadvalda yozuvi bor bronlar uchun)."""
+    conn = get_conn()
+    rows = conn.execute("SELECT booking_number, currency, amount FROM booking_real_settlement").fetchall()
+    conn.close()
+    return {r["booking_number"]: {r["currency"]: r["amount"]} for r in rows}
 
 
 def get_cached_modified_map():

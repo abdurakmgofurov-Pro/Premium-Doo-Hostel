@@ -3,7 +3,7 @@
 // template-literal building rather than introducing a rendering framework,
 // since that would be a much bigger change than "port this to TypeScript").
 import "./types";
-import type { AggregateData, ApiDataPayload, ChannelStat, ManualSummary, StayStats } from "./types";
+import type { AggregateData, ApiDataPayload, ChannelStat, ManualSummary, RealCashTotals, StayStats } from "./types";
 
 declare global {
   interface Window {
@@ -246,7 +246,11 @@ function render(payload: ApiDataPayload): void {
     return;
   }
   const revenue = data.revenue_by_currency || {};
-  const counts = data.count_by_currency || {};
+  const realCash: RealCashTotals = payload.real_cash || {
+    income: { UZS: 0, USD: 0 },
+    expense: { UZS: 0, USD: 0 },
+  };
+  const realCashIncome = toDisplay(realCash.income?.UZS, realCash.income?.USD);
 
   const otherCurAmount =
     window.DISPLAY_CURRENCY === "USD"
@@ -262,7 +266,7 @@ function render(payload: ApiDataPayload): void {
       </div>
       <div class="kpi">
         <div class="kpi-top"><div class="label">${window.T["dash.kpi_revenue"]}</div><div class="kpi-icon green">${ICONS.up}</div></div>
-        <div class="value mono">${fmtDisp(toDisplay(revenue.UZS, revenue.USD))} ${window.DISPLAY_CURRENCY}</div><div class="sub">${fmtInt((counts.UZS || 0) + (counts.USD || 0))} ${window.T["dash.kpi_in_bookings_suffix"]}</div>
+        <div class="value mono">${fmtDisp(realCashIncome)} ${window.DISPLAY_CURRENCY}</div><div class="sub">${window.T["dash.kpi_revenue_sub"]}</div>
       </div>
       <div class="kpi ${data.cancellation_rate > 15 ? "warn" : ""}">
         <div class="kpi-top"><div class="label">${window.T["dash.kpi_cancel_rate"]}</div><div class="kpi-icon red">${ICONS.down}</div></div>

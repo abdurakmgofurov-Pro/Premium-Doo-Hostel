@@ -13,7 +13,7 @@ va ustav kapitali qo'lda (Sozlamalar sahifasida) kiritiladi. Rasmiy
 taqdim etishdan oldin buxgalter tomonidan tekshirilishi tavsiya etiladi."""
 
 
-def build_forma1(cash, receivables, inventory, fixed_assets, payables, charter, retained):
+def build_forma1(cash, receivables, inventory, fixed_assets, payables, advances, charter, retained):
     """Har bir argument — {"UZS": x, "USD": y} ko'rinishidagi dict."""
     rows = []
 
@@ -30,8 +30,8 @@ def build_forma1(cash, receivables, inventory, fixed_assets, payables, charter, 
     add("f1.fixed_assets", fixed_assets["UZS"], fixed_assets["USD"], indent=1)
     add("f1.assets_total", assets_uzs, assets_usd, bold=True)
 
-    liab_uzs = payables["UZS"]
-    liab_usd = payables["USD"]
+    liab_uzs = payables["UZS"] + advances["UZS"]
+    liab_usd = payables["USD"] + advances["USD"]
     equity_uzs = charter["UZS"] + retained["UZS"]
     equity_usd = charter["USD"] + retained["USD"]
     total_le_uzs = liab_uzs + equity_uzs
@@ -39,6 +39,7 @@ def build_forma1(cash, receivables, inventory, fixed_assets, payables, charter, 
 
     add("f1.section_liab_equity", 0, 0, bold=True)
     add("f1.payables", payables["UZS"], payables["USD"], indent=1)
+    add("f1.customer_advances", advances["UZS"], advances["USD"], indent=1)
     add("f1.liabilities_total", liab_uzs, liab_usd, bold=True, indent=1)
     add("f1.charter_capital", charter["UZS"], charter["USD"], indent=1)
     add("f1.retained_earnings", retained["UZS"], retained["USD"], indent=1)

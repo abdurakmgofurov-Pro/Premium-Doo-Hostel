@@ -72,6 +72,15 @@ export interface ManualSummary {
   by_group: Record<string, CurrencyAmounts>;
 }
 
+/** Return shape of app.py's `real_cash_totals()` — real Kassa+Bank cash
+ * movement for the period (same source as Forma 3), as opposed to
+ * `AggregateData.revenue_by_currency`, which is Exely's accrual booking
+ * price and may not have been collected as real money yet. */
+export interface RealCashTotals {
+  income: CurrencyAmounts;
+  expense: CurrencyAmounts;
+}
+
 export type SyncStatus = "loading" | "ok" | "error";
 
 export interface SyncProgress {
@@ -88,4 +97,5 @@ export interface ApiDataPayload {
   progress: SyncProgress | null;
   data: AggregateData | null;
   manual: ManualSummary;
+  real_cash: RealCashTotals;
 }

@@ -3,6 +3,20 @@
 from collections import defaultdict
 from datetime import datetime
 
+# `db.booking_real_settlement`ning keshi — jarayon davomida bir marta
+# o'qiladi (bu jadval faqat qo'lda backfill skripti orqali to'ldiriladi,
+# so'rov ichida o'zgarmaydi, shuning uchun har bir flatten() chaqiruvida
+# qayta so'ramaslik uchun keshlanadi).
+_SETTLEMENTS_CACHE = None
+
+
+def _real_settlements():
+    global _SETTLEMENTS_CACHE
+    if _SETTLEMENTS_CACHE is None:
+        import db
+        _SETTLEMENTS_CACHE = db.get_booking_real_settlements()
+    return _SETTLEMENTS_CACHE
+
 CHANNEL_NAMES = {
     "Channel:BGC": "Booking.com",
     "Channel:HSW": "Hostelworld",
@@ -162,6 +176,28 @@ def flatten(booking):
     prepaid = guarantee.get("totalPrepaid") or 0.0
     tax_amount = total.get("taxAmount") or 0.0
     price_after_tax = total.get("priceAfterTax") or 0.0
+
+    # Exely'ning o'z "to'landi" belgisi (prepaid) ishonchsiz — deyarli har
+    # doim "to'langan" deb ko'rsatadi, hatto haqiqatda hali to'lanmagan
+    # bo'lsa ham (valyutasidan qat'i nazar, faqat USD emas). Kassa
+    # eksportidagi "Номер счета" orqali bronga bog'langan HAQIQIY to'lov
+    # ma'lumoti bo'lsa (booking_real_settlement), daromad va prepaid o'sha
+    # haqiqiy summaga almashtiriladi — bu bron to'liq to'langanini
+    # ISBOTLAYDI, shuning uchun prepaid=revenue. Bog'lanish topilmasa,
+    # Exely'ning o'z taxminiga tayaniladi (o'zgarishsiz) — ya'ni faqat
+    # ISBOTI bor bronlar tuzatiladi, boshqalarga tegilmaydi.
+    settlement = _real_settlements().get(booking.get("number"))
+    if settlement:
+        settled_currency, settled_amount = next(iter(settlement.items()))
+        currency = settled_currency
+        revenue = settled_amount
+        prepaid = settled_amount
+        # Exely'ning USD soliq tafsiloti endi mos kelmaydi (boshqa valyuta,
+        # boshqa miqyos) — noto'g'ri kichik raqam ko'rsatmaslik uchun
+        # tozalanadi; soliqsiz/soliqli narx haqiqiy summaga tenglashtiriladi.
+        tax_amount = 0.0
+        price_after_tax = settled_amount
+
     if currency and currency not in ("UZS", "USD"):
         # Bron kamdan-kam EUR (yoki boshqa) valyutada kelishi mumkin — tizim
         # faqat UZS/USD bilan ishlagani uchun, Markaziy bank kursi asosida

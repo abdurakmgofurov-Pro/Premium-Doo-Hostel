@@ -6,7 +6,7 @@
 {% block content %}
   <div style="display:flex;align-items:flex-end;justify-content:space-between;flex-wrap:wrap;gap:1rem;margin-bottom:1.4rem;">
     <div>
-      <h1 style="font-size:1.55rem">{{ t('reports.tab_f1') if tab == 'f1' else t('reports.tab_f3') if tab == 'f3' else t('reports.bar_title') if tab == 'bar' else t('reports.title') }}</h1>
+      <h1 style="font-size:1.55rem">{{ t('reports.tab_f1') if tab == 'f1' else t('reports.tab_f3') if tab == 'f3' else t('reports.bar_title') if tab == 'bar' else t('reports.tab_recon') if tab == 'recon' else t('reports.title') }}</h1>
       <p style="color:var(--ink-secondary);font-size:.85rem;margin-top:.3rem;">{{ t('reports.period') }}{{today}}</p>
     </div>
     {% include "_period_filter.html" %}
@@ -85,7 +85,6 @@
       </table>
     </div>
     {% if not rate %}<div class="note">{{ t('reports.no_rate_note') }}</div>{% endif %}
-    <div class="note">{{ t('f1.note') }}</div>
   </div>
 
   {% elif tab == 'f3' %}
@@ -188,6 +187,36 @@
       </table>
     </div>
     <div class="note" style="margin-top:.6rem">{{ display_currency }}{% if not rate %} · {{ t('reports.no_rate_note') }}{% endif %}</div>
+  </div>
+
+  {% elif tab == 'recon' %}
+  <div class="card">
+    <h2>{{ t('reports.tab_recon') }}</h2>
+    <p style="color:var(--ink-secondary);font-size:.85rem;margin-bottom:1rem">{{ t('reports.recon_note') }}</p>
+    <div class="overflow-x">
+      <table class="data-table">
+        <thead><tr>
+          <th>{{ t('tx.th_date') }}</th>
+          <th class="num">{{ t('reports.recon_th_exely') }}</th>
+          <th class="num">{{ t('reports.recon_th_cash_in') }}</th>
+          <th class="num">{{ t('reports.recon_th_cash_out') }}</th>
+          <th class="num">{{ t('reports.recon_th_diff') }}</th>
+        </tr></thead>
+        <tbody>
+          {% for r in recon_rows %}
+          <tr>
+            <td>{{ r.date }}</td>
+            <td class="num">{{ r.exely_uzs_equiv|money }}{% if r.exely_usd %} <span class="note">(+{{ r.exely_usd|money }} $)</span>{% endif %}</td>
+            <td class="num">{{ r.cash_income|money }}</td>
+            <td class="num">{{ r.cash_expense|money }}</td>
+            <td class="num {{ 'bad' if (r.diff > 500000 or r.diff < -500000) else '' }}">{{ r.diff|money }}</td>
+          </tr>
+          {% else %}
+          <tr><td colspan="5" class="empty">{{ t('reports.bar_empty') }}</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
   </div>
 
   {% else %}

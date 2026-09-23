@@ -20,6 +20,7 @@ Ochish:            http://127.0.0.1:5000
 """
 import json
 import secrets
+import sqlite3
 import threading
 import time
 import traceback
@@ -371,16 +372,34 @@ def bookings_for_period(year, month):
     return result
 
 
+def bookings_recognized_upto_today():
+    """Forma 1/2'ning "Barcha vaqt" (davr tanlanmagan) ko'rinishi uchun:
+    kelish sanasi hali kelmagan (mehmon hali kelmagan) bronlar bu yerga
+    KIRMAYDI — cumulative_net_profit()/booking_receivables() bilan bir xil
+    IFRS 15 sababiga ko'ra (mehmon kelmaguncha daromad tan olinmaydi).
+    Bronlar ro'yxati (/bookings) va Dashboard'ning boshqa ko'rsatkichlari
+    (kanal, oy bo'yicha grafik) uchun bu cheklov qo'llanilmaydi — ular
+    "kelajakda nechta bron bor" ma'lumotini ko'rsatishi kerak, faqat
+    moliyaviy hisobotlarda tan olingan daromad chegaralanadi."""
+    today = date.today().strftime("%Y-%m-%d")
+    raw = [b for b in db.load_all_bookings() if not b.get("_error")]
+    return [b for b in raw if flatten_booking(b).get("arrival", "")[:10] <= today]
+
+
 def cumulative_net_profit(upto_date):
     """Forma 1'dagi "Taqsimlanmagan foyda" qatori uchun: davr boshidan
     (barcha ma'lumot mavjud bo'lgan eng birinchi kundan) berilgan sanagacha
     JAMLANGAN sof foyda — bitta oyning emas, balki BUGUNGI holatning
-    balansini ko'rsatishi kerak."""
+    balansini ko'rsatishi kerak.
+
+    `upto_date=None` — "bugungi holat" degani, "cheksiz" degani emas: kelish
+    sanasi hali kelmagan (mehmon hali kelmagan) bronlarning daromadi bu yerda
+    ERTA tan olinmasligi kerak (IFRS 15/ASC 606 — mehmon kelmaguncha bu pul
+    daromad emas, avans/majburiyat). Shu sabab `upto_date` bo'lmasa,
+    kesim sifatida BUGUNGI sana ishlatiladi, cheksiz emas."""
     raw = [b for b in db.load_all_bookings() if not b.get("_error")]
-    if upto_date:
-        filtered = [b for b in raw if flatten_booking(b).get("arrival", "")[:10] <= upto_date]
-    else:
-        filtered = raw
+    cutoff = upto_date or date.today().strftime("%Y-%m-%d")
+    filtered = [b for b in raw if flatten_booking(b).get("arrival", "")[:10] <= cutoff]
     agg = aggregate_bookings(filtered)
     manual = db.summarize_transactions_upto(upto_date)
     f2 = build_forma2(agg, manual)
@@ -419,10 +438,16 @@ def booking_receivables(upto_date):
     buzganini ko'rsatdi (haqiqiy bank ko'chirmasi bilan solishtirmasdan
     qay bir OTA to'lovi "hali kelmagan"ligini ishonchli ajratib
     bo'lmaydi). Shu sabab platform_owed faqat Дт/Кт'da (channel_platform_debts)
-    KO'RISH uchun ko'rsatiladi, Forma 1 balansiga ta'sir qilmaydi."""
+    KO'RISH uchun ko'rsatiladi, Forma 1 balansiga ta'sir qilmaydi.
+
+    `upto_date=None` — "bugungi holat" (cheksiz emas): kelish sanasi hali
+    kelmagan bronlar uchun ham daromad tan olinmaydi (cumulative_net_profit
+    bilan bir xil sabab), demak ularga "qarz" ham hisoblanmasligi kerak —
+    aks holda aktiv (debitorlik) hisoblanib, unga mos passiv (daromad)
+    hisoblanmay qolib, balansni yanada buzardi."""
     raw = [b for b in db.load_all_bookings() if not b.get("_error")]
-    if upto_date:
-        raw = [b for b in raw if flatten_booking(b).get("arrival", "")[:10] <= upto_date]
+    cutoff = upto_date or date.today().strftime("%Y-%m-%d")
+    raw = [b for b in raw if flatten_booking(b).get("arrival", "")[:10] <= cutoff]
     uzs = usd = 0.0
     skipped = 0
     for b in raw:
@@ -447,19 +472,107 @@ def booking_receivables(upto_date):
     return uzs, usd, skipped
 
 
+def customer_advances(upto_date):
+    """Forma 1'dagi "Mijozlardan olingan avanslar" (majburiyat/Kt) uchun —
+    IFRS 15 qoidasi: mehmon oldindan to'lagan, lekin xizmat (turar joy)
+    hali ko'rsatilmagan (kelish sanasi hali kelmagan) pul — bu DAROMAD
+    emas, MAJBURIYAT. `cumulative_net_profit()`/`booking_receivables()`
+    bunday bronlarni ATAYLAB daromaddan/debitorlikdan chiqarib tashlaydi
+    (chunki xizmat hali ko'rsatilmagan) — lekin shu pulning o'zi (agar
+    HAQIQIY Kassa to'lovi tasdiqlangan bo'lsa, `booking_real_settlement`
+    orqali) baribir bizning Kassa/Bank'imizda yotibdi. Shu funksiya o'sha
+    summani aynan shu — majburiyat — sifatida qaytaradi, aks holda u
+    aktivda (pul) bor-u, passivda hech qanday izsiz qolib, balansni
+    buzardi. Faqat ISBOTLANGAN (haqiqiy to'lov) bronlar hisoblanadi —
+    Exely'ning o'z ishonchsiz "prepaid" taxminiga tayanilmaydi."""
+    cutoff = upto_date or date.today().strftime("%Y-%m-%d")
+    settlements = db.get_booking_real_settlements()
+    raw = [b for b in db.load_all_bookings() if not b.get("_error")]
+    uzs = usd = 0.0
+    for b in raw:
+        number = b.get("number")
+        settled = settlements.get(number)
+        if not settled:
+            continue
+        flat = flatten_booking(b)
+        if flat.get("status") != "Active":
+            continue
+        arrival = (flat.get("arrival") or "")[:10]
+        if not arrival or arrival <= cutoff:
+            continue
+        uzs += settled.get("UZS", 0.0)
+        usd += settled.get("USD", 0.0)
+    return uzs, usd
+
+
+def daily_reconciliation():
+    """"Night audit" tamoyili (xalqaro mehmonxona amaliyoti): har bir kun
+    uchun Exely tan olingan daromadni (kelish sanasi bo'yicha, haqiqiy
+    to'lov bilan tuzatilgan) haqiqiy Kassa+Bank kirimi bilan solishtiradi.
+    Ikkalasi mustaqil manba — mos kelishi shart emas (Exely — qachon
+    xizmat ko'rsatilgani, Kassa/Bank — qachon pul kelgani), lekin katta
+    va doimiy farq bo'lsa, buni sezish uchun.
+
+    Faqat BUGUNGI kungacha bo'lgan kunlar solishtiriladi — hali sodir
+    bo'lmagan (kelajakdagi) kelish sanalari uchun "farq" tabiiy va
+    ma'nosiz shovqin bo'lardi (mehmon hali kelmagan, pul ham hali
+    kelmagan — ikkalasi ham nolga yaqin bo'lishi kerak emas)."""
+    today = date.today().strftime("%Y-%m-%d")
+    raw = [b for b in db.load_all_bookings() if not b.get("_error")]
+    exely_by_day = {}
+    for b in raw:
+        flat = flatten_booking(b)
+        if flat.get("status") != "Active":
+            continue
+        arrival = (flat.get("arrival") or "")[:10]
+        cur = flat.get("currency") or "UZS"
+        if not arrival or arrival > today or cur not in ("UZS", "USD"):
+            continue
+        bucket = exely_by_day.setdefault(arrival, {"UZS": 0.0, "USD": 0.0})
+        bucket[cur] += flat.get("revenue") or 0.0
+
+    cash_by_day = {}
+    for r in db.list_cash_transactions():
+        bucket = cash_by_day.setdefault(r["date"], {"income": 0.0, "expense": 0.0})
+        bucket[r["type"]] += r["amount"]
+
+    rows = []
+    for d in sorted(set(exely_by_day) | set(cash_by_day), reverse=True):
+        ex = exely_by_day.get(d, {"UZS": 0.0, "USD": 0.0})
+        rate = db.get_exchange_rate_on(d) or db.get_exchange_rate_on(None) or 0
+        exely_uzs_equiv = ex["UZS"] + ex["USD"] * rate
+        cash = cash_by_day.get(d, {"income": 0.0, "expense": 0.0})
+        rows.append({
+            "date": d, "exely_uzs": ex["UZS"], "exely_usd": ex["USD"],
+            "exely_uzs_equiv": exely_uzs_equiv,
+            "cash_income": cash["income"], "cash_expense": cash["expense"],
+            "diff": exely_uzs_equiv - cash["income"],
+        })
+    return rows
+
+
 def booking_debtors(year, month, currency):
     """Дт/Кт sahifasi uchun: Форма 1'dagi umumiy Debitorlik summasini
     tashkil qiluvchi har bir Exely bronni alohida-alohida ko'rsatadi
     (kontragent jadvalidagi "Shodibek aka" kabi qatorlardan farqli —
     bular mehmon-darajasidagi, hali to'lanmagan bron qoldiqlari;
     OTA orqali to'langan-lekin-bizga-tushmagan qism bu yerga kirmaydi —
-    u channel_platform_debts()da kanal bo'yicha alohida ko'rsatiladi)."""
+    u channel_platform_debts()da kanal bo'yicha alohida ko'rsatiladi.
+
+    `booking_receivables()` (Forma 1) bilan bir xil IFRS 15 chegarasi:
+    kelish sanasi hali kelmagan (xizmat ko'rsatilmagan) bronlar bu yerga
+    ham kirmaydi — aks holda bu sahifa Forma 1'dagi Debitorlik summasidan
+    farq qilib qolardi (aynan shu ikkisi mos kelishi kerak)."""
+    cutoff = (db.month_end_date(f"{year:04d}-{month:02d}") if (year and month) else None) \
+        or date.today().strftime("%Y-%m-%d")
     rows = []
     for b in bookings_for_period(year, month):
         flat = flatten_booking(b)
         if flat.get("status") != "Active":
             continue
         if (flat.get("currency") or "UZS") != currency:
+            continue
+        if (flat.get("arrival") or "")[:10] > cutoff:
             continue
         guest_owed, _ = _booking_owed_parts(flat)
         if guest_owed <= 0:
@@ -484,8 +597,13 @@ def channel_platform_debts(currency):
     o'tkazganda, xodim Kassa/Bank'ga oddiy kirim kiritadi va kontragent
     maydoniga platforma nomini yozadi (masalan "Booking.com") — o'sha
     summa shu yerda avtomatik AYIRILADI (db.cash_income_by_counterparty
-    orqali), ya'ni qarz real ravishda kamayib boradi."""
+    orqali), ya'ni qarz real ravishda kamayib boradi.
+
+    Xuddi booking_debtors()/booking_receivables() kabi: kelish sanasi
+    hali kelmagan bronlar hisobga olinmaydi (IFRS 15 — xizmat hali
+    ko'rsatilmagan)."""
     from collections import defaultdict
+    today = date.today().strftime("%Y-%m-%d")
     totals = defaultdict(float)
     counts = defaultdict(int)
     for b in bookings_for_period(None, None):
@@ -493,6 +611,8 @@ def channel_platform_debts(currency):
         if flat.get("status") != "Active":
             continue
         if (flat.get("currency") or "UZS") != currency:
+            continue
+        if (flat.get("arrival") or "")[:10] > today:
             continue
         _, platform_owed = _booking_owed_parts(flat)
         if platform_owed <= 0:
@@ -510,6 +630,22 @@ def channel_platform_debts(currency):
         rows.append({"channel": k, "count": counts[k], "amount": v, "paid": paid, "owed": remaining})
     rows.sort(key=lambda r: -r["owed"])
     return rows
+
+
+def real_cash_totals(year, month):
+    """Dashboard KPI kartasi uchun HAQIQIY Kassa+Bank kirim/chiqim (Forma 3
+    bilan bir xil manba — `db.cash_flow_by_category`), Exely accrual
+    tushumidan farqli o'laroq: qo'lda kiritilgan/import qilingan haqiqiy
+    pul harakati."""
+    data = db.cash_flow_by_category(year, month)
+    income = {"UZS": 0.0, "USD": 0.0}
+    expense = {"UZS": 0.0, "USD": 0.0}
+    for bucket in data.values():
+        for source in ("bank", "kassa"):
+            for cur in ("UZS", "USD"):
+                income[cur] += bucket[source]["income"][cur]
+                expense[cur] += bucket[source]["expense"][cur]
+    return {"income": income, "expense": expense}
 
 
 # ---- Dashboard ----
@@ -549,6 +685,7 @@ def api_data():
         "progress": progress,
         "data": data,
         "manual": db.summarize_transactions(year, month),
+        "real_cash": real_cash_totals(year, month),
     })
 
 
@@ -776,8 +913,7 @@ def reports_page():
         opening_kassa_uzs = db.get_cash_balance("UZS", upto_date=prev_day, source="kassa")
         opening_kassa_usd = db.get_cash_balance("USD", upto_date=prev_day, source="kassa")
     else:
-        with STATE_LOCK:
-            data = STATE["data"]
+        data = aggregate_bookings(bookings_recognized_upto_today())
         period_end = None
         opening_uzs = db.get_cash_opening("UZS")
         opening_usd = db.get_cash_opening("USD")
@@ -829,6 +965,7 @@ def reports_page():
     charter_usd = float(db.get_setting("charter_capital_usd", "0") or 0)
 
     retained_uzs, retained_usd = cumulative_net_profit(period_end)
+    adv_uzs, adv_usd = customer_advances(period_end)
 
     f1 = build_forma1(
         cash={"UZS": cash_uzs, "USD": cash_usd},
@@ -836,6 +973,7 @@ def reports_page():
         inventory={"UZS": inv["UZS"], "USD": inv["USD"]},
         fixed_assets={"UZS": fa_uzs, "USD": fa_usd},
         payables={"UZS": pay_uzs, "USD": pay_usd},
+        advances={"UZS": adv_uzs, "USD": adv_usd},
         charter={"UZS": charter_uzs, "USD": charter_usd},
         retained={"UZS": retained_uzs, "USD": retained_usd},
     )
@@ -919,8 +1057,10 @@ def reports_page():
     bar_stock = db.bar_stock_value()
     bar_stock_value = to_display_amount(bar_stock["UZS"], bar_stock["USD"], rate)
 
+    recon_rows = daily_reconciliation() if tab == "recon" else []
+
     return render_template(
-        "reports.html", active_page="reports", tab=tab, f1=f1, f2=f2,
+        "reports.html", active_page="reports", tab=tab, f1=f1, f2=f2, recon_rows=recon_rows,
         cash_flow_rows=cash_flow_rows, cash_flow_totals=cash_flow_totals,
         cash_flow_opening=cash_flow_opening, cash_flow_closing=cash_flow_closing,
         bar_products_report=bar_products_report, bar_stock_value=bar_stock_value,
@@ -1674,6 +1814,8 @@ def users_add():
     try:
         db.add_user(f["username"], f["password"], f.get("full_name", ""), int(f["role_id"]))
         flash(t("flash.user_added", g.lang).format(u=f["username"]), "success")
+    except sqlite3.IntegrityError:
+        flash(t("flash.username_taken", g.lang).format(u=f["username"]), "error")
     except Exception as e:
         flash(t("flash.error_prefix", g.lang) + str(e), "error")
     return redirect(url_for("users_page"))
