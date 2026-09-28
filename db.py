@@ -115,6 +115,7 @@ ROLE_MODULES = [
     {"key": "ledger", "name": "Дт/Кт", "actions": ("view", "create", "delete")},
     {"key": "services", "name": "Xizmatlar", "actions": ("view", "create", "delete")},
     {"key": "taxes", "name": "Nalog", "actions": ("view", "create", "delete")},
+    {"key": "rooms", "name": "Xonalar", "actions": ("view", "create", "edit", "delete")},
 ]
 ROLE_MODULE_KEYS = [m["key"] for m in ROLE_MODULES]
 
@@ -132,6 +133,7 @@ DEFAULT_ROLE_SEEDS = [
             "ledger": {"view": True, "create": True, "delete": True},
             "services": {"view": True, "create": True, "delete": True},
             "taxes": {"view": True, "create": True, "delete": True},
+            "rooms": {"view": True, "create": True, "edit": True, "delete": True},
         },
     },
     {
@@ -496,6 +498,107 @@ def init_db():
         )
     """)
     conn.commit()
+
+    # ---- Xonalar moduli (rooms.py): xona turlari, xonalar, Excel'dan
+    # kelgan bronlar (hostel_bookings — bookings_cache'dan MUSTAQIL) va
+    # haqiqiy joylashtirish (stays). Bronlar va joylashtirish ataylab alohida
+    # jadvallarda: bron — "kim kelishi kerak", stay — "kim hozir qaysi joyda".
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS room_types (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT NOT NULL UNIQUE,
+            capacity INTEGER NOT NULL CHECK(capacity > 0),
+            price REAL NOT NULL DEFAULT 0,
+            currency TEXT NOT NULL DEFAULT 'UZS' CHECK(currency IN ('UZS', 'USD')),
+            created_at TEXT DEFAULT (datetime('now'))
+        )
+    """)
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS rooms (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            number TEXT NOT NULL UNIQUE,
+            floor INTEGER NOT NULL DEFAULT 1,
+            room_type_id INTEGER,
+            capacity INTEGER NOT NULL CHECK(capacity > 0),
+            price REAL NOT NULL DEFAULT 0,
+            currency TEXT NOT NULL DEFAULT 'UZS' CHECK(currency IN ('UZS', 'USD')),
+            manual_status TEXT NOT NULL DEFAULT '' CHECK(manual_status IN ('', 'cleaning', 'maintenance')),
+            active INTEGER NOT NULL DEFAULT 1,
+            note TEXT,
+            created_at TEXT DEFAULT (datetime('now'))
+        )
+    """)
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS hostel_bookings (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            dedup_key TEXT NOT NULL UNIQUE,
+            ref TEXT,
+            guest_name TEXT NOT NULL,
+            arrival TEXT NOT NULL,
+            departure TEXT,
+            room_type_text TEXT,
+            room_text TEXT,
+            status_text TEXT,
+            is_cancelled INTEGER NOT NULL DEFAULT 0,
+            note TEXT,
+            stay_id INTEGER,
+            imported_at TEXT DEFAULT (datetime('now')),
+            updated_at TEXT
+        )
+    """)
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS stays (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            room_id INTEGER NOT NULL,
+            guest_name TEXT NOT NULL,
+            check_in TEXT NOT NULL,
+            expected_departure TEXT,
+            check_out TEXT,
+            booking_id INTEGER,
+            note TEXT,
+            created_at TEXT DEFAULT (datetime('now'))
+        )
+    """)
+    conn.execute("CREATE INDEX IF NOT EXISTS idx_stays_room ON stays(room_id, check_out)")
+    # Exely vebhuklari: kelgan xom xabarlar (tekshirish va qayta ishlash tarixi)
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS webhook_events (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            received_at TEXT NOT NULL DEFAULT (datetime('now')),
+            source_ip TEXT,
+            body TEXT,
+            numbers TEXT,
+            status TEXT NOT NULL DEFAULT 'received',
+            note TEXT
+        )
+    """)
+    # Exely `daily-occupancy` keshi (faqat o'qib olingan nusxa): sana -> band/jami o'rinlar
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS exely_occupancy (
+            date TEXT PRIMARY KEY,
+            occ INTEGER NOT NULL,
+            total INTEGER NOT NULL,
+            fetched_at TEXT NOT NULL
+        )
+    """)
+    conn.commit()
+
+    # "rooms" moduli mavjud rollarga BIR MARTA beriladi (yangi o'rnatishlarda
+    # DEFAULT_ROLE_SEEDS orqali keladi). Bayroq app_settings'da — admin keyin
+    # huquqni olib tashlasa, qayta ishga tushganda qaytib kelmasligi uchun.
+    if not conn.execute("SELECT 1 FROM app_settings WHERE key='migr_rooms_perms_v1'").fetchone():
+        grants = {
+            "Administrator": {"view": True, "create": True, "edit": True, "delete": True},
+            "Kuzatuvchi": {"view": True},
+        }
+        for role_name, perms in grants.items():
+            role = conn.execute("SELECT id, permissions FROM roles WHERE name=?", (role_name,)).fetchone()
+            if role:
+                current = json.loads(role["permissions"] or "{}")
+                current.setdefault("rooms", perms)
+                conn.execute("UPDATE roles SET permissions=? WHERE id=?", (json.dumps(current), role["id"]))
+        conn.execute("INSERT INTO app_settings (key, value) VALUES ('migr_rooms_perms_v1', '1')")
+        conn.commit()
 
     row = conn.execute("SELECT COUNT(*) c FROM users WHERE role='super_admin'").fetchone()
     initial_password = None

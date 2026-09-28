@@ -18,6 +18,7 @@ Har bir foydalanuvchi login/parol bilan kiradi; huquqlari roliga
 Ishga tushirish:   py -3 app.py
 Ochish:            http://127.0.0.1:5000
 """
+import hmac
 import json
 import secrets
 import sqlite3
@@ -36,9 +37,13 @@ from auth import (
     get_csrf_token, csrf_valid,
 )
 from exely_api import ExelyApiClient
+from exely_pms import ExelyPmsClient
+import exely_sync as xs
 from exely_expense_import import parse_expense_xlsx
 from forma1 import build_forma1
 from forma2 import build_forma2
+from hostel_bookings_import import parse_bookings_xlsx
+import rooms as rm
 from i18n import (
     LANGS, LANG_LABELS, DEFAULT_LANG, t, t_all, t_group, t_cat,
     t_cash_section, t_cash_cat, t_month,
@@ -262,7 +267,7 @@ def check_csrf():
     tomonidan avtomatik qo'shiladi, `fetch()` orqali yuborilgan so'rovlar
     esa `X-CSRFToken` headerini o'zi qo'shishi kerak (masalan
     dashboard.html'dagi "Yangilash" tugmasi)."""
-    if request.method == "POST" and not csrf_valid(request):
+    if request.method == "POST" and not request.path.startswith("/webhooks/exely/") and not csrf_valid(request):
         abort(400)
 
 
@@ -1289,6 +1294,425 @@ def cash_import_commit():
            .replace("{locked}", str(locked)).replace("{rate_missing}", str(rate_missing)))
     flash(msg, "success" if imported else "error")
     return redirect(url_for("cash_page"))
+
+
+# ---- Xonalar (hostel xonalari boshqaruvi) ----
+
+def _rooms_error(e):
+    code = str(e)
+    key = "rooms.err_" + code
+    msg = t(key, g.lang)
+    flash(msg if msg != key else t("flash.error_prefix", g.lang) + code, "error")
+
+
+def _rooms_back(default="rooms_page"):
+    """Formadagi `back` maydoni orqali qaysi sahifaga qaytishni tanlaydi
+    (faqat ichki, oldindan belgilangan sahifalar — ochiq redirect emas)."""
+    targets = {"rooms": "rooms_page", "bookings": "rooms_bookings_page",
+               "settings": "rooms_settings_page", "occupancy": "rooms_occupancy_page"}
+    return redirect(url_for(targets.get(request.form.get("back"), default)))
+
+
+def _rooms_int(v):
+    v = (v or "").strip()
+    return int(v) if v else None
+
+
+@app.route("/rooms")
+@permission_required("rooms", "view")
+def rooms_page():
+    u = current_user()
+    floor = request.args.get("floor", "")
+    type_id = request.args.get("type_id", "")
+    status = request.args.get("status", "")
+    q = request.args.get("q", "").strip()
+    view = "table" if request.args.get("view") == "table" else "cards"
+    all_rows = rm.board()
+    rows = rm.board(floor, type_id, status, q)
+    unplaced, _ = rm.list_bookings(only_unplaced=True, limit=300)
+    return render_template(
+        "rooms.html", active_page="rooms", rooms_tab="board", rows=rows, view=view,
+        summary=rm.summary(all_rows), floors=sorted({r["floor"] for r in all_rows}),
+        room_types=rm.list_room_types(), free_rooms=[r for r in all_rows if r["status"] in ("free", "partial")],
+        unplaced_bookings=unplaced, today=rm.today_str(),
+        f_floor=floor, f_type=type_id, f_status=status, f_q=q,
+        can_create=db.has_permission(u, "rooms", "create"), can_edit=db.has_permission(u, "rooms", "edit"),
+    )
+
+
+@app.route("/rooms/checkin", methods=["POST"])
+@permission_required("rooms", "create")
+def rooms_checkin():
+    f = request.form
+    try:
+        rm.check_in(
+            int(f["room_id"]), f.get("guest_name", ""), f.get("check_in") or rm.today_str(),
+            f.get("expected_departure") or None, _rooms_int(f.get("booking_id")), f.get("note", "").strip(),
+        )
+        flash(t("rooms.flash_checked_in", g.lang), "success")
+    except (ValueError, KeyError) as e:
+        _rooms_error(e)
+    return _rooms_back()
+
+
+@app.route("/rooms/stay/<int:stay_id>/checkout", methods=["POST"])
+@permission_required("rooms", "edit")
+def rooms_checkout(stay_id):
+    try:
+        rm.check_out(stay_id, request.form.get("date") or None)
+        flash(t("rooms.flash_checked_out", g.lang), "success")
+    except ValueError as e:
+        _rooms_error(e)
+    return _rooms_back()
+
+
+@app.route("/rooms/stay/<int:stay_id>/move", methods=["POST"])
+@permission_required("rooms", "edit")
+def rooms_move(stay_id):
+    try:
+        rm.move_stay(stay_id, int(request.form["room_id"]), request.form.get("date") or None)
+        flash(t("rooms.flash_moved", g.lang), "success")
+    except (ValueError, KeyError) as e:
+        _rooms_error(e)
+    return _rooms_back()
+
+
+@app.route("/rooms/<int:room_id>/status", methods=["POST"])
+@permission_required("rooms", "edit")
+def rooms_status(room_id):
+    try:
+        rm.set_manual_status(room_id, request.form.get("status", ""))
+        flash(t("rooms.flash_status_set", g.lang), "success")
+    except ValueError as e:
+        _rooms_error(e)
+    return _rooms_back()
+
+
+# -- sozlamalar: xona turlari va xonalar
+
+@app.route("/rooms/settings")
+@permission_required("rooms", "view")
+def rooms_settings_page():
+    u = current_user()
+    return render_template(
+        "rooms_settings.html", active_page="rooms", rooms_tab="settings",
+        room_types=rm.list_room_types(), rooms=rm.list_rooms(),
+        can_create=db.has_permission(u, "rooms", "create"), can_edit=db.has_permission(u, "rooms", "edit"),
+        can_delete=db.has_permission(u, "rooms", "delete"),
+    )
+
+
+@app.route("/rooms/types/add", methods=["POST"])
+@permission_required("rooms", "create")
+def rooms_type_add():
+    f = request.form
+    try:
+        rm.add_room_type(f.get("name"), int(f["capacity"]), parse_amount(f.get("price") or 0), f.get("currency", "UZS"))
+        flash(t("rooms.flash_saved", g.lang), "success")
+    except (ValueError, KeyError) as e:
+        _rooms_error(e)
+    return redirect(url_for("rooms_settings_page"))
+
+
+@app.route("/rooms/types/<int:type_id>/edit", methods=["POST"])
+@permission_required("rooms", "edit")
+def rooms_type_edit(type_id):
+    f = request.form
+    try:
+        rm.update_room_type(type_id, f.get("name"), int(f["capacity"]), parse_amount(f.get("price") or 0),
+                            f.get("currency", "UZS"))
+        flash(t("rooms.flash_saved", g.lang), "success")
+    except (ValueError, KeyError) as e:
+        _rooms_error(e)
+    return redirect(url_for("rooms_settings_page"))
+
+
+@app.route("/rooms/types/<int:type_id>/delete", methods=["POST"])
+@permission_required("rooms", "delete")
+def rooms_type_delete(type_id):
+    try:
+        rm.delete_room_type(type_id)
+        flash(t("rooms.flash_deleted", g.lang), "success")
+    except ValueError as e:
+        _rooms_error(e)
+    return redirect(url_for("rooms_settings_page"))
+
+
+@app.route("/rooms/add", methods=["POST"])
+@permission_required("rooms", "create")
+def rooms_add():
+    f = request.form
+    try:
+        rm.add_room(f.get("number"), int(f.get("floor") or 1), _rooms_int(f.get("room_type_id")), int(f["capacity"]),
+                    parse_amount(f.get("price") or 0), f.get("currency", "UZS"), f.get("note", "").strip())
+        flash(t("rooms.flash_saved", g.lang), "success")
+    except (ValueError, KeyError) as e:
+        _rooms_error(e)
+    return redirect(url_for("rooms_settings_page"))
+
+
+@app.route("/rooms/<int:room_id>/edit", methods=["POST"])
+@permission_required("rooms", "edit")
+def rooms_edit(room_id):
+    f = request.form
+    try:
+        rm.update_room(room_id, f.get("number"), int(f.get("floor") or 1), _rooms_int(f.get("room_type_id")),
+                       int(f["capacity"]), parse_amount(f.get("price") or 0), f.get("currency", "UZS"),
+                       bool(f.get("active")), f.get("note", "").strip())
+        flash(t("rooms.flash_saved", g.lang), "success")
+    except (ValueError, KeyError) as e:
+        _rooms_error(e)
+    return redirect(url_for("rooms_settings_page"))
+
+
+@app.route("/rooms/<int:room_id>/delete", methods=["POST"])
+@permission_required("rooms", "delete")
+def rooms_delete(room_id):
+    try:
+        rm.delete_room(room_id)
+        flash(t("rooms.flash_deleted", g.lang), "success")
+    except ValueError as e:
+        _rooms_error(e)
+    return redirect(url_for("rooms_settings_page"))
+
+
+# -- bronlar (Excel'dan) va ularni tezda joylashtirish
+
+@app.route("/rooms/bookings")
+@permission_required("rooms", "view")
+def rooms_bookings_page():
+    u = current_user()
+    q = request.args.get("q", "").strip()
+    only_unplaced = request.args.get("unplaced") == "1"
+    show_cancelled = request.args.get("cancelled") == "1"
+    per_page = 50
+    page = max(request.args.get("page", 1, type=int) or 1, 1)
+    _, total = rm.list_bookings(q or None, only_unplaced, not show_cancelled, limit=1)
+    total_pages = max((total + per_page - 1) // per_page, 1)
+    page = min(page, total_pages)
+    rows, _ = rm.list_bookings(q or None, only_unplaced, not show_cancelled, per_page, (page - 1) * per_page)
+    all_rows = rm.board()
+    unplaced, _ = rm.list_bookings(only_unplaced=True, limit=300)
+    return render_template(
+        "rooms_bookings.html", active_page="rooms", rooms_tab="bookings", rows=rows, total=total,
+        unplaced_bookings=unplaced, exely_last_sync=db.get_setting("exely_bookings_last_sync"),
+        page=page, total_pages=total_pages, f_q=q, f_unplaced=only_unplaced, f_cancelled=show_cancelled,
+        free_rooms=[r for r in all_rows if r["status"] in ("free", "partial")], today=rm.today_str(),
+        can_create=db.has_permission(u, "rooms", "create"), can_delete=db.has_permission(u, "rooms", "delete"),
+    )
+
+
+@app.route("/rooms/bookings/import", methods=["POST"])
+@permission_required("rooms", "create")
+def rooms_bookings_import_preview():
+    _prune_import_stash()
+    file = request.files.get("file")
+    if not file or not file.filename:
+        flash(t("tx.import_no_file", g.lang), "error")
+        return redirect(url_for("rooms_bookings_page"))
+    try:
+        rows, error, columns = parse_bookings_xlsx(file.read())
+    except Exception:
+        log("BRON EXCEL IMPORT PARSE XATOSI:\n" + traceback.format_exc())
+        rows, error, columns = [], "col_not_found", {}
+    if error or not rows:
+        flash(t("rooms.err_import_parse", g.lang), "error")
+        return redirect(url_for("rooms_bookings_page"))
+    preview, counts = rm.preview_import(rows)
+    upload_id = secrets.token_hex(16)
+    with IMPORT_STASH_LOCK:
+        IMPORT_STASH[upload_id] = {"rows": rows, "ts": time.time()}
+    return render_template(
+        "rooms_bookings_preview.html", active_page="rooms", rooms_tab="bookings",
+        upload_id=upload_id, rows=preview, counts=counts, columns=sorted(columns),
+    )
+
+
+@app.route("/rooms/bookings/import/commit", methods=["POST"])
+@permission_required("rooms", "create")
+def rooms_bookings_import_commit():
+    with IMPORT_STASH_LOCK:
+        stash = IMPORT_STASH.pop(request.form.get("upload_id"), None)
+    if not stash:
+        flash(t("tx.import_expired", g.lang), "error")
+        return redirect(url_for("rooms_bookings_page"))
+    added, updated, unchanged = rm.import_bookings(stash["rows"])
+    if stash.get("exely_sync_started"):
+        db.set_setting("exely_bookings_last_sync", stash["exely_sync_started"])
+    flash(t("rooms.flash_import_done", g.lang).format(added=added, updated=updated, unchanged=unchanged), "success")
+    return redirect(url_for("rooms_bookings_page"))
+
+
+@app.route("/rooms/bookings/<int:booking_id>/delete", methods=["POST"])
+@permission_required("rooms", "delete")
+def rooms_booking_delete(booking_id):
+    rm.delete_booking(booking_id)
+    flash(t("rooms.flash_deleted", g.lang), "success")
+    return redirect(url_for("rooms_bookings_page"))
+
+
+# -- Exely PMS'dan (FAQAT O'QISH): xonalarni sinxronlash va bronlarni yuklash
+
+def _exely_client():
+    cfg = load_config()
+    return ExelyPmsClient(cfg["api_client_id"], cfg["api_client_secret"], cfg["property_id"])
+
+
+def _exely_error(e):
+    log("EXELY PMS XATOSI:\n" + traceback.format_exc())
+    flash(t("rooms.ex_err", g.lang).format(error=str(e)[:160]), "error")
+
+
+@app.route("/rooms/settings/exely-sync", methods=["POST"])
+@permission_required("rooms", "edit")
+def rooms_exely_sync_preview():
+    _prune_import_stash()
+    try:
+        desired = xs.fetch_desired_rooms(_exely_client())
+    except Exception as e:
+        _exely_error(e)
+        return redirect(url_for("rooms_settings_page"))
+    upload_id = secrets.token_hex(16)
+    with IMPORT_STASH_LOCK:
+        IMPORT_STASH[upload_id] = {"desired": desired, "ts": time.time()}
+    return render_template("rooms_sync_preview.html", active_page="rooms", rooms_tab="settings",
+                           upload_id=upload_id, plan=xs.diff_rooms(desired))
+
+
+@app.route("/rooms/settings/exely-sync/commit", methods=["POST"])
+@permission_required("rooms", "edit")
+def rooms_exely_sync_commit():
+    with IMPORT_STASH_LOCK:
+        stash = IMPORT_STASH.pop(request.form.get("upload_id"), None)
+    if not stash or "desired" not in stash:
+        flash(t("tx.import_expired", g.lang), "error")
+        return redirect(url_for("rooms_settings_page"))
+    added, updated = xs.apply_rooms(stash["desired"])
+    flash(t("rooms.ex_sync_done", g.lang).format(added=added, updated=updated), "success")
+    return redirect(url_for("rooms_settings_page"))
+
+
+@app.route("/rooms/bookings/exely/start", methods=["POST"])
+@permission_required("rooms", "create")
+def rooms_exely_bookings_start():
+    f = request.form
+    now = datetime.now()
+    if f.get("mode") == "modified":
+        last = db.get_setting("exely_bookings_last_sync")
+        try:
+            start = max(datetime.fromisoformat(last) - timedelta(hours=1), now - timedelta(days=364))
+        except (TypeError, ValueError):
+            flash(t("rooms.ex_no_last_sync", g.lang), "error")
+            return redirect(url_for("rooms_bookings_page"))
+        end, by_modified = now, True
+    else:
+        back = min(max(f.get("days_back", type=int) or 0, 0), 180)
+        fwd = min(max(f.get("days_forward", type=int) or 0, 0), 180)
+        start = (now - timedelta(days=back)).replace(hour=0, minute=0)
+        end, by_modified = (now + timedelta(days=fwd)).replace(hour=23, minute=59), False
+    try:
+        job = xs.start_booking_job(_exely_client(), start, end, by_modified)
+    except Exception as e:
+        _exely_error(e)
+        return redirect(url_for("rooms_bookings_page"))
+    return redirect(url_for("rooms_exely_bookings_job", job_id=job.id))
+
+
+@app.route("/rooms/bookings/exely/<job_id>")
+@permission_required("rooms", "create")
+def rooms_exely_bookings_job(job_id):
+    job = xs.get_job(job_id)
+    if not job:
+        flash(t("tx.import_expired", g.lang), "error")
+        return redirect(url_for("rooms_bookings_page"))
+    if job.state == "running":
+        return render_template("rooms_exely_progress.html", active_page="rooms", rooms_tab="bookings", job=job)
+    if job.state == "error":
+        flash(t("rooms.ex_err", g.lang).format(error=job.error), "error")
+        return redirect(url_for("rooms_bookings_page"))
+    _prune_import_stash()
+    rows = list(job.rows)
+    preview, counts = rm.preview_import(rows)
+    upload_id = secrets.token_hex(16)
+    with IMPORT_STASH_LOCK:
+        IMPORT_STASH[upload_id] = {"rows": rows, "ts": time.time(),
+                                   "exely_sync_started": job.started.isoformat(timespec="seconds")}
+    period = f"{job.start:%Y-%m-%d} — {job.end:%Y-%m-%d}"
+    note = t("rooms.ex_source_note", g.lang).format(period=period)
+    if job.failed:
+        note += " " + t("rooms.ex_failed_note", g.lang).format(n=len(job.failed))
+    return render_template(
+        "rooms_bookings_preview.html", active_page="rooms", rooms_tab="bookings",
+        upload_id=upload_id, rows=preview, counts=counts, columns=[], source_note=note,
+    )
+
+
+# -- Exely vebhuklari (kiruvchi): Exely bron o'zgarganda shu manzilga POST yuboradi.
+# Himoya: manzil oxiridagi maxfiy kalit (config.json `webhook_secret`). Xabar mazmuniga
+# ISHONILMAYDI — undan faqat bron raqami olinadi, ma'lumot Exely'dan GET bilan qayta o'qiladi.
+
+def _process_webhook(event_id, numbers):
+    try:
+        if not numbers:
+            xs.finish_event(event_id, "ignored", "bron raqami topilmadi")
+            return
+        count, failed = xs.sync_reservations(_exely_client(), numbers)
+        xs.finish_event(event_id, "error" if failed else "processed",
+                        f"qatorlar: {count}" + (f"; yuklanmadi: {', '.join(failed)}" if failed else ""))
+    except Exception as e:                      # noqa: BLE001
+        log("EXELY VEBHUK QAYTA ISHLASH XATOSI:\n" + traceback.format_exc())
+        xs.finish_event(event_id, "error", str(e))
+
+
+@app.route("/webhooks/exely/<secret>", methods=["POST"])
+def exely_webhook(secret):
+    try:
+        expected = load_config().get("webhook_secret") or ""
+    except RuntimeError:
+        expected = ""
+    if not expected or not hmac.compare_digest(secret, expected):
+        abort(404)
+    body = request.get_data(cache=False)[:200_000].decode("utf-8", "replace")
+    numbers = xs.extract_reservation_numbers(body)
+    event_id = xs.record_event(request.headers.get("X-Forwarded-For", request.remote_addr), body, numbers)
+    threading.Thread(target=_process_webhook, args=(event_id, numbers), daemon=True).start()
+    return jsonify(ok=True)
+
+
+@app.route("/rooms/webhooks")
+@permission_required("rooms", "edit")
+def rooms_webhooks_page():
+    return render_template("rooms_webhooks.html", active_page="rooms", rooms_tab="settings",
+                           events=xs.list_events(50))
+
+
+# -- bandlik foizi
+
+@app.route("/rooms/occupancy")
+@permission_required("rooms", "view")
+def rooms_occupancy_page():
+    gran = request.args.get("gran", "day")
+    if gran not in ("day", "week", "month"):
+        gran = "day"
+    default_days = {"day": 30, "week": 84, "month": 365}[gran]
+    days = min(max(request.args.get("days", default_days, type=int) or default_days, 1), 730)
+    ex_map, ex_error = {}, None
+    try:
+        end_d = date.today()
+        ex_map, ex_error = xs.exely_occupancy(_exely_client(), end_d - timedelta(days=days - 1), end_d)
+    except Exception as e:                       # Exely ishlamasa ham sahifa o'z ma'lumoti bilan ochiladi
+        log("EXELY BANDLIK XATOSI:\n" + traceback.format_exc())
+        ex_error = str(e)[:160]
+    series = rm.occupancy_series(days, gran, exely=ex_map)
+    today_row = rm.occupancy_series(1, "day", exely=ex_map)[0]
+    return render_template(
+        "rooms_occupancy.html", active_page="rooms", rooms_tab="occupancy", series=series, gran=gran, days=days,
+        chart_data={"series": series, "names": {
+            "room": t("rooms.kpi_room_pct", g.lang), "bed": t("rooms.kpi_bed_pct", g.lang),
+            "exely": t("rooms.occ_exely", g.lang)}},
+        today_row=today_row,
+        ex_error=ex_error, has_exely=any(s["ex_pct"] is not None for s in series),
+    )
 
 
 # ---- Bar / mini-bar ----

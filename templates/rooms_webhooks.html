@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+{% block title %}{{ t('rooms.wh_title') }}{% endblock %}
+{% block head %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/rooms.css') }}">
+{% endblock %}
+{% block content %}
+  <div style="margin-bottom:1.2rem">
+    <h1 style="font-size:1.55rem">{{ t('rooms.wh_title') }}</h1>
+    <p class="note">{{ t('rooms.wh_help') }}</p>
+  </div>
+  {% include "_rooms_tabs.html" %}
+  <div class="card">
+    <div class="overflow-x">
+      {% if events %}
+      <table class="data-table">
+        <thead><tr>
+          <th>{{ t('rooms.wh_th_time') }}</th><th>{{ t('rooms.wh_th_status') }}</th>
+          <th>{{ t('rooms.wh_th_numbers') }}</th><th>{{ t('rooms.wh_th_body') }}</th>
+        </tr></thead>
+        <tbody>
+          {% for e in events %}
+          <tr>
+            <td class="mono">{{ e.received_at }}</td>
+            <td>{{ e.status }}{% if e.note %}<span class="g-dates">{{ e.note }}</span>{% endif %}</td>
+            <td class="mono">{{ (e.numbers or '')|replace(',', ', ') or t('common.dash') }}</td>
+            <td><details><summary>{{ (e.body or '')[:80] }}</summary><pre style="white-space:pre-wrap;word-break:break-all;font-size:.72rem">{{ e.body }}</pre></details></td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      {% else %}
+      <div class="empty">{{ t('rooms.wh_empty') }}</div>
+      {% endif %}
+    </div>
+  </div>
+{% endblock %}

@@ -1,0 +1,136 @@
+{% extends "base.html" %}
+{% block title %}{{ t('nav.rooms') }}{% endblock %}
+{% block head %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/rooms.css') }}">
+{% endblock %}
+{% block content %}
+  <div style="margin-bottom:1.2rem">
+    <h1 style="font-size:1.55rem">{{ t('rooms.title') }}</h1>
+    <p style="color:var(--ink-secondary);font-size:.9rem;margin-top:.3rem">{{ t('rooms.subtitle') }}</p>
+  </div>
+  {% include "_rooms_tabs.html" %}
+
+  <div class="kpi-row">
+    <div class="kpi"><div class="kpi-top"><div class="label">{{ t('rooms.kpi_rooms') }}</div></div>
+      <div class="value">{{ summary.rooms }}</div>
+      <div class="sub">{{ t('rooms.st_free') }}: {{ summary.counts.free }} · {{ t('rooms.st_partial') }}: {{ summary.counts.partial }} · {{ t('rooms.st_full') }}: {{ summary.counts.full }}</div></div>
+    <div class="kpi"><div class="kpi-top"><div class="label">{{ t('rooms.kpi_beds') }}</div></div>
+      <div class="value">{{ summary.beds }}</div>
+      <div class="sub">{{ t('rooms.th_occupied') }}: {{ summary.occupied_beds }} · {{ t('rooms.kpi_free_beds') }}: {{ summary.free_beds }}</div></div>
+    <div class="kpi"><div class="kpi-top"><div class="label">{{ t('rooms.kpi_room_pct') }}</div></div>
+      <div class="value accent">{{ summary.room_pct }}%</div>
+      <div class="sub">{{ summary.occupied_rooms }} / {{ summary.rooms }}</div></div>
+    <div class="kpi"><div class="kpi-top"><div class="label">{{ t('rooms.kpi_bed_pct') }}</div></div>
+      <div class="value accent">{{ summary.bed_pct }}%</div>
+      <div class="sub">{{ summary.occupied_beds }} / {{ summary.beds }}</div></div>
+  </div>
+
+  <form method="get" class="rooms-filters">
+    <select name="floor" onchange="this.form.submit()">
+      <option value="">{{ t('rooms.filter_floor') }}: {{ t('rooms.filter_all') }}</option>
+      {% for fl in floors %}<option value="{{ fl }}" {{ 'selected' if f_floor|string == fl|string else '' }}>{{ t('rooms.floor_n').format(n=fl) }}</option>{% endfor %}
+    </select>
+    <select name="type_id" onchange="this.form.submit()">
+      <option value="">{{ t('rooms.filter_type') }}: {{ t('rooms.filter_all') }}</option>
+      {% for ty in room_types %}<option value="{{ ty.id }}" {{ 'selected' if f_type|string == ty.id|string else '' }}>{{ ty.name }}</option>{% endfor %}
+    </select>
+    <select name="status" onchange="this.form.submit()">
+      <option value="">{{ t('rooms.filter_status') }}: {{ t('rooms.filter_all') }}</option>
+      {% for st in ('free','partial','full','cleaning','maintenance') %}<option value="{{ st }}" {{ 'selected' if f_status == st else '' }}>{{ t('rooms.st_' + st) }}</option>{% endfor %}
+    </select>
+    <input type="text" name="q" value="{{ f_q }}" placeholder="{{ t('rooms.search_placeholder') }}">
+    <input type="hidden" name="view" value="{{ view }}">
+    <button class="btn" type="submit">🔍</button>
+    <span class="spacer"></span>
+    <a class="btn small {{ 'primary' if view=='cards' else '' }}" href="?view=cards&floor={{ f_floor }}&type_id={{ f_type }}&status={{ f_status }}&q={{ f_q|urlencode }}">{{ t('rooms.view_cards') }}</a>
+    <a class="btn small {{ 'primary' if view=='table' else '' }}" href="?view=table&floor={{ f_floor }}&type_id={{ f_type }}&status={{ f_status }}&q={{ f_q|urlencode }}">{{ t('rooms.view_table') }}</a>
+  </form>
+
+  {% if not rows %}
+    <div class="card"><div class="empty">{{ t('rooms.empty') }}</div></div>
+  {% elif view == 'cards' %}
+  <div class="room-grid">
+    {% for r in rows %}
+    <div class="room-card st-{{ r.status }}">
+      <div class="room-head">
+        <div>
+          <div class="room-no">{{ r.number }}</div>
+          <div class="room-meta">{{ t('rooms.floor_n').format(n=r.floor) }}{% if r.type_name %} · {{ r.type_name }}{% endif %}{% if r.price %} · {{ r.price|money }} {{ r.currency }}{% endif %}</div>
+        </div>
+        <span class="st-badge">{{ t('rooms.st_' + r.status) }}</span>
+      </div>
+      <div class="beds-bar" title="{{ t('rooms.beds_line').format(o=r.occupied, c=r.capacity) }}">
+        {% for i in range(r.capacity) %}<i class="{{ 'on' if i < r.occupied else '' }}"></i>{% endfor %}
+      </div>
+      <div class="beds-line">{{ t('rooms.beds_line').format(o=r.occupied, c=r.capacity) }} · {{ t('rooms.th_free') }}: {{ r.free_beds }}</div>
+      <div class="guest-list">
+        {% for o in r.occupants %}
+        <div class="guest-row">
+          <span class="g-name">{{ o.guest_name }}<span class="g-dates">{{ o.check_in }}{% if o.expected_departure %} → {{ o.expected_departure }}{% endif %}</span></span>
+          {% if can_edit %}
+          <span class="mini-actions">
+            <button type="button" class="btn small" data-dialog="moveModal" title="{{ t('rooms.btn_move') }}"
+              data-fill='{{ {"_action": "/rooms/stay/" ~ o.id ~ "/move", "guest": o.guest_name}|tojson }}'>⇄</button>
+            <form method="post" action="/rooms/stay/{{ o.id }}/checkout" data-confirm="{{ t('rooms.confirm_checkout').format(guest=o.guest_name) }}" style="margin:0">
+              <input type="hidden" name="back" value="rooms">
+              <button type="submit" class="btn small danger" title="{{ t('rooms.btn_checkout') }}">⏏</button>
+            </form>
+          </span>
+          {% endif %}
+        </div>
+        {% else %}
+        <span class="beds-line">{{ t('rooms.no_guests') }}</span>
+        {% endfor %}
+      </div>
+      <div class="room-actions">
+        {% if can_create and r.free_beds > 0 and r.status != 'maintenance' %}
+        <button type="button" class="btn small primary" data-dialog="checkinModal"
+          data-fill='{{ {"room_id": r.id|string}|tojson }}'>{{ t('rooms.btn_checkin') }}</button>
+        {% endif %}
+        {% if can_edit and not r.occupied %}
+        <button type="button" class="btn small" data-dialog="statusModal"
+          data-fill='{{ {"_action": "/rooms/" ~ r.id ~ "/status", "room": r.number, "status": r.manual_status}|tojson }}'>{{ t('rooms.btn_status') }}</button>
+        {% endif %}
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+  {% else %}
+  <div class="card">
+    <div class="overflow-x">
+      <table class="data-table">
+        <thead><tr>
+          <th>{{ t('rooms.th_room') }}</th><th>{{ t('rooms.th_floor') }}</th><th>{{ t('rooms.th_type') }}</th>
+          <th class="num">{{ t('rooms.th_capacity') }}</th><th class="num">{{ t('rooms.th_occupied') }}</th><th class="num">{{ t('rooms.th_free') }}</th>
+          <th>{{ t('rooms.th_status') }}</th><th>{{ t('rooms.th_guests') }}</th><th></th>
+        </tr></thead>
+        <tbody>
+          {% for r in rows %}
+          <tr class="st-{{ r.status }}">
+            <td><b class="mono">{{ r.number }}</b></td><td>{{ r.floor }}</td><td>{{ r.type_name or t('common.dash') }}</td>
+            <td class="num">{{ r.capacity }}</td><td class="num">{{ r.occupied }}</td><td class="num">{{ r.free_beds }}</td>
+            <td><span class="st-dot"></span>{{ t('rooms.st_' + r.status) }}</td>
+            <td>{{ r.occupants|map(attribute='guest_name')|join(', ') or t('common.dash') }}</td>
+            <td>
+              {% if can_create and r.free_beds > 0 and r.status != 'maintenance' %}
+              <button type="button" class="btn small primary" data-dialog="checkinModal" data-fill='{{ {"room_id": r.id|string}|tojson }}'>{{ t('rooms.btn_checkin') }}</button>
+              {% endif %}
+              {% if can_edit and not r.occupied %}
+              <button type="button" class="btn small" data-dialog="statusModal"
+                data-fill='{{ {"_action": "/rooms/" ~ r.id ~ "/status", "room": r.number, "status": r.manual_status}|tojson }}'>{{ t('rooms.btn_status') }}</button>
+              {% endif %}
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+  {% endif %}
+
+  {% set back = 'rooms' %}
+  {% include "_rooms_dialogs.html" %}
+{% endblock %}
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/rooms.js') }}"></script>
+{% endblock %}

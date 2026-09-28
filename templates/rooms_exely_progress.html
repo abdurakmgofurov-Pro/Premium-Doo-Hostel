@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+{% block title %}{{ t('rooms.ex_title') }}{% endblock %}
+{% block head %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/rooms.css') }}">
+<meta http-equiv="refresh" content="3">
+{% endblock %}
+{% block content %}
+  <div style="margin-bottom:1.2rem">
+    <h1 style="font-size:1.55rem">{{ t('rooms.ex_title') }}</h1>
+  </div>
+  {% include "_rooms_tabs.html" %}
+  <div class="card">
+    {% if job.phase == 'list' or not job.total %}
+      <p>{{ t('rooms.ex_progress_list') }}</p>
+    {% else %}
+      <p>{{ t('rooms.ex_progress_details').format(done=job.done, total=job.total) }}</p>
+      <progress value="{{ job.done }}" max="{{ job.total }}" style="width:100%;height:14px"></progress>
+    {% endif %}
+    <div class="note">{{ t('rooms.ex_progress_note') }}</div>
+  </div>
+{% endblock %}

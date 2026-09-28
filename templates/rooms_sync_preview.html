@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+{% block title %}{{ t('rooms.ex_sync_title') }}{% endblock %}
+{% block head %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/rooms.css') }}">
+{% endblock %}
+{% block content %}
+  <div style="margin-bottom:1.2rem">
+    <h1 style="font-size:1.55rem">{{ t('rooms.ex_sync_title') }}</h1>
+    <p style="color:var(--ink-secondary);font-size:.9rem;margin-top:.3rem">
+      {{ t('rooms.ex_sync_summary').format(types=plan.new_types, new=plan.counts.get('new', 0), upd=plan.counts.get('update', 0), same=plan.counts.get('same', 0)) }}</p>
+    <p class="note">{{ t('rooms.ex_sync_help') }}</p>
+  </div>
+  {% include "_rooms_tabs.html" %}
+
+  <form method="post" action="/rooms/settings/exely-sync/commit">
+    <input type="hidden" name="upload_id" value="{{ upload_id }}">
+    <div class="card">
+      <div class="overflow-x">
+        <table class="data-table">
+          <thead><tr>
+            <th>{{ t('rooms.th_room') }}</th><th>{{ t('rooms.th_floor') }}</th><th>{{ t('rooms.th_type') }}</th>
+            <th class="num">{{ t('rooms.th_capacity') }}</th><th>{{ t('rooms.ex_th_changes') }}</th><th></th>
+          </tr></thead>
+          <tbody>
+            {% for r in plan.rooms %}
+            <tr>
+              <td><b class="mono">{{ r.number }}</b></td><td>{{ r.floor }}</td><td>{{ r.type_name or t('common.dash') }}</td>
+              <td class="num">{{ r.capacity }}</td>
+              <td>{% for field, old, new in r.changes %}{{ t('rooms.th_' ~ field) }}: {{ old }} → {{ new }}{% if not loop.last %}; {% endif %}{% endfor %}</td>
+              <td>{% if r.action == 'blocked' %}<span class="import-badge changed">{{ t('rooms.ex_state_blocked') }}</span>
+                  {% else %}<span class="import-badge {{ {'new': 'new', 'update': 'changed', 'same': 'same'}[r.action] }}">{{ t('rooms.bk_state_' ~ {'new': 'new', 'update': 'changed', 'same': 'same'}[r.action]) }}</span>{% endif %}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% if plan.only_local %}<div class="note">{{ t('rooms.ex_sync_only_local').format(list=plan.only_local|join(', ')) }}</div>{% endif %}
+    </div>
+    <div class="btn-row" style="margin-top:1rem">
+      <button class="btn primary" type="submit">{{ t('rooms.ex_sync_apply') }}</button>
+      <a class="btn" href="/rooms/settings">{{ t('rooms.bk_back') }}</a>
+    </div>
+  </form>
+{% endblock %}

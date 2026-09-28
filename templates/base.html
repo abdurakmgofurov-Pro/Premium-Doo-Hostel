@@ -41,6 +41,7 @@
   'exchange_rate': '<svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 17l5-5 4 4 8-9"/><path d="M14 7h6v6"/></svg>',
   'sklad': '<svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 8L12 3 3 8v8l9 5 9-5z"/><path d="M3 8l9 5 9-5"/><line x1="12" y1="13" x2="12" y2="21"/></svg>',
   'services': '<svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3v5a1 1 0 0 0 1 1h5"/><path d="M17 21H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h7l5 5v11a2 2 0 0 1-2 2z"/><line x1="8" y1="13" x2="16" y2="13"/><line x1="8" y1="17" x2="13" y2="17"/></svg>',
+  'rooms': '<svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 19V6"/><path d="M3 14h18v5"/><path d="M21 14v-2a3 3 0 0 0-3-3h-7v5"/><circle cx="7" cy="11" r="1.8"/></svg>',
   'taxes': '<svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16v16H4z"/><line x1="8" y1="9" x2="16" y2="9"/><line x1="16" y1="9" x2="8" y2="15"/><line x1="8" y1="15" x2="16" y2="15"/></svg>'
 } %}
 <div class="app-shell">
@@ -58,10 +59,13 @@
     <a class="nav-link {{ 'active' if active_page=='dashboard' else '' }}" href="/">{{ icons.dashboard | safe }}{{ t('nav.dashboard') }}</a>
     {% endif %}
 
-    {% if has_perm('bookings','view') or has_perm('cash','view') or has_perm('services','view') or has_perm('bar','view') %}
+    {% if has_perm('bookings','view') or has_perm('rooms','view') or has_perm('cash','view') or has_perm('services','view') or has_perm('bar','view') %}
     <div class="nav-section">{{ t('nav.section_operations') }}</div>
     {% if has_perm('bookings','view') %}
     <a class="nav-link {{ 'active' if active_page=='bookings' else '' }}" href="/bookings">{{ icons.bookings | safe }}{{ t('nav.bookings') }}</a>
+    {% endif %}
+    {% if has_perm('rooms','view') %}
+    <a class="nav-link {{ 'active' if active_page=='rooms' else '' }}" href="/rooms">{{ icons.rooms | safe }}{{ t('nav.rooms') }}</a>
     {% endif %}
     {% if has_perm('cash','view') %}
     <a class="nav-link {{ 'active' if active_page=='cash' else '' }}" href="/cash">{{ icons.cash | safe }}{{ t('nav.cash') }}</a>

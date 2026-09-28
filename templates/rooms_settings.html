@@ -1,0 +1,129 @@
+{% extends "base.html" %}
+{% block title %}{{ t('rooms.tab_settings') }}{% endblock %}
+{% block head %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/rooms.css') }}">
+{% endblock %}
+{% block content %}
+  <div style="margin-bottom:1.2rem">
+    <h1 style="font-size:1.55rem">{{ t('rooms.tab_settings') }}</h1>
+  </div>
+  {% include "_rooms_tabs.html" %}
+
+  {% if can_edit %}
+  <div class="card" style="margin-bottom:1.2rem">
+    <div class="btn-row spread">
+      <div><h2 style="margin:0 0 .2rem;font-size:1.05rem">{{ t('rooms.ex_sync_title') }}</h2>
+        <div class="note" style="margin:0">{{ t('rooms.ex_sync_help') }}</div></div>
+      <form method="post" action="/rooms/settings/exely-sync" style="margin:0">
+        <button class="btn primary" type="submit">{{ t('rooms.ex_sync_btn') }}</button></form>
+    </div>
+    <div class="note"><a href="/rooms/webhooks">{{ t('rooms.wh_link') }}</a></div>
+  </div>
+  {% endif %}
+
+  <div class="card">
+    <div class="btn-row spread" style="margin-bottom:1rem">
+      <h2 style="margin:0">{{ t('rooms.set_types_title') }}</h2>
+      {% if can_create %}<button type="button" class="btn primary small" data-dialog="typeModal"
+        data-fill='{{ {"_action": "/rooms/types/add", "name": "", "capacity": "", "price": "", "currency": "UZS"}|tojson }}'>{{ t('rooms.btn_add_type') }}</button>{% endif %}
+    </div>
+    <div class="overflow-x">
+      <table class="data-table">
+        <thead><tr>
+          <th>{{ t('rooms.th_name') }}</th><th class="num">{{ t('rooms.th_capacity') }}</th>
+          <th class="num">{{ t('rooms.th_price') }}</th><th class="num">{{ t('rooms.th_rooms_count') }}</th><th></th>
+        </tr></thead>
+        <tbody>
+          {% for ty in room_types %}
+          <tr>
+            <td>{{ ty.name }}</td><td class="num">{{ ty.capacity }}</td>
+            <td class="num">{{ ty.price|money if ty.price else t('common.dash') }} {{ ty.currency if ty.price else '' }}</td>
+            <td class="num">{{ ty.rooms_count }}</td>
+            <td style="display:flex;gap:.4rem;justify-content:flex-end">
+              {% if can_edit %}<button type="button" class="btn small" data-dialog="typeModal"
+                data-fill='{{ {"_action": "/rooms/types/" ~ ty.id ~ "/edit", "name": ty.name, "capacity": ty.capacity|string, "price": ty.price|string, "currency": ty.currency}|tojson }}'>✎</button>{% endif %}
+              {% if can_delete %}<form method="post" action="/rooms/types/{{ ty.id }}/delete" data-confirm="{{ t('rooms.delete_confirm') }}" style="margin:0">
+                <button type="submit" class="btn small danger">✕</button></form>{% endif %}
+            </td>
+          </tr>
+          {% else %}
+          <tr><td colspan="5" class="empty">{{ t('rooms.empty') }}</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="card" style="margin-top:1.2rem">
+    <div class="btn-row spread" style="margin-bottom:1rem">
+      <h2 style="margin:0">{{ t('rooms.set_rooms_title') }}</h2>
+      {% if can_create %}<button type="button" class="btn primary small" data-dialog="roomModal"
+        data-fill='{{ {"_action": "/rooms/add", "number": "", "floor": "1", "room_type_id": "", "capacity": "", "price": "", "currency": "UZS", "note": "", "active": true}|tojson }}'>{{ t('rooms.btn_add_room') }}</button>{% endif %}
+    </div>
+    <div class="overflow-x">
+      <table class="data-table">
+        <thead><tr>
+          <th>{{ t('rooms.th_room') }}</th><th>{{ t('rooms.th_floor') }}</th><th>{{ t('rooms.th_type') }}</th>
+          <th class="num">{{ t('rooms.th_capacity') }}</th><th class="num">{{ t('rooms.th_price') }}</th><th>{{ t('rooms.th_note') }}</th><th></th>
+        </tr></thead>
+        <tbody>
+          {% for r in rooms %}
+          <tr {% if not r.active %}class="is-cancelled"{% endif %}>
+            <td><b class="mono">{{ r.number }}</b>{% if not r.active %} <span class="tag">{{ t('rooms.tag_inactive') }}</span>{% endif %}</td>
+            <td>{{ r.floor }}</td><td>{{ r.type_name or t('common.dash') }}</td>
+            <td class="num">{{ r.capacity }}</td>
+            <td class="num">{{ r.price|money if r.price else t('common.dash') }} {{ r.currency if r.price else '' }}</td>
+            <td>{{ r.note or '' }}</td>
+            <td style="display:flex;gap:.4rem;justify-content:flex-end">
+              {% if can_edit %}<button type="button" class="btn small" data-dialog="roomModal"
+                data-fill='{{ {"_action": "/rooms/" ~ r.id ~ "/edit", "number": r.number, "floor": r.floor|string, "room_type_id": (r.room_type_id or "")|string, "capacity": r.capacity|string, "price": r.price|string, "currency": r.currency, "note": r.note or "", "active": r.active == 1}|tojson }}'>✎</button>{% endif %}
+              {% if can_delete %}<form method="post" action="/rooms/{{ r.id }}/delete" data-confirm="{{ t('rooms.delete_confirm') }}" style="margin:0">
+                <button type="submit" class="btn small danger">✕</button></form>{% endif %}
+            </td>
+          </tr>
+          {% else %}
+          <tr><td colspan="7" class="empty">{{ t('rooms.empty') }}</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  {% if can_create or can_edit %}
+  <dialog id="typeModal" class="rooms-dialog">
+    <div class="modal-head"><h2>{{ t('rooms.dlg_type_title') }}</h2>
+      <button type="button" class="modal-close-btn" data-close-dialog>✕</button></div>
+    <form method="post" action="" class="form-grid">
+      <div class="field full"><label>{{ t('rooms.th_name') }}</label><input type="text" name="name" required></div>
+      <div class="field"><label>{{ t('rooms.field_capacity') }}</label><input type="number" name="capacity" min="1" required></div>
+      <div class="field"><label>{{ t('rooms.field_price') }}</label><input type="text" inputmode="decimal" class="money-input" name="price"></div>
+      <div class="field"><label>{{ t('rooms.field_currency') }}</label>
+        <select name="currency"><option value="UZS">UZS</option><option value="USD">USD</option></select></div>
+      <div class="field full"><button class="btn primary" type="submit">{{ t('rooms.btn_save') }}</button></div>
+    </form>
+  </dialog>
+  <dialog id="roomModal" class="rooms-dialog">
+    <div class="modal-head"><h2>{{ t('rooms.dlg_room_title') }}</h2>
+      <button type="button" class="modal-close-btn" data-close-dialog>✕</button></div>
+    <form method="post" action="" class="form-grid">
+      <div class="field"><label>{{ t('rooms.field_number') }}</label><input type="text" name="number" required></div>
+      <div class="field"><label>{{ t('rooms.field_floor') }}</label><input type="number" name="floor" min="0" value="1"></div>
+      <div class="field full"><label>{{ t('rooms.field_type') }}</label>
+        <select name="room_type_id" id="roomTypeSelect">
+          <option value="">{{ t('rooms.no_type') }}</option>
+          {% for ty in room_types %}<option value="{{ ty.id }}" data-capacity="{{ ty.capacity }}" data-price="{{ ty.price }}" data-currency="{{ ty.currency }}">{{ ty.name }}</option>{% endfor %}
+        </select></div>
+      <div class="field"><label>{{ t('rooms.field_capacity') }}</label><input type="number" name="capacity" min="1" required></div>
+      <div class="field"><label>{{ t('rooms.field_price') }}</label><input type="text" inputmode="decimal" class="money-input" name="price"></div>
+      <div class="field"><label>{{ t('rooms.field_currency') }}</label>
+        <select name="currency"><option value="UZS">UZS</option><option value="USD">USD</option></select></div>
+      <div class="field"><label>{{ t('rooms.field_active') }}</label><input type="checkbox" name="active" value="1" checked></div>
+      <div class="field full"><label>{{ t('rooms.field_note') }}</label><input type="text" name="note"></div>
+      <div class="field full"><button class="btn primary" type="submit">{{ t('rooms.btn_save') }}</button></div>
+    </form>
+  </dialog>
+  {% endif %}
+{% endblock %}
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/rooms.js') }}"></script>
+{% endblock %}

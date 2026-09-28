@@ -1,0 +1,60 @@
+{# Joylashtirish / ko'chirish / holat dialoglari — Xonalar va Bronlar sahifalari umumiy.
+   Kerakli o'zgaruvchilar: free_rooms, unplaced_bookings, today, back ('rooms' | 'bookings'). #}
+{% if can_create %}
+<dialog id="checkinModal" class="rooms-dialog">
+  <div class="modal-head">
+    <h2>{{ t('rooms.dlg_checkin_title') }}</h2>
+    <button type="button" class="modal-close-btn" data-close-dialog>✕</button>
+  </div>
+  <form method="post" action="/rooms/checkin" class="form-grid">
+    <input type="hidden" name="back" value="{{ back }}">
+    <div class="field full"><label>{{ t('rooms.field_room') }}</label>
+      <select name="room_id" required>
+        {% for r in free_rooms %}<option value="{{ r.id }}">{{ r.number }} · {{ r.type_name or '' }} ({{ t('rooms.beds_line').format(o=r.occupied, c=r.capacity) }})</option>{% endfor %}
+      </select></div>
+    <div class="field full"><label>{{ t('rooms.field_booking') }}</label>
+      <select name="booking_id" id="checkinBooking">
+        <option value="">{{ t('rooms.no_booking') }}</option>
+        {% for b in unplaced_bookings %}<option value="{{ b.id }}" data-guest="{{ b.guest_name }}" data-departure="{{ b.departure or '' }}">{{ b.arrival }} · {{ b.guest_name }}{% if b.room_text %} · {{ b.room_text }}{% endif %}</option>{% endfor %}
+      </select></div>
+    <div class="field full"><label>{{ t('rooms.field_guest') }}</label><input type="text" name="guest_name" required></div>
+    <div class="field"><label>{{ t('rooms.field_checkin') }}</label><input type="date" name="check_in" value="{{ today }}" max="{{ today }}" required></div>
+    <div class="field"><label>{{ t('rooms.field_departure') }}</label><input type="date" name="expected_departure"></div>
+    <div class="field full"><label>{{ t('rooms.field_note') }}</label><input type="text" name="note"></div>
+    <div class="field full"><button class="btn primary" type="submit">{{ t('rooms.btn_save') }}</button></div>
+  </form>
+</dialog>
+{% endif %}
+{% if can_edit %}
+<dialog id="moveModal" class="rooms-dialog">
+  <div class="modal-head">
+    <h2>{{ t('rooms.dlg_move_title') }}: <span data-fill-text="guest"></span></h2>
+    <button type="button" class="modal-close-btn" data-close-dialog>✕</button>
+  </div>
+  <form method="post" action="" class="form-grid">
+    <input type="hidden" name="back" value="{{ back }}">
+    <div class="field full"><label>{{ t('rooms.field_target_room') }}</label>
+      <select name="room_id" required>
+        {% for r in free_rooms %}<option value="{{ r.id }}">{{ r.number }} · {{ r.type_name or '' }} ({{ t('rooms.beds_line').format(o=r.occupied, c=r.capacity) }})</option>{% endfor %}
+      </select></div>
+    <div class="field full"><label>{{ t('rooms.field_date') }}</label><input type="date" name="date" value="{{ today }}" max="{{ today }}"></div>
+    <div class="field full"><button class="btn primary" type="submit">{{ t('rooms.btn_move') }}</button></div>
+  </form>
+</dialog>
+<dialog id="statusModal" class="rooms-dialog">
+  <div class="modal-head">
+    <h2>{{ t('rooms.dlg_status_title') }}: <span data-fill-text="room"></span></h2>
+    <button type="button" class="modal-close-btn" data-close-dialog>✕</button>
+  </div>
+  <form method="post" action="" class="form-grid">
+    <input type="hidden" name="back" value="{{ back }}">
+    <div class="field full"><label>{{ t('rooms.filter_status') }}</label>
+      <select name="status">
+        <option value="">{{ t('rooms.status_normal') }}</option>
+        <option value="cleaning">{{ t('rooms.st_cleaning') }}</option>
+        <option value="maintenance">{{ t('rooms.st_maintenance') }}</option>
+      </select></div>
+    <div class="field full"><button class="btn primary" type="submit">{{ t('rooms.btn_save') }}</button></div>
+  </form>
+</dialog>
+{% endif %}

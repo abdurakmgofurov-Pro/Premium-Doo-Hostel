@@ -1,0 +1,73 @@
+{% extends "base.html" %}
+{% block title %}{{ t('rooms.tab_occupancy') }}{% endblock %}
+{% block head %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/rooms.css') }}">
+{% endblock %}
+{% block content %}
+  <div style="margin-bottom:1.2rem">
+    <h1 style="font-size:1.55rem">{{ t('rooms.occ_title') }}</h1>
+  </div>
+  {% include "_rooms_tabs.html" %}
+
+  <div class="kpi-row">
+    <div class="kpi"><div class="kpi-top"><div class="label">{{ t('rooms.occ_today') }} — {{ t('rooms.kpi_room_pct') }}</div></div>
+      <div class="value accent">{{ today_row.room_pct }}%</div>
+      <div class="sub">{{ today_row.rooms_occ }} / {{ today_row.rooms_total }} · {{ t('rooms.occ_room_pct') }}</div></div>
+    <div class="kpi"><div class="kpi-top"><div class="label">{{ t('rooms.occ_today') }} — {{ t('rooms.kpi_bed_pct') }}</div></div>
+      <div class="value accent">{{ today_row.bed_pct }}%</div>
+      <div class="sub">{{ today_row.beds_occ }} / {{ today_row.beds_total }} · {{ t('rooms.occ_bed_pct') }}</div></div>
+    {% if today_row.ex_pct is not none %}
+    <div class="kpi"><div class="kpi-top"><div class="label">{{ t('rooms.occ_today') }} — {{ t('rooms.occ_exely') }}</div></div>
+      <div class="value accent">{{ today_row.ex_pct }}%</div>
+      <div class="sub">{{ today_row.ex_occ }} / {{ today_row.ex_total }} · {{ t('rooms.occ_exely_sub') }}</div></div>
+    {% endif %}
+  </div>
+  {% if ex_error %}<div class="note" style="margin-bottom:1rem">{{ t('rooms.occ_exely_err').format(error=ex_error) }}</div>{% endif %}
+
+  <form method="get" class="rooms-filters">
+    {% for g, label in (('day', 'rooms.occ_gran_day'), ('week', 'rooms.occ_gran_week'), ('month', 'rooms.occ_gran_month')) %}
+    <a class="btn small {{ 'primary' if gran == g else '' }}" href="?gran={{ g }}">{{ t(label) }}</a>
+    {% endfor %}
+    <span class="spacer"></span>
+    <label style="font-size:.82rem">{{ t('rooms.occ_days') }}</label>
+    <input type="hidden" name="gran" value="{{ gran }}">
+    <input type="text" name="days" value="{{ days }}" style="min-width:0;width:80px" inputmode="numeric">
+    <button class="btn small" type="submit">OK</button>
+  </form>
+
+  <div class="card">
+    <div class="occ-wrap"><div id="occChart" class="occ-chart"></div><div id="occTip" class="occ-tip" hidden></div></div>
+    <div class="chart-legend">
+      <span><i style="background:var(--series-1)"></i>{{ t('rooms.kpi_room_pct') }}</span>
+      <span><i style="background:var(--series-2)"></i>{{ t('rooms.kpi_bed_pct') }}</span>
+      {% if has_exely %}<span><i style="background:var(--series-4)"></i>{{ t('rooms.occ_exely') }}</span>{% endif %}
+    </div>
+    <div class="note" style="margin-top:.8rem">{{ t('rooms.occ_note') }}</div>
+  </div>
+
+  <div class="card" style="margin-top:1.2rem">
+    <div class="overflow-x">
+      <table class="data-table">
+        <thead><tr>
+          <th>{{ t('rooms.occ_th_period') }}</th><th class="num">{{ t('rooms.occ_th_rooms') }}</th><th class="num">{{ t('rooms.kpi_room_pct') }}</th>
+          <th class="num">{{ t('rooms.occ_th_beds') }}</th><th class="num">{{ t('rooms.kpi_bed_pct') }}</th>
+          {% if has_exely %}<th class="num">{{ t('rooms.occ_exely') }}</th>{% endif %}
+        </tr></thead>
+        <tbody>
+          {% for s in series|reverse %}
+          <tr>
+            <td>{{ s.label }}</td>
+            <td class="num">{{ s.rooms_occ }} / {{ s.rooms_total }}</td><td class="num">{{ s.room_pct }}%</td>
+            <td class="num">{{ s.beds_occ }} / {{ s.beds_total }}</td><td class="num">{{ s.bed_pct }}%</td>
+            {% if has_exely %}<td class="num">{% if s.ex_pct is not none %}{{ s.ex_occ }} / {{ s.ex_total }} · {{ s.ex_pct }}%{% else %}{{ t('common.dash') }}{% endif %}</td>{% endif %}
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+{% endblock %}
+{% block scripts %}
+<script id="occData" type="application/json">{{ chart_data | tojson }}</script>
+<script src="{{ url_for('static', filename='js/occupancy.js') }}"></script>
+{% endblock %}

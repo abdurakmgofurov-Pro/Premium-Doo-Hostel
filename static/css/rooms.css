@@ -1,0 +1,79 @@
+.rooms-tabs { display: flex; gap: .5rem; flex-wrap: wrap; margin-bottom: 1.4rem; }
+.rooms-tabs a { padding: .5rem 1rem; border-radius: 10px; font-size: .84rem; font-weight: 600;
+  text-decoration: none; color: var(--ink-secondary); background: var(--bg-surface-2); border: 1px solid var(--border); }
+.rooms-tabs a.active { background: linear-gradient(135deg, var(--accent), var(--accent-deep)); color: #fff; border-color: transparent; }
+
+.rooms-filters { display: flex; flex-wrap: wrap; gap: .6rem; align-items: center; margin-bottom: 1.2rem; }
+.rooms-filters select, .rooms-filters input[type="text"] {
+  background: var(--bg-surface-2); color: var(--ink-primary); border: 1px solid var(--border);
+  border-radius: 10px; padding: .5rem .7rem; font: inherit; font-size: .84rem; }
+.rooms-filters input[type="text"] { min-width: 220px; }
+.rooms-filters .spacer { flex: 1; }
+
+/* Holat ranglari: yashil — bo'sh, sariq — qisman band, qizil — band */
+.room-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(270px, 1fr)); gap: 1rem; }
+.room-card { background: var(--bg-surface); border: 1px solid var(--border); border-left: 5px solid var(--st, var(--border-strong));
+  border-radius: var(--radius); padding: 1rem 1.1rem; display: flex; flex-direction: column; gap: .7rem; }
+.room-card.st-free { --st: var(--good); }
+.room-card.st-partial { --st: var(--warn); }
+.room-card.st-full { --st: var(--bad); }
+.room-card.st-cleaning { --st: var(--accent-light); }
+.room-card.st-maintenance { --st: var(--ink-muted); }
+.room-head { display: flex; align-items: flex-start; justify-content: space-between; gap: .6rem; }
+.room-no { font-size: 1.35rem; font-weight: 800; font-family: "IBM Plex Mono", monospace; line-height: 1.1; }
+.room-meta { font-size: .74rem; color: var(--ink-secondary); margin-top: .15rem; }
+.st-badge { font-size: .68rem; font-weight: 700; padding: .2rem .6rem; border-radius: 999px; white-space: nowrap;
+  background: color-mix(in srgb, var(--st, var(--ink-muted)) 16%, transparent); color: var(--st, var(--ink-secondary)); }
+.st-free .st-badge { --st: var(--good); }
+.st-partial .st-badge { --st: var(--warn); }
+.st-full .st-badge { --st: var(--bad); }
+.st-cleaning .st-badge { --st: var(--accent-light); }
+.st-maintenance .st-badge { --st: var(--ink-muted); }
+.beds-bar { display: flex; gap: 3px; }
+.beds-bar i { flex: 1; height: 8px; border-radius: 3px; background: var(--bg-surface-3); }
+.beds-bar i.on { background: var(--st, var(--accent)); }
+.beds-line { font-size: .76rem; color: var(--ink-secondary); }
+.guest-list { display: flex; flex-direction: column; gap: .35rem; min-height: 1.4rem; }
+.guest-row { display: flex; align-items: center; justify-content: space-between; gap: .5rem; font-size: .84rem;
+  background: var(--bg-surface-2); border-radius: 8px; padding: .3rem .55rem; }
+.guest-row .g-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.guest-row .g-dates { font-size: .68rem; color: var(--ink-muted); display: block; }
+.mini-actions { display: flex; gap: .3rem; flex-shrink: 0; }
+button.btn.small, a.btn.small { padding: .25rem .55rem; font-size: .72rem; border-radius: 8px; }
+.room-actions { display: flex; gap: .4rem; flex-wrap: wrap; margin-top: auto; }
+.st-dot { display: inline-block; width: 9px; height: 9px; border-radius: 50%; background: var(--st, var(--ink-muted)); margin-right: .4rem; }
+tr.st-free { --st: var(--good); } tr.st-partial { --st: var(--warn); } tr.st-full { --st: var(--bad); }
+tr.st-cleaning { --st: var(--accent-light); } tr.st-maintenance { --st: var(--ink-muted); }
+
+dialog.rooms-dialog { border: 1px solid var(--border); border-radius: var(--radius); background: var(--bg-surface);
+  box-shadow: var(--shadow); color: var(--ink-primary); padding: 1.4rem; width: min(460px, 94vw); box-sizing: border-box; }
+dialog.rooms-dialog::backdrop { background: rgba(0,0,0,.55); }
+.modal-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.1rem; }
+.modal-head h2 { margin: 0; font-size: 1.15rem; }
+.modal-close-btn { background: none; border: none; color: var(--ink-secondary); font-size: 1.3rem; cursor: pointer; line-height: 1; }
+dialog.rooms-dialog form.form-grid { grid-template-columns: 1fr 1fr; }
+dialog.rooms-dialog form.form-grid .field.full { grid-column: 1 / -1; }
+form.form-grid input[type="checkbox"] { width: auto; align-self: flex-start; }
+
+.chart-legend { display: flex; gap: 1.2rem; flex-wrap: wrap; font-size: .8rem; color: var(--ink-secondary); margin-top: .6rem; }
+.chart-legend i { display: inline-block; width: 12px; height: 3px; border-radius: 2px; margin-right: .4rem; vertical-align: middle; }
+.btn-row.spread { justify-content: space-between; align-items: center; }
+.import-badge.new { color: var(--good); } .import-badge.changed { color: var(--warn); } .import-badge.same { color: var(--ink-muted); }
+.import-badge { font-size: .72rem; font-weight: 700; }
+tr.is-cancelled td { opacity: .55; }
+@media (max-width: 720px) { dialog.rooms-dialog form.form-grid { grid-template-columns: 1fr; } }
+
+.note { font-size: .8rem; color: var(--ink-secondary); line-height: 1.5; margin: .4rem 0 0; }
+.ex-row { display: flex; gap: .8rem; flex-wrap: wrap; align-items: flex-end; }
+.ex-row .field { display: flex; flex-direction: column; gap: .3rem; }
+.ex-row label { font-size: .72rem; font-weight: 600; color: var(--ink-secondary); }
+.ex-row input[type="number"] { width: 110px; background: var(--bg-surface-2); color: var(--ink-primary);
+  border: 1px solid var(--border); border-radius: 10px; padding: .5rem .7rem; font: inherit; font-size: .84rem; }
+.occ-wrap { position: relative; }
+.occ-chart { width: 100%; min-height: 240px; }
+.occ-tip { position: absolute; pointer-events: none; z-index: 2; background: var(--bg-surface-3); color: var(--ink-primary);
+  border: 1px solid var(--border-strong, var(--border)); border-radius: 10px; padding: .5rem .7rem; font-size: .76rem;
+  line-height: 1.6; box-shadow: var(--shadow); white-space: nowrap; }
+.occ-tip strong { display: block; margin-bottom: .15rem; font-size: .78rem; }
+.occ-tip i { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: .4rem; }
+.occ-tip span { color: var(--ink-secondary); }

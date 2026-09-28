@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+{% block title %}{{ t('rooms.bk_preview_title') }}{% endblock %}
+{% block head %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/rooms.css') }}">
+{% endblock %}
+{% block content %}
+  <div style="margin-bottom:1.2rem">
+    <h1 style="font-size:1.55rem">{{ t('rooms.bk_preview_title') }}</h1>
+    <p style="color:var(--ink-secondary);font-size:.9rem;margin-top:.3rem">
+      {{ t('rooms.bk_preview_summary').format(new=counts.new, changed=counts.changed, same=counts.same) }}</p>
+    {% if source_note %}<p class="note">{{ source_note }}</p>
+    {% else %}<p class="note">{{ t('rooms.bk_detected_cols') }} {{ columns|join(', ') }}</p>{% endif %}
+  </div>
+  {% include "_rooms_tabs.html" %}
+
+  <form method="post" action="/rooms/bookings/import/commit">
+    <input type="hidden" name="upload_id" value="{{ upload_id }}">
+    <div class="card">
+      <div class="overflow-x">
+        <table class="data-table">
+          <thead><tr>
+            <th>{{ t('rooms.bk_th_ref') }}</th><th>{{ t('rooms.bk_th_guest') }}</th><th>{{ t('rooms.bk_th_arrival') }}</th>
+            <th>{{ t('rooms.bk_th_departure') }}</th><th>{{ t('rooms.bk_th_room_type') }}</th><th>{{ t('rooms.bk_th_room') }}</th>
+            <th>{{ t('rooms.bk_th_status') }}</th><th></th>
+          </tr></thead>
+          <tbody>
+            {% for r in rows[:500] %}
+            <tr>
+              <td class="mono">{{ r.ref or t('common.dash') }}</td><td>{{ r.guest }}</td><td>{{ r.arrival }}</td>
+              <td>{{ r.departure or t('common.dash') }}</td><td>{{ r.room_type or t('common.dash') }}</td>
+              <td>{{ r.room or t('common.dash') }}</td><td>{{ r.status or t('common.dash') }}</td>
+              <td><span class="import-badge {{ r.state }}">{{ t('rooms.bk_state_' + r.state) }}</span></td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% if rows|length > 500 %}<div class="note">… {{ rows|length }}</div>{% endif %}
+    </div>
+    <div class="btn-row" style="margin-top:1rem">
+      <button class="btn primary" type="submit">{{ t('rooms.bk_commit') }}</button>
+      <a class="btn" href="/rooms/bookings">{{ t('rooms.bk_back') }}</a>
+    </div>
+  </form>
+{% endblock %}
