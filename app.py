@@ -1418,6 +1418,7 @@ def rooms_checkin():
         rm.check_in(
             int(f["room_id"]), f.get("guest_name", ""), f.get("check_in") or rm.today_str(),
             f.get("expected_departure") or None, _rooms_int(f.get("booking_id")), f.get("note", "").strip(),
+            f.get("passport", ""),
         )
         flash(t("rooms.flash_checked_in", g.lang), "success")
     except (ValueError, KeyError) as e:

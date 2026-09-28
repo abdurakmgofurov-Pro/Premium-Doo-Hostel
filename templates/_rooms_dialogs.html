@@ -18,6 +18,7 @@
         {% for b in unplaced_bookings %}<option value="{{ b.id }}" data-guest="{{ b.guest_name }}" data-departure="{{ b.departure or '' }}">{{ b.arrival }} · {{ b.guest_name }}{% if b.room_text %} · {{ b.room_text }}{% endif %}</option>{% endfor %}
       </select></div>
     <div class="field full"><label>{{ t('rooms.field_guest') }}</label><input type="text" name="guest_name" required></div>
+    <div class="field full"><label>{{ t('rooms.field_passport') }}</label><input type="text" name="passport" maxlength="24" autocomplete="off" placeholder="AA1234567" style="text-transform:uppercase"></div>
     <div class="field"><label>{{ t('rooms.field_checkin') }}</label><input type="date" name="check_in" value="{{ today }}" max="{{ today }}" required></div>
     <div class="field"><label>{{ t('rooms.field_departure') }}</label><input type="date" name="expected_departure"></div>
     <div class="field full"><label>{{ t('rooms.field_note') }}</label><input type="text" name="note"></div>

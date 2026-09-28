@@ -15,7 +15,7 @@ import re
 
 from db import get_conn
 
-REDACT = re.compile(r"pass|parol|secret|token|pwd|key", re.IGNORECASE)
+REDACT = re.compile(r"pass|parol|secret|token|pwd|key|pasport", re.IGNORECASE)   # "pass" pasport (passport) ni ham qamraydi
 SKIP_PREFIXES = ("/webhooks/exely/",)      # vebhukning o'z jurnali bor
 MAX_ROWS = 200_000
 MAX_FIELDS = 40

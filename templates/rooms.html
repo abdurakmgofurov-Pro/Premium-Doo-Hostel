@@ -66,7 +66,7 @@
       <div class="guest-list">
         {% for o in r.occupants %}
         <div class="guest-row">
-          <span class="g-name">{{ o.guest_name }}<span class="g-dates">{{ o.check_in }}{% if o.expected_departure %} → {{ o.expected_departure }}{% endif %}</span></span>
+          <span class="g-name">{{ o.guest_name }}<span class="g-dates">{{ o.check_in }}{% if o.expected_departure %} → {{ o.expected_departure }}{% endif %}{% if o.passport %} · {{ o.passport }}{% endif %}</span></span>
           {% if can_edit %}
           <span class="mini-actions">
             <button type="button" class="btn small" data-dialog="moveModal" title="{{ t('rooms.btn_move') }}"

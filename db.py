@@ -565,6 +565,8 @@ def init_db():
     if "exely_stay_id" not in stays_cols:
         conn.execute("ALTER TABLE stays ADD COLUMN exely_stay_id TEXT")
     conn.execute("CREATE INDEX IF NOT EXISTS idx_stays_exely ON stays(exely_stay_id)")
+    if "passport" not in stays_cols:
+        conn.execute("ALTER TABLE stays ADD COLUMN passport TEXT")
     # Exely vebhuklari: kelgan xom xabarlar (tekshirish va qayta ishlash tarixi)
     conn.execute("""
         CREATE TABLE IF NOT EXISTS webhook_events (

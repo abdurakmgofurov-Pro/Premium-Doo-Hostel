@@ -298,6 +298,7 @@ TR = {
     "rooms.no_guests": {"ru": "Никого нет", "en": "Nobody here", "uz": "Hech kim yo'q"},
     "rooms.dlg_checkin_title": {"ru": "Поселить гостя", "en": "Check in a guest", "uz": "Mehmonni joylashtirish"},
     "rooms.field_guest": {"ru": "Ф.И.О. гостя", "en": "Guest name", "uz": "Mehmon F.I.Sh."},
+    "rooms.field_passport": {"ru": "Серия и номер паспорта", "en": "Passport series and number", "uz": "Pasport seriyasi va raqami"},
     "rooms.field_checkin": {"ru": "Дата заезда", "en": "Check-in date", "uz": "Kelgan sana"},
     "rooms.field_departure": {"ru": "Планируемый выезд", "en": "Planned departure", "uz": "Ketish sanasi (reja)"},
     "rooms.field_note": {"ru": "Примечание", "en": "Note", "uz": "Izoh"},

@@ -230,7 +230,12 @@ def _validate_dates(check_in, expected_departure=None):
         raise ValueError("departure_before_arrival")
 
 
-def check_in(room_id, guest_name, check_in_date, expected_departure=None, booking_id=None, note=""):
+def clean_passport(value):
+    """Pasport seriyasi/raqami: bo'shliqlarsiz, KATTA harflarda, 20 belgigacha."""
+    return "".join((value or "").split()).upper()[:20]
+
+
+def check_in(room_id, guest_name, check_in_date, expected_departure=None, booking_id=None, note="", passport=""):
     guest_name = (guest_name or "").strip()
     if not guest_name:
         raise ValueError("invalid_input")
@@ -253,8 +258,8 @@ def check_in(room_id, guest_name, check_in_date, expected_departure=None, bookin
                 "SELECT 1 FROM stays WHERE id=? AND check_out IS NULL", (bk["stay_id"],)).fetchone():
             _fail(conn, "booking_already_placed")
     cur = conn.execute(
-        "INSERT INTO stays (room_id, guest_name, check_in, expected_departure, booking_id, note) VALUES (?,?,?,?,?,?)",
-        (room_id, guest_name, check_in_date, expected_departure or None, booking_id or None, note),
+        "INSERT INTO stays (room_id, guest_name, check_in, expected_departure, booking_id, note, passport) VALUES (?,?,?,?,?,?,?)",
+        (room_id, guest_name, check_in_date, expected_departure or None, booking_id or None, note, clean_passport(passport) or None),
     )
     stay_id = cur.lastrowid
     if room["manual_status"] == "cleaning":
@@ -313,8 +318,8 @@ def move_stay(stay_id, new_room_id, move_date=None):
         conn.execute("UPDATE stays SET check_out=? WHERE id=?", (move_date, stay_id))
         note = ((stay["note"] or "") + f" [ko'chirildi: {old_room['number'] if old_room else '?'} -> {room['number']}]").strip()
         cur = conn.execute(
-            "INSERT INTO stays (room_id, guest_name, check_in, expected_departure, booking_id, note) VALUES (?,?,?,?,?,?)",
-            (new_room_id, stay["guest_name"], move_date, stay["expected_departure"], stay["booking_id"], note),
+            "INSERT INTO stays (room_id, guest_name, check_in, expected_departure, booking_id, note, passport) VALUES (?,?,?,?,?,?,?)",
+            (new_room_id, stay["guest_name"], move_date, stay["expected_departure"], stay["booking_id"], note, stay["passport"]),
         )
         new_id = cur.lastrowid
         if stay["booking_id"]:
