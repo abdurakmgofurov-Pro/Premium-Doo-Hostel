@@ -17,8 +17,8 @@
     <div class="role-card">
       <div class="rc-top">
         <div>
-          <div class="rc-name">{{ r.name }}</div>
-          <div class="rc-desc">{{ r.description or '' }}</div>
+          <div class="rc-name">{{ r.name|t_role }}</div>
+          <div class="rc-desc">{{ (r.description|t_role_desc) if r.description else '' }}</div>
         </div>
         <div class="rc-actions">
           <button type="button" class="rc-edit" data-role-id="{{ r.id }}" title="{{ t('roles.edit') }}">✎</button>

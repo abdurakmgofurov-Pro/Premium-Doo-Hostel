@@ -30,7 +30,7 @@
         <tbody>
           {% for r in rows %}
           <tr>
-            <td>{{ r.tax_name }}</td>
+            <td>{{ t_cat(r.tax_name) }}</td>
             <td class="num">{{ r.opening|money }}</td>
             <td class="num">{{ r.accrued|money }}</td>
             <td class="num">{{ r.paid|money }}</td>
@@ -41,7 +41,7 @@
               {% if locked %}
               <span class="tag role-custom">🔒</span>
               {% else %}
-              <button type="button" class="btn tax-edit" data-name="{{r.tax_name}}" data-accrued="{{r.accrued}}" data-paid="{{r.paid}}">✎</button>
+              <button type="button" class="btn tax-edit" data-name="{{r.tax_name}}" data-label="{{ t_cat(r.tax_name) }}" data-accrued="{{r.accrued}}" data-paid="{{r.paid}}">✎</button>
               {% if can_delete and (r.accrued or r.paid) %}
               <form method="post" action="/taxes/delete" data-confirm="{{ t('taxes.delete_confirm') }}">
                 <input type="hidden" name="year" value="{{year}}">

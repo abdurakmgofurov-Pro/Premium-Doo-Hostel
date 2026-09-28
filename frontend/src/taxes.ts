@@ -11,7 +11,7 @@ import "./types";
       (document.getElementById("taxNameInput") as HTMLInputElement).value = btn.getAttribute("data-name") || "";
       (document.getElementById("taxAccruedInput") as HTMLInputElement).value = btn.getAttribute("data-accrued") || "";
       (document.getElementById("taxPaidInput") as HTMLInputElement).value = btn.getAttribute("data-paid") || "";
-      title.textContent = btn.getAttribute("data-name");
+      title.textContent = btn.getAttribute("data-label") || btn.getAttribute("data-name");
       modal.showModal();
     });
   });

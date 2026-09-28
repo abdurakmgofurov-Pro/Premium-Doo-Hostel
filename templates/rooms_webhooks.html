@@ -22,7 +22,7 @@
           {% for e in events %}
           <tr>
             <td class="mono">{{ e.received_at }}</td>
-            <td>{{ e.status }}{% if e.note %}<span class="g-dates">{{ e.note }}</span>{% endif %}</td>
+            <td>{{ t('rooms.wh_st_' ~ e.status) }}{% if e.note %}<span class="g-dates">{{ e.note|wh_note }}</span>{% endif %}</td>
             <td class="mono">{{ (e.numbers or '')|replace(',', ', ') or t('common.dash') }}</td>
             <td><details><summary>{{ (e.body or '')[:80] }}</summary><pre style="white-space:pre-wrap;word-break:break-all;font-size:.72rem">{{ e.body }}</pre></details></td>
           </tr>

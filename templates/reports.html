@@ -299,7 +299,7 @@
               <summary>{{ t('f2.cat_breakdown_toggle') }}</summary>
               <div class="breakdown-list">
                 {% for c in tannarx_breakdown %}
-                <div class="breakdown-row"><span>{{ c.category }}</span><span>{{ to_display(c.uzs, c.usd, rate)|money }}</span></div>
+                <div class="breakdown-row"><span>{{ t_cat(c.category) }}</span><span>{{ to_display(c.uzs, c.usd, rate)|money }}</span></div>
                 {% else %}
                 <div class="breakdown-row"><span>{{ t('common.dash') }}</span><span>—</span></div>
                 {% endfor %}
@@ -313,7 +313,7 @@
               <summary>{{ t('f2.cat_breakdown_toggle') }}</summary>
               <div class="breakdown-list">
                 {% for c in sotish_breakdown %}
-                <div class="breakdown-row"><span>{{ c.category }}</span><span>{{ to_display(c.uzs, c.usd, rate)|money }}</span></div>
+                <div class="breakdown-row"><span>{{ t_cat(c.category) }}</span><span>{{ to_display(c.uzs, c.usd, rate)|money }}</span></div>
                 {% else %}
                 <div class="breakdown-row"><span>{{ t('common.dash') }}</span><span>—</span></div>
                 {% endfor %}
@@ -327,7 +327,7 @@
               <summary>{{ t('f2.cat_breakdown_toggle') }}</summary>
               <div class="breakdown-list">
                 {% for c in mamuriy_breakdown %}
-                <div class="breakdown-row"><span>{{ c.category }}</span><span>{{ to_display(c.uzs, c.usd, rate)|money }}</span></div>
+                <div class="breakdown-row"><span>{{ t_cat(c.category) }}</span><span>{{ to_display(c.uzs, c.usd, rate)|money }}</span></div>
                 {% else %}
                 <div class="breakdown-row"><span>{{ t('common.dash') }}</span><span>—</span></div>
                 {% endfor %}
@@ -341,7 +341,7 @@
               <summary>{{ t('f2.cat_breakdown_toggle') }}</summary>
               <div class="breakdown-list">
                 {% for c in boshqa_op_breakdown %}
-                <div class="breakdown-row"><span>{{ c.category }}</span><span>{{ to_display(c.uzs, c.usd, rate)|money }}</span></div>
+                <div class="breakdown-row"><span>{{ t_cat(c.category) }}</span><span>{{ to_display(c.uzs, c.usd, rate)|money }}</span></div>
                 {% else %}
                 <div class="breakdown-row"><span>{{ t('common.dash') }}</span><span>—</span></div>
                 {% endfor %}
@@ -355,7 +355,7 @@
               <summary>{{ t('f2.cat_breakdown_toggle') }}</summary>
               <div class="breakdown-list">
                 {% for c in moliyaviy_breakdown %}
-                <div class="breakdown-row"><span>{{ c.category }}</span><span>{{ to_display(c.uzs, c.usd, rate)|money }}</span></div>
+                <div class="breakdown-row"><span>{{ t_cat(c.category) }}</span><span>{{ to_display(c.uzs, c.usd, rate)|money }}</span></div>
                 {% else %}
                 <div class="breakdown-row"><span>{{ t('common.dash') }}</span><span>—</span></div>
                 {% endfor %}
@@ -369,7 +369,7 @@
               <summary>{{ t('f2.cat_breakdown_toggle') }}</summary>
               <div class="breakdown-list">
                 {% for c in soliq_breakdown %}
-                <div class="breakdown-row"><span>{{ c.category }}</span><span>{{ to_display(c.uzs, c.usd, rate)|money }}</span></div>
+                <div class="breakdown-row"><span>{{ t_cat(c.category) }}</span><span>{{ to_display(c.uzs, c.usd, rate)|money }}</span></div>
                 {% else %}
                 <div class="breakdown-row"><span>{{ t('common.dash') }}</span><span>—</span></div>
                 {% endfor %}

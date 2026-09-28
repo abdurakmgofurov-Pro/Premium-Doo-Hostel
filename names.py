@@ -81,3 +81,53 @@ def canon_rate_plan(name):
 def label_rate_plan(name, lang):
     key = _PLAN_BY_CANON.get(name) if isinstance(name, str) else None
     return _PLANS[key][1].get(lang, name) if key else name
+
+
+# ------------------------------------------------------------------ to'lov usuli, kanal, bron holati
+# Kalit — aggregate.py'dagi kanonik (o'zbekcha) nom; ko'rsatishda tilga o'giriladi. Boshqa nomlar o'zgarishsiz.
+_PAYMENT = {
+    "Karta": {"ru": "Карта", "en": "Card"},
+    "Naqd pul": {"ru": "Наличные", "en": "Cash"},
+    "Tashqi tizim (OTA/onlayn to'lov)": {"ru": "Внешняя система (OTA/онлайн-оплата)", "en": "External system (OTA/online payment)"},
+    "Bank o'tkazmasi": {"ru": "Банковский перевод", "en": "Bank transfer"},
+    "Kompaniya hisobidan": {"ru": "Со счёта компании", "en": "Company account"},
+    "Vaucher": {"ru": "Ваучер", "en": "Voucher"},
+    "Bonus/loyalty": {"ru": "Бонусы / лояльность", "en": "Bonus / loyalty"},
+    "Kelganda to'lanadi (joyida)": {"ru": "Оплата при заезде (на месте)", "en": "Pay on arrival (at property)"},
+    "Bank kartasi (kafolat)": {"ru": "Банковская карта (гарантия)", "en": "Bank card (guarantee)"},
+}
+_CHANNEL = {
+    "Mobil sayt": {"ru": "Мобильный сайт", "en": "Mobile site"},
+    "Rasmiy sayt": {"ru": "Официальный сайт", "en": "Official website"},
+    "Stoykadan (to'g'ridan-to'g'ri)": {"ru": "Со стойки (напрямую)", "en": "Front desk (direct)"},
+    "At front desk": {"ru": "На стойке", "en": "At front desk", "uz": "Resepshnda"},
+}
+_BOOKING_STATUS = {
+    "Confirmed": {"ru": "Подтверждена", "en": "Confirmed", "uz": "Tasdiqlangan"},
+    "New": {"ru": "Подтверждена", "en": "Confirmed", "uz": "Tasdiqlangan"},
+    "CheckedIn": {"ru": "Проживает", "en": "Checked in", "uz": "Joylashgan"},
+    "CheckedOut": {"ru": "Выехал", "en": "Checked out", "uz": "Chiqib ketgan"},
+    "Cancelled": {"ru": "Отменена", "en": "Cancelled", "uz": "Bekor qilingan"},
+    "Active": {"ru": "Активна", "en": "Active", "uz": "Faol"},
+}
+
+
+def _label(table, name, lang):
+    if not isinstance(name, str):
+        return name
+    return (table.get(name.strip()) or {}).get(lang) or name
+
+
+def label_payment_method(name, lang):
+    return _label(_PAYMENT, name, lang)
+
+
+def label_channel(name, lang):
+    return _label(_CHANNEL, name, lang)
+
+
+def label_booking_status(text, lang):
+    """«Confirmed / CheckedIn» -> «Подтверждена / Проживает». Tanilmagan bo'laklar o'zgarishsiz."""
+    if not isinstance(text, str) or not text:
+        return text
+    return " / ".join(_label(_BOOKING_STATUS, part, lang) for part in text.split(" / "))

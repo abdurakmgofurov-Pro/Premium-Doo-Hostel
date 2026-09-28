@@ -13,7 +13,7 @@
     <div class="field"><label>{{ t('users.role') }}</label>
       <select name="role_id" required>
         {% for r in roles %}
-        <option value="{{r.id}}">{{ r.name }}</option>
+        <option value="{{r.id}}">{{ r.name|t_role }}</option>
         {% endfor %}
       </select>
     </div>
@@ -32,7 +32,7 @@
           <td>{{usr.username}}</td>
           <td>{{usr.full_name or t('common.dash')}}</td>
           <td><span class="tag role-{{ 'super_admin' if usr.role == 'super_admin' else 'custom' }}">
-            {% if usr.role == 'super_admin' %}{{ t('role.super_admin') }}{% else %}{{ usr.role_name or t('common.dash') }}{% endif %}
+            {% if usr.role == 'super_admin' %}{{ t('role.super_admin') }}{% else %}{{ (usr.role_name|t_role) if usr.role_name else t('common.dash') }}{% endif %}
           </span></td>
           <td>{{ t('users.active') if usr.is_active else t('users.inactive') }}</td>
           <td>
@@ -62,7 +62,7 @@
     <div class="field"><label>{{ t('users.role') }}</label>
       <select name="role_id" id="editRoleId" required>
         {% for r in roles %}
-        <option value="{{r.id}}">{{ r.name }}</option>
+        <option value="{{r.id}}">{{ r.name|t_role }}</option>
         {% endfor %}
       </select>
     </div>

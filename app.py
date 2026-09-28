@@ -50,7 +50,7 @@ from hostel_bookings_import import parse_bookings_xlsx
 import rooms as rm
 from i18n import (
     LANGS, LANG_LABELS, DEFAULT_LANG, t, t_all, t_group, t_cat,
-    t_cash_section, t_cash_cat, t_month,
+    t_cash_section, t_cash_cat, t_month, t_role, t_role_desc, t_unit,
 )
 from report_excel import build_excel_report, build_cash_excel_report
 
@@ -119,6 +119,28 @@ app.jinja_env.filters["t_group"] = lambda key: t_group(key, g.lang)
 app.jinja_env.filters["t_cash_section"] = lambda key: t_cash_section(key, g.lang)
 app.jinja_env.filters["t_cash_cat"] = lambda name: t_cash_cat(name, g.lang)
 app.jinja_env.filters["t_month"] = lambda n: t_month(n, g.lang)
+app.jinja_env.filters["t_role"] = lambda name: t_role(name, g.lang)
+app.jinja_env.filters["t_role_desc"] = lambda text: t_role_desc(text, g.lang)
+app.jinja_env.filters["t_unit"] = lambda unit: t_unit(unit, g.lang)
+app.jinja_env.filters["pm_label"] = lambda name: names.label_payment_method(name, g.lang)
+app.jinja_env.filters["ch_label"] = lambda name: names.label_channel(name, g.lang)
+app.jinja_env.filters["note_label"] = lambda note: (
+    " · ".join([names.label_channel(note.split(" · ")[0], g.lang)] + note.split(" · ")[1:]) if note else note)
+_WH_TOKENS = (("rows:", "rooms.wh_n_rows"), ("qatorlar:", "rooms.wh_n_rows"), ("stays:", "rooms.wh_n_stays"),
+              ("joylashtirish:", "rooms.wh_n_stays"), ("failed:", "rooms.wh_n_failed"), ("yuklanmadi:", "rooms.wh_n_failed"),
+              ("no booking number", "rooms.wh_n_nobooking"), ("bron raqami topilmadi", "rooms.wh_n_nobooking"))
+
+
+def wh_note(note):
+    """Vebhuk hodisasi izohidagi (yangi — inglizcha, eski — o'zbekcha) bo'laklarni foydalanuvchi tiliga o'giradi."""
+    out = note or ""
+    for token, key in _WH_TOKENS:
+        out = out.replace(token, t(key, g.lang) + (":" if token.endswith(":") else ""))
+    return out.replace("::", ":")
+
+
+app.jinja_env.filters["wh_note"] = wh_note
+app.jinja_env.filters["bk_status"] = lambda text: names.label_booking_status(text, g.lang)
 if not SECRET_KEY_PATH.exists():
     SECRET_KEY_PATH.write_text(secrets.token_hex(32), encoding="utf-8")
 app.secret_key = SECRET_KEY_PATH.read_text(encoding="utf-8").strip()
@@ -210,7 +232,7 @@ def refresh_once():
         output_dir.mkdir(parents=True, exist_ok=True)
         out_path = output_dir / f"Moliyaviy_hisobot_{datetime.now():%Y-%m-%d_%H%M}.xlsx"
         manual = db.summarize_transactions()
-        build_excel_report(agg, manual, out_path)
+        build_excel_report(agg, manual, out_path, DEFAULT_LANG)
 
         with STATE_LOCK:
             STATE["status"] = "ok"
@@ -267,7 +289,7 @@ def poll_hostel_bookings():
     found, rows, failed, stays = xs.poll_modified(_exely_client(), since, now)
     if not failed:
         db.set_setting("exely_bookings_last_poll", now.isoformat(timespec="seconds"))
-    db.set_setting("exely_bookings_poll_info", f"{now:%Y-%m-%d %H:%M} — {found} / {rows}" + (f" / xato: {len(failed)}" if failed else "")
+    db.set_setting("exely_bookings_poll_info", f"{now:%Y-%m-%d %H:%M} — {found} / {rows}" + (f" / err: {len(failed)}" if failed else "")
                     + (f" · {xs.stays_summary(stays)}" if stays else ""))
     log(f"Xonalar bronlari zaxira tekshiruvi: topilgan {found}, qatorlar {rows}, yuklanmagan {len(failed)}")
 
@@ -379,6 +401,8 @@ def localize_agg(data, lang):
     out = dict(data)
     out["by_room_type"] = {names.label_room_type(k, lang): v for k, v in (data.get("by_room_type") or {}).items()}
     out["by_rate_plan"] = {names.label_rate_plan(k, lang): v for k, v in (data.get("by_rate_plan") or {}).items()}
+    out["by_channel"] = {names.label_channel(k, lang): v for k, v in (data.get("by_channel") or {}).items()}
+    out["by_payment_method"] = {names.label_payment_method(k, lang): v for k, v in (data.get("by_payment_method") or {}).items()}
     return out
 
 
@@ -438,6 +462,7 @@ def inject_user():
         "t_cash_section": lambda key: t_cash_section(key, g.lang),
         "t_cash_cat": lambda name: t_cash_cat(name, g.lang),
         "t_month": lambda n: t_month(n, g.lang),
+        "t_role": lambda name: t_role(name, g.lang),
         "LANG": g.lang,
         "LANGS": LANGS,
         "LANG_LABELS": LANG_LABELS,
@@ -808,10 +833,15 @@ def api_refresh():
 @permission_required("reports", "export")
 def download_excel():
     with STATE_LOCK:
-        path = STATE["excel_path"]
-    if not path:
-        return jsonify({"error": "Hali hisobot tayyor emas"}), 404
-    return send_file(path, as_attachment=True)
+        agg = STATE["data"]
+    if not agg:
+        return jsonify({"error": t("dash.report_not_ready", g.lang)}), 404
+    out_dir = BASE_DIR / "reports"
+    out_dir.mkdir(exist_ok=True)
+    # Hisobot foydalanuvchining tilida shu zahoti tuziladi (avtomatik yangilanish faylini emas)
+    path = out_dir / f"Moliyaviy_hisobot_{datetime.now():%Y-%m-%d_%H%M%S}_{g.lang}.xlsx"
+    build_excel_report(agg, db.summarize_transactions(), path, g.lang)
+    return send_file(str(path), as_attachment=True)
 
 
 # ---- Bronlar ----
@@ -1309,7 +1339,7 @@ def cash_export():
     out_dir = BASE_DIR / "reports"
     out_dir.mkdir(exist_ok=True)
     path = out_dir / f"Kassa_Bank_{datetime.now():%Y%m%d_%H%M%S}.xlsx"
-    build_cash_excel_report(rows, str(path))
+    build_cash_excel_report(rows, str(path), g.lang)
     return send_file(str(path), as_attachment=True, download_name="Kassa_Bank.xlsx")
 
 
@@ -1763,13 +1793,13 @@ def _process_webhook(event_id, numbers, types=""):
     pre = (types + "; ") if types else ""
     try:
         if not numbers:
-            xs.finish_event(event_id, "ignored", pre + "bron raqami topilmadi")
+            xs.finish_event(event_id, "ignored", pre + "no booking number")
             return
         count, failed, stays = xs.sync_reservations(_exely_client(), numbers)
         summ = xs.stays_summary(stays)
         xs.finish_event(event_id, "error" if failed else "processed",
-                        pre + f"qatorlar: {count}" + (f"; joylashtirish: {summ}" if summ else "")
-                        + (f"; yuklanmadi: {', '.join(failed)}" if failed else ""))
+                        pre + f"rows: {count}" + (f"; stays: {summ}" if summ else "")
+                        + (f"; failed: {', '.join(failed)}" if failed else ""))
     except Exception as e:                      # noqa: BLE001
         log("EXELY VEBHUK QAYTA ISHLASH XATOSI:\n" + traceback.format_exc())
         xs.finish_event(event_id, "error", pre + str(e))
@@ -1947,8 +1977,8 @@ def rooms_chart_booking(booking_id):
         "adults": b.get("adults") if b.get("adults") is not None else flat.get("adults"),
         "children": b.get("children") if b.get("children") is not None else flat.get("children"),
         "services": [s["name"] for s in (flat.get("room_services") or [])],
-        "source": flat.get("channel_name") or (b["note"] or "").split(" · ")[0],
-        "guarantee": flat.get("payment_method") or "",
+        "source": names.label_channel(flat.get("channel_name") or (b["note"] or "").split(" · ")[0], g.lang),
+        "guarantee": names.label_payment_method(flat.get("payment_method") or "", g.lang),
         "comment": (b["note"] or "").partition(" · ")[2],
         "total": b.get("total_amount"), "paid": b.get("paid_amount"), "refund": b.get("refund_amount"),
         "balance": rm._balance(b), "currency": b.get("currency") or flat.get("currency") or "",

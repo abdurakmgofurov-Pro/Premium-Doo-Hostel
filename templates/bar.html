@@ -26,7 +26,7 @@
             {% if p.stock_qty <= 0 %}disabled{% endif %}>
             <div class="pk-name">{{p.name}}</div>
             <div class="pk-price">{{ p.sale_price|money }} {{p.currency}}</div>
-            <div class="pk-stock">{% if p.stock_qty > 0 %}{{ t('bar.stock') }}: {{ p.stock_qty|qty }} {{p.unit}}{% else %}{{ t('bar.out_of_stock') }}{% endif %}</div>
+            <div class="pk-stock">{% if p.stock_qty > 0 %}{{ t('bar.stock') }}: {{ p.stock_qty|qty }} {{ p.unit|t_unit }}{% else %}{{ t('bar.out_of_stock') }}{% endif %}</div>
           </button>
           {% endfor %}
         </div>

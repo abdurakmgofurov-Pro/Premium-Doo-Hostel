@@ -46,7 +46,7 @@
           <td>{{r.number}}</td>
           <td>{{ t('bookings.status_active') if r.status == "Active" else t('bookings.status_cancelled') }}</td>
           <td>{{r.guest or t('common.dash')}}</td>
-          <td>{{r.channel_name}}</td>
+          <td>{{ r.channel_name|ch_label }}</td>
           <td>{{r.currency}}</td>
           <td class="num">{{r.revenue|money}}</td>
           <td class="num">{{r.prepaid|money}}</td>
@@ -54,7 +54,7 @@
           <td>{{ (r.room_type|type_label) or t('common.dash') }}</td>
           <td class="num">{{ r.nights if r.nights is not none else t('common.dash') }}</td>
           <td>{{ r.adults }}{% if r.children %} + {{ r.children }}👶{% endif %}</td>
-          <td>{{r.payment_method or t('common.dash')}}</td>
+          <td>{{ (r.payment_method|pm_label) or t('common.dash') }}</td>
         </tr>
         <tr class="booking-detail" hidden>
           <td colspan="13">

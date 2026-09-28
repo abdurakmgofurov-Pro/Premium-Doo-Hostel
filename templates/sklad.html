@@ -38,7 +38,7 @@
         {% for p in products %}
         <div class="product-card">
           <div class="pc-name">{{p.name}}</div>
-          <div class="pc-unit">{{p.unit}} · {{p.currency}}</div>
+          <div class="pc-unit">{{ p.unit|t_unit }} · {{p.currency}}</div>
           <div class="pc-stock">{{ t('bar.stock') }}: {{ p.stock_qty|qty }}</div>
           <div class="pc-stats">
             <div class="k">{{ t('bar.cost_price') }}</div><div class="v">{{ p.cost_price|money }}</div>
@@ -209,7 +209,7 @@
             <div class="field grow"><label>{{ t('bar.product') }}</label>
               <select name="product_id[]">
                 {% for p in products %}
-                <option value="{{p.id}}" data-price="{{p.cost_price}}" data-currency="{{p.currency}}">{{p.name}} ({{p.unit}}) — {{ t('bar.stock') }}: {{ p.stock_qty|qty }}</option>
+                <option value="{{p.id}}" data-price="{{p.cost_price}}" data-currency="{{p.currency}}">{{p.name}} ({{ p.unit|t_unit }}) — {{ t('bar.stock') }}: {{ p.stock_qty|qty }}</option>
                 {% endfor %}
               </select>
             </div>

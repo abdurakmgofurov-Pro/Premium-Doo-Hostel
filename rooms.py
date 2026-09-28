@@ -316,7 +316,7 @@ def move_stay(stay_id, new_room_id, move_date=None):
         new_id = stay_id
     else:
         conn.execute("UPDATE stays SET check_out=? WHERE id=?", (move_date, stay_id))
-        note = ((stay["note"] or "") + f" [ko'chirildi: {old_room['number'] if old_room else '?'} -> {room['number']}]").strip()
+        note = ((stay["note"] or "") + f" [⇄ {old_room['number'] if old_room else '?'} → {room['number']}]").strip()
         cur = conn.execute(
             "INSERT INTO stays (room_id, guest_name, check_in, expected_departure, booking_id, note, passport) VALUES (?,?,?,?,?,?,?)",
             (new_room_id, stay["guest_name"], move_date, stay["expected_departure"], stay["booking_id"], note, stay["passport"]),

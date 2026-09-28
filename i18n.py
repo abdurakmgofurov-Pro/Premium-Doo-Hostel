@@ -250,7 +250,7 @@ TR = {
     "roles.module_reports": {"ru": "Отчёты", "en": "Reports", "uz": "Hisobotlar"},
     "roles.module_cash": {"ru": "Касса/Банк", "en": "Cash & Bank", "uz": "Kassa/Bank"},
     "roles.module_bar": {"ru": "Бар/Склад", "en": "Bar/Warehouse", "uz": "Bar/Sklad"},
-    "roles.module_ledger": {"ru": "Дт/Кт", "en": "Ledger (Dt/Kt)", "uz": "Дт/Кт"},
+    "roles.module_ledger": {"ru": "Дт/Кт", "en": "Ledger (Dt/Kt)", "uz": "Dt/Kt"},
     "roles.module_services": {"ru": "Услуги", "en": "Services", "uz": "Xizmatlar"},
     "roles.module_taxes": {"ru": "Налоги", "en": "Taxes", "uz": "Nalog"},
     "nav.rooms": {"ru": "Комнаты", "en": "Rooms", "uz": "Xonalar"},
@@ -432,6 +432,67 @@ TR = {
     "rooms.wh_th_numbers": {"ru": "Брони", "en": "Bookings", "uz": "Bronlar"},
     "rooms.wh_th_body": {"ru": "Сообщение", "en": "Message", "uz": "Xabar"},
     "rooms.wh_empty": {"ru": "Событий пока нет.", "en": "No events yet.", "uz": "Hodisalar hali kelmagan."},
+    "xl.sheet_summary": {"ru": "Сводка", "en": "Summary", "uz": "Xulosa"},
+    "xl.sheet_channels": {"ru": "По каналам", "en": "By channel", "uz": "Kanallar bo'yicha"},
+    "xl.sheet_months": {"ru": "По месяцам", "en": "By month", "uz": "Oylar bo'yicha"},
+    "xl.sheet_bookings": {"ru": "Все брони", "en": "All bookings", "uz": "Barcha bronlar"},
+    "xl.sheet_forma2": {"ru": "Форма 2", "en": "Forma 2", "uz": "Forma 2"},
+    "xl.sheet_expenses": {"ru": "Расходы", "en": "Expenses", "uz": "Xarajatlar"},
+    "xl.sheet_cash": {"ru": "Касса-Банк", "en": "Cash-Bank", "uz": "Kassa-Bank"},
+    "xl.title": {"ru": "Premium Doo Hostel — Финансовый отчёт (Exely API)", "en": "Premium Doo Hostel — Financial report (Exely API)", "uz": "Premium Doo Hostel — Moliyaviy hisobot (Exely API)"},
+    "xl.prepared": {"ru": "Подготовлен: {dt} | Всего броней: {total} (активных: {active}, отменённых: {cancelled}, {rate}%)", "en": "Prepared: {dt} | Total bookings: {total} (active: {active}, cancelled: {cancelled}, {rate}%)", "uz": "Tayyorlangan: {dt} | Jami bronlar: {total} (faol: {active}, bekor qilingan: {cancelled}, {rate}%)"},
+    "xl.h_currency": {"ru": "Валюта", "en": "Currency", "uz": "Valyuta"},
+    "xl.h_bookings_count": {"ru": "Количество броней", "en": "Bookings", "uz": "Bronlar soni"},
+    "xl.h_total_revenue": {"ru": "Общая выручка (стоимость броней)", "en": "Total revenue (booking value)", "uz": "Jami tushum (bron qiymati)"},
+    "xl.h_total_prepaid": {"ru": "Всего предоплачено", "en": "Total prepaid", "uz": "Jami oldindan to'langan"},
+    "xl.manual_title": {"ru": "Введённые вручную расходы / расчёты с компаниями:", "en": "Manually entered expenses / settlements with companies:", "uz": "Qo'lda kiritilgan xarajatlar / kompaniyalar bilan hisob-kitob:"},
+    "xl.income": {"ru": "Доход", "en": "Income", "uz": "Daromad"},
+    "xl.expense": {"ru": "Расход", "en": "Expense", "uz": "Xarajat"},
+    "xl.unpaid_expense": {"ru": "Неоплаченный расход", "en": "Unpaid expense", "uz": "To'lanmagan xarajat"},
+    "xl.h_channel": {"ru": "Канал", "en": "Channel", "uz": "Kanal"},
+    "xl.h_total": {"ru": "Общая выручка", "en": "Total revenue", "uz": "Jami tushum"},
+    "xl.h_month": {"ru": "Месяц (check-in)", "en": "Month (check-in)", "uz": "Oy (check-in)"},
+    "xl.h_uzs_count": {"ru": "Брони UZS", "en": "UZS bookings", "uz": "UZS bronlar"},
+    "xl.h_uzs_sum": {"ru": "Сумма UZS", "en": "UZS amount", "uz": "UZS summa"},
+    "xl.h_usd_count": {"ru": "Брони USD", "en": "USD bookings", "uz": "USD bronlar"},
+    "xl.h_usd_sum": {"ru": "Сумма USD", "en": "USD amount", "uz": "USD summa"},
+    "xl.h_number": {"ru": "№ брони", "en": "Booking №", "uz": "Bron raqami"},
+    "xl.h_status": {"ru": "Статус", "en": "Status", "uz": "Holat"},
+    "xl.h_guest": {"ru": "Гость", "en": "Guest", "uz": "Mehmon"},
+    "xl.h_revenue": {"ru": "Выручка", "en": "Revenue", "uz": "Tushum"},
+    "xl.h_prepaid": {"ru": "Предоплачено", "en": "Prepaid", "uz": "Oldindan to'langan"},
+    "xl.h_created": {"ru": "Создана", "en": "Created", "uz": "Yaratilgan"},
+    "xl.h_checkin": {"ru": "Check-in", "en": "Check-in", "uz": "Check-in"},
+    "xl.f2_title": {"ru": "Форма 2 — Отчёт о финансовых результатах (внутренний, управленческий)", "en": "Forma 2 — Statement of financial results (internal, management)", "uz": "Forma 2 — Moliyaviy natijalar to'g'risidagi hisobot (ichki, boshqaruv hisoboti)"},
+    "xl.f2_indicator": {"ru": "Показатель", "en": "Indicator", "uz": "Ko'rsatkich"},
+    "xl.h_date": {"ru": "Дата", "en": "Date", "uz": "Sana"},
+    "xl.h_type": {"ru": "Тип", "en": "Type", "uz": "Turi"},
+    "xl.h_category": {"ru": "Категория", "en": "Category", "uz": "Kategoriya"},
+    "xl.h_f2group": {"ru": "Группа Формы 2", "en": "Forma 2 group", "uz": "Forma 2 guruhi"},
+    "xl.h_counterparty": {"ru": "Компания/контрагент", "en": "Company/counterparty", "uz": "Kompaniya/kontragent"},
+    "xl.h_description": {"ru": "Описание", "en": "Description", "uz": "Tavsif"},
+    "xl.h_amount": {"ru": "Сумма", "en": "Amount", "uz": "Summa"},
+    "xl.h_state": {"ru": "Статус", "en": "Status", "uz": "Holati"},
+    "xl.st_paid": {"ru": "Оплачено", "en": "Paid", "uz": "To'langan"},
+    "xl.st_unpaid": {"ru": "Не оплачено", "en": "Unpaid", "uz": "To'lanmagan"},
+    "xl.h_account": {"ru": "Счёт", "en": "Account", "uz": "Hisob"},
+    "xl.h_label": {"ru": "Название статьи", "en": "Item name", "uz": "Statya nomi"},
+    "xl.h_cf_code": {"ru": "Код (Cash Flow)", "en": "Code (Cash Flow)", "uz": "Kod (Cash Flow)"},
+    "xl.src_kassa": {"ru": "Касса", "en": "Cash", "uz": "Kassa"},
+    "xl.src_bank": {"ru": "Банк", "en": "Bank", "uz": "Bank"},
+    "xl.note": {"ru": "Примечание: «Выручка» — стоимость брони в Exely без налога (priceBeforeTax, чистая выручка), «Предоплачено» — сумма, внесённая гостем заранее. Отменённые (Cancelled) брони в выручку не включены. Расходы и расчёты с компаниями вводятся вручную (страница «Расходы» в дашборде).", "en": "Note: “Revenue” is the booking value in Exely before tax (priceBeforeTax, net revenue); “Prepaid” is the amount paid in advance by the guest. Cancelled bookings are not included in revenue. Expenses and settlements with companies are entered manually (the “Expenses” page in the dashboard).", "uz": "Eslatma: 'Tushum' — Exely'dagi bron qiymati soliqsiz (priceBeforeTax, sof tushum), 'Oldindan to'langan' — guest tomonidan oldindan kiritilgan summa. Bekor qilingan (Cancelled) bronlar tushumga kiritilmagan. Xarajatlar/kompaniyalar bilan hisob-kitob qo'lda kiritiladi (dashboard'dagi \"Xarajatlar\" sahifasi orqali)."},
+    "dash.report_not_ready": {"ru": "Отчёт ещё не готов", "en": "The report is not ready yet", "uz": "Hisobot hali tayyor emas"},
+    "app.title_suffix": {"ru": "Финансовая система", "en": "Financial system", "uz": "Moliyaviy tizim"},
+    "login.page_title": {"ru": "Вход", "en": "Sign in", "uz": "Kirish"},
+    "rooms.wh_st_received": {"ru": "получено", "en": "received", "uz": "qabul qilindi"},
+    "rooms.wh_st_processed": {"ru": "обработано", "en": "processed", "uz": "qayta ishlandi"},
+    "rooms.wh_st_ignored": {"ru": "пропущено", "en": "ignored", "uz": "e'tiborga olinmadi"},
+    "rooms.wh_st_error": {"ru": "ошибка", "en": "error", "uz": "xato"},
+    "rooms.wh_n_rows": {"ru": "строк", "en": "rows", "uz": "qatorlar"},
+    "rooms.wh_n_stays": {"ru": "размещение", "en": "stays", "uz": "joylashtirish"},
+    "rooms.wh_n_failed": {"ru": "не загружены", "en": "failed", "uz": "yuklanmadi"},
+    "rooms.wh_n_nobooking": {"ru": "номер брони не найден", "en": "no booking number found", "uz": "bron raqami topilmadi"},
+    "rooms.wh_poll_err": {"ru": "ошибок", "en": "errors", "uz": "xato"},
     "rooms.src_front_desk": {"ru": "На стойке", "en": "At front desk", "uz": "Resepshnda"},
     "rooms.tip_stay": {"ru": "Проживание", "en": "Stay", "uz": "Turish"},
     "rooms.tip_total": {"ru": "Сумма по счетам номера", "en": "Room charges total", "uz": "Xona hisobi bo'yicha summa"},
@@ -597,7 +658,7 @@ TR = {
 
     "nav.cash": {"ru": "Банк и Касса", "en": "Bank & Cash", "uz": "Kassa/Bank"},
     "nav.bar": {"ru": "Мини-бар", "en": "Mini-bar", "uz": "Bar"},
-    "nav.ledger": {"ru": "Дт/Кт", "en": "Dt/Kt", "uz": "Дт/Кт"},
+    "nav.ledger": {"ru": "Дт/Кт", "en": "Dt/Kt", "uz": "Dt/Kt"},
     "nav.services": {"ru": "Услуги", "en": "Services", "uz": "Xizmatlar"},
     "nav.taxes": {"ru": "Налоги", "en": "Taxes", "uz": "Nalog"},
     "nav.exchange_rate": {"ru": "Курс доллара", "en": "Exchange rate", "uz": "Dollar kursi"},
@@ -620,7 +681,7 @@ TR = {
     "cash.note_label_placeholder": {"ru": "Напр.: Солярка", "en": "e.g. Fuel", "uz": "Masalan: Solyarka"},
     "cash.forma2_category": {"ru": "Статья расхода (код)", "en": "Expense category (Forma 2)", "uz": "Statya (Forma 2 turkumi)"},
     "cash.forma2_category_none": {"ru": "— не выбрано (только Cash Flow) —", "en": "— none (Cash Flow only) —", "uz": "— tanlanmagan (faqat Cash Flow) —"},
-    "cash.forma2_category_note": {"ru": "Если выбрано — операция автоматически попадёт и в Форму 2 (Расходы). Если нет — только в Cash Flow.", "en": "If chosen, the entry also auto-creates a Forma 2 (Xarajatlar) record. If not, it stays Cash-Flow only.", "uz": "Tanlansa — operatsiya avtomatik Forma 2 (Xarajatlar)ga ham tushadi. Tanlanmasa — faqat Cash Flow (Kassa/Bank)da qoladi."},
+    "cash.forma2_category_note": {"ru": "Если выбрано — операция автоматически попадёт и в Форму 2 (Расходы). Если нет — только в Cash Flow.", "en": "If chosen, the entry also auto-creates a Forma 2 (Expenses) record. If not, it stays Cash-Flow only.", "uz": "Tanlansa — operatsiya avtomatik Forma 2 (Xarajatlar)ga ham tushadi. Tanlanmasa — faqat Cash Flow (Kassa/Bank)da qoladi."},
     "cash.import_title": {"ru": "Импорт из Excel", "en": "Import from Excel", "uz": "Excel'dan import"},
     "cash.import_subtitle": {"ru": "Загрузите файл с операциями по кассе/банку", "en": "Upload a file with cash/bank transactions", "uz": "Kassa/bank operatsiyalari fayli yuklanadi"},
     "cash.import_map_title": {"ru": "Счёт и статья для всех операций", "en": "Account and category for all rows", "uz": "Barcha yozuvlar uchun hisob va turkum"},
@@ -746,7 +807,7 @@ TR = {
     "sklad.cancel": {"ru": "Отмена", "en": "Cancel", "uz": "Bekor qilish"},
     "sklad.fill_row_hint": {"ru": "Заполните товар и количество хотя бы в одной строке", "en": "Fill in product and quantity for at least one row", "uz": "Kamida bitta qatorda mahsulot va miqdorni to'ldiring"},
     "sklad.pay_status": {"ru": "Оплата", "en": "Payment", "uz": "To'lov holati"},
-    "sklad.unpaid_needs_supplier": {"ru": "Для покупки в долг укажите поставщика — иначе долг некому будет привязать в «Дт/Кт».", "en": "For a credit purchase, enter the supplier name — otherwise the debt can't be attached to anyone in the ledger.", "uz": "Qarzga xarid uchun yetkazib beruvchi nomini kiriting — aks holda qarzni Дт/Кт'da hech kimga bog'lab bo'lmaydi."},
+    "sklad.unpaid_needs_supplier": {"ru": "Для покупки в долг укажите поставщика — иначе долг некому будет привязать в «Дт/Кт».", "en": "For a credit purchase, enter the supplier name — otherwise the debt can't be attached to anyone in the ledger.", "uz": "Qarzga xarid uchun yetkazib beruvchi nomini kiriting — aks holda qarzni Dt/Kt'da hech kimga bog'lab bo'lmaydi."},
     "bar.stock_value": {"ru": "Стоимость товара на складе (по себестоимости)", "en": "Stock value (at cost)", "uz": "Ombordagi tovar qiymati (tan narxda)"},
     "bar.products_title": {"ru": "Каталог товаров", "en": "Product catalog", "uz": "Mahsulotlar katalogi"},
     "bar.add_product_title": {"ru": "Новый товар", "en": "New product", "uz": "Yangi mahsulot qo'shish"},
@@ -797,7 +858,7 @@ TR = {
         "uz": "Sotuv va kirimlar avtomatik ravishda Kassa/Bank'ga (kirim/chiqim) va Forma 2'ga (tushum / tannarx) yoziladi.",
     },
 
-    "ledger.title": {"ru": "Ведомости Дт-Кт", "en": "Dt/Kt statements", "uz": "Дт-Кт vedomosti"},
+    "ledger.title": {"ru": "Ведомости Дт-Кт", "en": "Dt/Kt statements", "uz": "Dt-Kt vedomosti"},
     "ledger.subtitle": {"ru": "Дебиторская и кредиторская задолженность по контрагентам. Дебет — нам должны, кредит — мы должны.", "en": "Receivables and payables by counterparty. Debit — owed to us, credit — we owe.", "uz": "Kontragentlar bo'yicha debitorlik va kreditorlik qarzi. Debet — bizga qarzdor, kredit — biz qarzdormiz."},
     "ledger.currency": {"ru": "Валюта", "en": "Currency", "uz": "Valyuta"},
     "ledger.th_counterparty": {"ru": "Контрагент", "en": "Counterparty", "uz": "Kontragent"},
@@ -857,7 +918,7 @@ TR = {
         "en": "The guest paid via an OTA platform (Booking.com, Airbnb, etc.) — Exely marks the booking \"paid\", but that money hasn't reached our bank/cash yet, so the platform owes us this amount. When the platform pays out, record it as a normal income entry in \"Bank and Cash\" (counterparty — the platform's name) — the debt will decrease automatically.",
         "uz": "Mehmon OTA platforma (Booking.com, Airbnb va h.k.) orqali to'lagan, Exely bronni «to'langan» deb hisoblaydi, lekin bu pul hali bizning hisob/kassaga tushmagan — demak platforma bizga shu summani qarzdor. Platforma pulni o'tkazganda, «Bank va Kassa»ga oddiy kirim sifatida kiriting (kontragent — platforma nomi) — qarz avtomatik kamayadi.",
     },
-    "ledger.back_to_ledger": {"ru": "← Дт/Кт", "en": "← Ledger", "uz": "← Дт/Кт"},
+    "ledger.back_to_ledger": {"ru": "← Дт/Кт", "en": "← Ledger", "uz": "← Dt/Kt"},
 
     "cp.title": {"ru": "Контрагенты (справочник)", "en": "Counterparties directory", "uz": "Hamkorlar (kontragentlar)"},
     "cp.subtitle": {
@@ -988,7 +1049,7 @@ TR = {
     "f1.recv_ota_note": {
         "ru": "Долги OTA-платформ (Booking.com, Agoda и т.п.) сюда не входят — они показаны отдельно на странице «Дт/Кт» и не включаются в баланс, так как деньги от них обычно уже поступили на счёт общей суммой, без привязки к конкретной брони.",
         "en": "OTA platform debts (Booking.com, Agoda, etc.) are not included here — they are shown separately on the \"Dt/Kt\" page and excluded from the balance sheet, since that money has usually already arrived as a lump sum not traceable to a specific booking.",
-        "uz": "OTA-platformalar (Booking.com, Agoda va h.k.) qarzi bu yerga kirmaydi — ular alohida «Дт/Кт» sahifasida ko'rsatiladi va balansga qo'shilmaydi, chunki bu pul odatda hisobga umumiy summa sifatida allaqachon tushgan bo'ladi, aniq bronga bog'lanmagan holda.",
+        "uz": "OTA-platformalar (Booking.com, Agoda va h.k.) qarzi bu yerga kirmaydi — ular alohida «Dt/Kt» sahifasida ko'rsatiladi va balansga qo'shilmaydi, chunki bu pul odatda hisobga umumiy summa sifatida allaqachon tushgan bo'ladi, aniq bronga bog'lanmagan holda.",
     },
     "f1.recv_currency_skipped_note": {
         "ru": "{n} брон(и) в валюте, для которой ни разу не был введён курс (например EUR), не включены в дебиторскую задолженность — введите курс на странице «Курс доллара», чтобы учесть их.",
@@ -1100,6 +1161,10 @@ GROUP_I18N = {
 # Xarajat kategoriyalari (db.CATEGORIES dagi "name" qiymati bo'yicha — bu qiymat
 # bazada ham saqlanadi, shuning uchun faqat KO'RINISH tarjima qilinadi, "name" o'zgarmaydi).
 CATEGORY_I18N = {
+    "Boshqa soliqlar": {"ru": "Прочие налоги", "en": "Other taxes"},
+    "Ijtimoiy soliq (ESP)": {"ru": "Социальный налог (ЕСП)", "en": "Social tax (ESP)"},
+    "Yer solig'i": {"ru": "Земельный налог", "en": "Land tax"},
+    "Питание (Bar tushumi, Excel import)": {"ru": "Питание (выручка бара, импорт из Excel)", "en": "Meals (bar revenue, Excel import)"},
     "Xodimlar ish haqi (operatsion)": {"ru": "Зарплата персонала (операционная)", "en": "Staff salary (operational)"},
     "Ijtimoiy sug'urta ajratmalari": {"ru": "Отчисления в соцстрах", "en": "Social insurance contributions"},
     "Kommunal xizmatlar": {"ru": "Коммунальные услуги", "en": "Utilities"},
@@ -1178,6 +1243,45 @@ def t_cat(name, lang):
     if not entry:
         return name
     return entry.get(lang) or name
+
+
+ROLE_I18N = {
+    "Administrator": {"ru": "Администратор", "en": "Administrator"},
+    "Buxgalter": {"ru": "Бухгалтер", "en": "Accountant"},
+    "Bar/Sklad menejeri": {"ru": "Менеджер бара/склада", "en": "Bar/Warehouse manager"},
+    "Kuzatuvchi": {"ru": "Наблюдатель", "en": "Viewer"},
+    "Huquqsiz": {"ru": "Без прав", "en": "No permissions"},
+}
+ROLE_DESC_I18N = {
+    "Barcha oddiy bo'limlarga to'liq huquq.": {"ru": "Полный доступ ко всем обычным разделам.", "en": "Full access to all regular sections."},
+    "Moliyaviy operatsiyalar va hisobotlar.": {"ru": "Финансовые операции и отчёты.", "en": "Financial operations and reports."},
+    "Faqat Bar/Sklad operatsiyalari.": {"ru": "Только операции бара и склада.", "en": "Bar and warehouse operations only."},
+    "Faqat ko'rish, hech narsa o'zgartira olmaydi.": {"ru": "Только просмотр, изменять ничего нельзя.", "en": "View only; cannot change anything."},
+    "Hech qanday huquq yo'q (yangi foydalanuvchi uchun standart).": {"ru": "Нет прав (по умолчанию для нового пользователя).", "en": "No permissions (default for a new user)."},
+}
+UNIT_I18N = {
+    "dona": {"ru": "шт.", "en": "pcs"}, "litr": {"ru": "л", "en": "l"}, "porsiya": {"ru": "порц.", "en": "portion"},
+    "quti": {"ru": "коробка", "en": "box"}, "butilka": {"ru": "бутылка", "en": "bottle"}, "kg": {"ru": "кг", "en": "kg"},
+}
+
+
+def _lookup(table, name, lang):
+    if lang == "uz" or not isinstance(name, str):
+        return name
+    entry = table.get(name.strip()) or table.get(name.strip().lower())
+    return (entry or {}).get(lang) or name
+
+
+def t_role(name, lang):
+    return _lookup(ROLE_I18N, name, lang)
+
+
+def t_role_desc(text, lang):
+    return _lookup(ROLE_DESC_I18N, text, lang)
+
+
+def t_unit(unit, lang):
+    return _lookup(UNIT_I18N, unit, lang)
 
 
 def t_cash_section(key, lang):

@@ -68,10 +68,10 @@
           {% for b in rows %}
           <tr {% if b.is_cancelled %}class="is-cancelled"{% endif %}>
             <td class="mono">{{ b.ref or t('common.dash') }}</td>
-            <td>{{ b.guest_name }}{% if b.note %}<span class="g-dates">{{ b.note }}</span>{% endif %}</td>
+            <td>{{ b.guest_name }}{% if b.note %}<span class="g-dates">{{ b.note|note_label }}</span>{% endif %}</td>
             <td>{{ b.arrival }}</td><td>{{ b.departure or t('common.dash') }}</td>
             <td>{{ (b.room_type_text|type_label) or t('common.dash') }}</td><td>{{ b.room_text or t('common.dash') }}</td>
-            <td>{{ b.status_text or t('common.dash') }}{% if b.is_cancelled %} ({{ t('rooms.bk_cancelled') }}){% endif %}</td>
+            <td>{{ (b.status_text|bk_status) or t('common.dash') }}{% if b.is_cancelled and 'Cancelled' not in (b.status_text or '') %} ({{ t('rooms.bk_cancelled') }}){% endif %}</td>
             <td class="num nowrap">{{ b.total_amount|amount(b.currency) }}</td>
             <td class="num nowrap">{{ b.paid_amount|amount(b.currency) }}</td>
             <td class="num nowrap {{ ('bal-due' if b.balance > 0 else 'bal-ok') if b.balance is not none else '' }}">{{ b.balance|amount(b.currency) }}</td>

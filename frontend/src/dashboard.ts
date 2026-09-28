@@ -64,7 +64,7 @@ function renderBreakdown(byMap: Record<string, ChannelStat> | undefined): string
     .map(([name, s, val], i) => {
       const pct = max ? (val / max) * 100 : 0;
       return `<div class="hbar-row">
-      <div class="hbar-label">${name.length > 18 ? name.slice(0, 17) + "…" : name}</div>
+      <div class="hbar-label" title="${name.replace(/"/g, "&quot;")}">${name.length > 18 ? name.slice(0, 17) + "…" : name}</div>
       <div class="hbar-track"><div class="hbar-fill" style="width:${pct}%;background:${SERIES[i % SERIES.length]}"></div></div>
       <div class="hbar-value mono">${fmtDisp(val)} <span style="color:var(--ink-muted);font-weight:400">(${s.count})</span></div>
     </div>`;

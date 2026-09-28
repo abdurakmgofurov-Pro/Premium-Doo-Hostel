@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>{% block title %}Premium Doo Hostel{% endblock %} — Moliyaviy tizim</title>
+<title>{% block title %}Premium Doo Hostel{% endblock %} — {{ t('app.title_suffix') }}</title>
 <link rel="icon" type="image/png" href="{{ url_for('static', filename='img/favicon.png') }}">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -112,7 +112,7 @@
       <div class="meta">
         <div class="name">{{ nm }}</div>
         <div class="role">
-          {% if u.role == 'super_admin' %}{{ t('role.super_admin') }}{% else %}{{ current_user_role_name or t('role.custom_sidebar') }}{% endif %}
+          {% if u.role == 'super_admin' %}{{ t('role.super_admin') }}{% else %}{{ t_role(current_user_role_name) if current_user_role_name else t('role.custom_sidebar') }}{% endif %}
         </div>
       </div>
       <a class="logout-ic" href="/logout" title="{{ t('logout.title') }}">{{ icons.logout | safe }}</a>

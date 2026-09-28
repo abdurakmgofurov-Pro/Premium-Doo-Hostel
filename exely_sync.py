@@ -449,7 +449,7 @@ def reconcile_stays(rows, today=None):
                         conn.execute("UPDATE stays SET room_id=? WHERE id=?", (room_id, cur["id"]))
                     else:
                         conn.execute("UPDATE stays SET check_out=? WHERE id=?", (today, cur["id"]))
-                        link(insert(room_id, today, None, "Exely [ko'chirildi]"))
+                        link(insert(room_id, today, None, "Exely [⇄]"))
                     counts["moved"] += 1
                 elif bk and bk["stay_id"] != cur["id"]:
                     link(cur["id"])
