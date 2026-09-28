@@ -8,6 +8,7 @@
 
 Bu modul Exely'ga hech narsa yozmaydi (qarang: exely_pms.py).
 """
+import json
 import re
 import threading
 import time
@@ -335,7 +336,7 @@ def extract_reservation_numbers(body_text):
 
 def record_event(source_ip, body, numbers):
     conn = get_conn()
-    cur = conn.execute("INSERT INTO webhook_events (source_ip, body, numbers) VALUES (?,?,?)",
+    cur = conn.execute("INSERT INTO webhook_events (received_at, source_ip, body, numbers) VALUES (datetime('now','localtime'),?,?,?)",
                        (source_ip, body, ",".join(numbers)))
     event_id = cur.lastrowid
     conn.execute("DELETE FROM webhook_events WHERE id <= ?", (event_id - 2000,))   # jadval o'smasin
@@ -370,3 +371,31 @@ def sync_reservations(client, numbers):
     if job.rows:
         rm.import_bookings(job.rows)
     return len(job.rows), job.failed
+
+
+ACCESS_LOG_MAX = 5000
+_HIDDEN_HEADERS = {"cookie", "authorization", "x-api-key", "proxy-authorization"}
+
+
+def log_access(*, client_ip, remote_addr, method, outcome, headers, body_size, body_preview, event_id=None):
+    """Vebhuk endpointiga kelgan har bir so'rovni yozadi. Maxfiy sarlavhalar (cookie,
+    authorization, api-key) yashiriladi; URL'dagi kalit umuman saqlanmaydi."""
+    safe = {k: ("[yashirildi]" if k.lower() in _HIDDEN_HEADERS else v) for k, v in headers.items()}
+    conn = get_conn()
+    cur = conn.execute(
+        "INSERT INTO webhook_access_log (at, client_ip, remote_addr, x_forwarded_for, user_agent, method, path,"
+        " outcome, content_type, body_size, body_preview, headers, event_id)"
+        " VALUES (datetime('now','localtime'),?,?,?,?,?,?,?,?,?,?,?,?)",
+        (client_ip, remote_addr, safe.get("X-Forwarded-For", ""), (safe.get("User-Agent", "") or "")[:300], method,
+         "/webhooks/exely/***", outcome, safe.get("Content-Type", ""), body_size, (body_preview or "")[:500],
+         json.dumps(safe, ensure_ascii=False)[:4000], event_id))
+    conn.execute("DELETE FROM webhook_access_log WHERE id <= ?", (cur.lastrowid - ACCESS_LOG_MAX,))
+    conn.commit()
+    conn.close()
+
+
+def list_access(limit=100):
+    conn = get_conn()
+    rows = conn.execute("SELECT * FROM webhook_access_log ORDER BY id DESC LIMIT ?", (limit,)).fetchall()
+    conn.close()
+    return [dict(r) for r in rows]

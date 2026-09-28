@@ -1676,30 +1676,54 @@ def _client_ip():
     return addr
 
 
-@app.route("/webhooks/exely/<secret>", methods=["POST"])
+WEBHOOK_MAX_BODY = 1_000_000
+
+
+@app.route("/webhooks/exely/<secret>", methods=["GET", "POST", "PUT", "PATCH", "DELETE"])
 def exely_webhook(secret):
+    ip = _client_ip()
+    size = request.content_length or 0
     try:
         cfg = load_config()
     except RuntimeError:
         cfg = {}
     expected = cfg.get("webhook_secret") or ""
-    if not expected or not hmac.compare_digest(secret, expected):
-        abort(404)
     allowed = cfg.get("webhook_allowed_ips") or []
-    if allowed and _client_ip() not in allowed:      # ruxsat etilmagan IP — endpoint "yo'q" kabi ko'rinadi
-        abort(404)
-    body = request.get_data(cache=False)[:200_000].decode("utf-8", "replace")
-    numbers = xs.extract_reservation_numbers(body)
-    event_id = xs.record_event(_client_ip(), body, numbers)
-    threading.Thread(target=_process_webhook, args=(event_id, numbers), daemon=True).start()
-    return jsonify(ok=True)
+    if not expected:
+        outcome = "disabled"
+    elif not hmac.compare_digest(secret, expected):
+        outcome = "bad_secret"
+    elif allowed and ip not in allowed:
+        outcome = "ip_blocked"
+    elif request.method != "POST":
+        outcome = "bad_method"
+    elif size > WEBHOOK_MAX_BODY:
+        outcome = "too_large"
+    else:
+        outcome = "ok"
+
+    body, event_id = "", None
+    if size <= WEBHOOK_MAX_BODY:
+        body = request.get_data(cache=False)[:200_000].decode("utf-8", "replace")
+    if outcome == "ok":
+        numbers = xs.extract_reservation_numbers(body)
+        event_id = xs.record_event(ip, body, numbers)
+        threading.Thread(target=_process_webhook, args=(event_id, numbers), daemon=True).start()
+    try:
+        xs.log_access(client_ip=ip, remote_addr=request.remote_addr, method=request.method, outcome=outcome,
+                      headers=dict(request.headers), body_size=size, body_preview=body, event_id=event_id)
+    except Exception:                       # jurnal yozilmasa ham javob buzilmasin
+        log("VEBHUK JURNALI XATOSI:\n" + traceback.format_exc())
+    if outcome == "ok":
+        return jsonify(ok=True)
+    return "", {"bad_method": 405, "too_large": 413}.get(outcome, 404)
 
 
 @app.route("/rooms/webhooks")
 @permission_required("rooms", "edit")
 def rooms_webhooks_page():
     return render_template("rooms_webhooks.html", active_page="rooms", rooms_tab="settings",
-                           events=xs.list_events(50))
+                           events=xs.list_events(50), access=xs.list_access(100))
 
 
 # -- bandlik foizi

@@ -33,4 +33,35 @@
       {% endif %}
     </div>
   </div>
+
+  <h2 style="font-size:1.05rem;margin:1.6rem 0 .3rem">{{ t('rooms.wh_access_title') }}</h2>
+  <p class="note" style="margin:0 0 .8rem">{{ t('rooms.wh_access_help') }}</p>
+  <div class="card">
+    <div class="overflow-x">
+      {% if access %}
+      <table class="data-table">
+        <thead><tr>
+          <th>{{ t('rooms.wh_th_time') }}</th><th>IP</th><th>{{ t('rooms.wh_th_result') }}</th>
+          <th>{{ t('rooms.wh_th_request') }}</th><th>User-Agent</th><th>{{ t('rooms.wh_th_body') }}</th>
+        </tr></thead>
+        <tbody>
+          {% for a in access %}
+          <tr>
+            <td class="mono">{{ a.at }}</td>
+            <td class="mono">{{ a.client_ip or t('common.dash') }}{% if a.remote_addr and a.remote_addr != a.client_ip %}<span class="g-dates">{{ a.remote_addr }}{% if a.x_forwarded_for %} · XFF: {{ a.x_forwarded_for }}{% endif %}</span>{% endif %}</td>
+            <td><span class="import-badge {{ 'new' if a.outcome == 'ok' else 'changed' }}">{{ t('rooms.wh_out_' ~ a.outcome) }}</span></td>
+            <td class="mono">{{ a.method }} · {{ a.body_size or 0 }} B{% if a.content_type %}<span class="g-dates">{{ a.content_type }}</span>{% endif %}</td>
+            <td style="max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="{{ a.user_agent }}">{{ a.user_agent or t('common.dash') }}</td>
+            <td><details><summary>{{ (a.body_preview or t('common.dash'))[:60] }}</summary>
+              <pre style="white-space:pre-wrap;word-break:break-all;font-size:.72rem">{{ a.body_preview }}</pre>
+              <pre style="white-space:pre-wrap;word-break:break-all;font-size:.68rem;color:var(--ink-muted)">{{ a.headers }}</pre></details></td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      {% else %}
+      <div class="empty">{{ t('rooms.wh_empty') }}</div>
+      {% endif %}
+    </div>
+  </div>
 {% endblock %}

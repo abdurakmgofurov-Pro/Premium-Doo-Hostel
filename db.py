@@ -572,6 +572,25 @@ def init_db():
             note TEXT
         )
     """)
+    # Vebhuk endpointiga kelgan BARCHA so'rovlar (rad etilganlari ham): kim, qayerdan, nima yubordi
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS webhook_access_log (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            at TEXT NOT NULL,
+            client_ip TEXT,
+            remote_addr TEXT,
+            x_forwarded_for TEXT,
+            user_agent TEXT,
+            method TEXT,
+            path TEXT,
+            outcome TEXT NOT NULL,
+            content_type TEXT,
+            body_size INTEGER,
+            body_preview TEXT,
+            headers TEXT,
+            event_id INTEGER
+        )
+    """)
     # Exely `daily-occupancy` keshi (faqat o'qib olingan nusxa): sana -> band/jami o'rinlar
     conn.execute("""
         CREATE TABLE IF NOT EXISTS exely_occupancy (
