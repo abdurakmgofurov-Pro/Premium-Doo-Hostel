@@ -1,0 +1,19 @@
+.audit-filters { display: flex; flex-wrap: wrap; gap: .6rem; align-items: center; margin-bottom: 1.2rem; }
+.audit-filters select, .audit-filters input {
+  background: var(--bg-surface-2); color: var(--ink-primary); border: 1px solid var(--border);
+  border-radius: 10px; padding: .5rem .7rem; font: inherit; font-size: .84rem; }
+.audit-filters input[type="text"] { min-width: 200px; }
+.audit-filters .spacer { flex: 1; }
+.audit-total { font-size: .8rem; color: var(--ink-secondary); }
+.audit-badge { font-size: .7rem; font-weight: 700; padding: .2rem .6rem; border-radius: 999px; white-space: nowrap;
+  background: color-mix(in srgb, var(--c, var(--ink-muted)) 16%, transparent); color: var(--c, var(--ink-secondary)); }
+.audit-badge.act-login, .audit-badge.act-logout { --c: var(--series-2); }
+.audit-badge.act-login_failed, .audit-badge.act-rejected, .audit-badge.act-delete { --c: var(--bad); }
+.audit-badge.act-create { --c: var(--good); }
+.audit-badge.act-update { --c: var(--warn); }
+.audit-badge.act-import { --c: var(--series-1); }
+.audit-badge.act-export { --c: var(--series-6); }
+.st-bad { color: var(--bad); font-weight: 700; }
+.data-table details summary { cursor: pointer; max-width: 360px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.data-table details pre { white-space: pre-wrap; word-break: break-word; font-size: .72rem; margin: .4rem 0 0; color: var(--ink-secondary); }
+.audit-table td:first-child { white-space: nowrap; }

@@ -572,6 +572,24 @@ def init_db():
             note TEXT
         )
     """)
+    # Butun loyiha audit jurnali (login, o'zgartirishlar, import, eksport)
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS audit_log (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            at TEXT NOT NULL,
+            user_id INTEGER,
+            username TEXT,
+            ip TEXT,
+            action TEXT NOT NULL,
+            method TEXT,
+            path TEXT,
+            endpoint TEXT,
+            status INTEGER,
+            detail TEXT
+        )
+    """)
+    conn.execute("CREATE INDEX IF NOT EXISTS idx_audit_at ON audit_log(at)")
+    conn.execute("CREATE INDEX IF NOT EXISTS idx_audit_user ON audit_log(user_id, at)")
     # Vebhuk endpointiga kelgan BARCHA so'rovlar (rad etilganlari ham): kim, qayerdan, nima yubordi
     conn.execute("""
         CREATE TABLE IF NOT EXISTS webhook_access_log (

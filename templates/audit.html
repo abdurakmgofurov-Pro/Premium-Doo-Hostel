@@ -1,0 +1,63 @@
+{% extends "base.html" %}
+{% block title %}{{ t('audit.title') }}{% endblock %}
+{% block head %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/audit.css') }}">
+{% endblock %}
+{% block content %}
+  <div style="margin-bottom:1.2rem">
+    <h1 style="font-size:1.55rem">{{ t('audit.title') }}</h1>
+    <p style="color:var(--ink-secondary);font-size:.9rem;margin-top:.3rem">{{ t('audit.subtitle') }}</p>
+  </div>
+
+  <form method="get" class="audit-filters">
+    <select name="user_id">
+      <option value="">{{ t('audit.all_users') }}</option>
+      {% for a in actors %}<option value="{{ a.user_id }}" {{ 'selected' if f_user == a.user_id|string else '' }}>{{ a.username }}</option>{% endfor %}
+    </select>
+    <select name="action">
+      <option value="">{{ t('audit.all_actions') }}</option>
+      {% for a in actions %}<option value="{{ a }}" {{ 'selected' if f_action == a else '' }}>{{ t('audit.act_' ~ a) }}</option>{% endfor %}
+    </select>
+    <input type="date" name="from" value="{{ f_from }}">
+    <input type="date" name="to" value="{{ f_to }}">
+    <input type="text" name="q" value="{{ f_q }}" placeholder="{{ t('audit.search') }}">
+    <button class="btn" type="submit">{{ t('audit.apply') }}</button>
+    <span class="spacer"></span>
+    <span class="audit-total">{{ t('audit.total').format(n=total) }}</span>
+  </form>
+
+  <div class="card">
+    <div class="overflow-x">
+      {% if rows %}
+      <table class="data-table audit-table">
+        <thead><tr>
+          <th>{{ t('audit.th_time') }}</th><th>{{ t('audit.th_user') }}</th><th>IP</th>
+          <th>{{ t('audit.th_action') }}</th><th>{{ t('audit.th_request') }}</th><th>{{ t('audit.th_detail') }}</th>
+        </tr></thead>
+        <tbody>
+          {% for r in rows %}
+          <tr>
+            <td class="mono">{{ r.at }}</td>
+            <td>{{ r.username or t('common.dash') }}</td>
+            <td class="mono">{{ r.ip or t('common.dash') }}</td>
+            <td><span class="audit-badge act-{{ r.action }}">{{ t('audit.act_' ~ r.action) }}</span></td>
+            <td class="mono">{% if r.method %}{{ r.method }} {{ r.path }}{% if r.status %} · <span class="{{ 'st-bad' if r.status >= 400 else '' }}">{{ r.status }}</span>{% endif %}{% else %}{{ t('common.dash') }}{% endif %}</td>
+            <td>{% if r.detail %}<details><summary>{{ r.summary }}</summary><pre>{{ r.detail_pretty }}</pre></details>{% else %}{{ t('common.dash') }}{% endif %}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      {% else %}
+      <div class="empty">{{ t('audit.empty') }}</div>
+      {% endif %}
+    </div>
+  </div>
+
+  {% if total_pages > 1 %}
+  <div style="display:flex;align-items:center;justify-content:center;gap:.5rem;margin-top:1rem">
+    <a class="btn {{ 'disabled' if page <= 1 else '' }}" href="?{{ qs }}page={{ page-1 }}">‹ {{ t('cash.page_prev') }}</a>
+    <span style="font-size:.85rem;color:var(--ink-secondary)">{{ t('cash.page_of').replace('{page}', page|string).replace('{total}', total_pages|string) }}</span>
+    <a class="btn {{ 'disabled' if page >= total_pages else '' }}" href="?{{ qs }}page={{ page+1 }}">{{ t('cash.page_next') }} ›</a>
+  </div>
+  {% endif %}
+{% endblock %}

@@ -27,6 +27,7 @@ import time
 import traceback
 from datetime import datetime, date, timedelta
 from pathlib import Path
+from urllib.parse import quote
 
 from flask import Flask, jsonify, request, send_file, redirect, url_for, render_template, session, flash, abort, g
 
@@ -39,6 +40,7 @@ from auth import (
 from exely_api import ExelyApiClient
 from exely_pms import ExelyPmsClient
 import exely_sync as xs
+import audit
 from exely_expense_import import parse_expense_xlsx
 from forma1 import build_forma1
 from forma2 import build_forma2
@@ -295,6 +297,43 @@ def check_csrf():
         abort(400)
 
 
+@app.before_request
+def audit_start():
+    g.audit_flash_n = len(session.get("_flashes") or [])
+
+
+@app.after_request
+def audit_after(resp):
+    """Har bir o'zgartiruvchi (POST) so'rov va fayl yuklab olish audit jurnaliga yoziladi."""
+    try:
+        path = request.path
+        if path.startswith(audit.SKIP_PREFIXES) or path.startswith("/static/") or path == "/login":
+            return resp
+        user = current_user()
+        ip = _client_ip()
+        if request.method == "POST":
+            if not user and resp.status_code < 400:
+                return resp
+            detail = audit.summarize_request(request)
+            new_flashes = (session.get("_flashes") or [])[g.get("audit_flash_n", 0):]
+            if new_flashes:
+                detail["result"] = [str(m)[:300] for _, m in new_flashes[-3:]]
+            action = "rejected" if resp.status_code >= 400 else audit.classify(request.endpoint, path)
+            audit.log_event(action, user=user, ip=ip, method="POST", path=path, endpoint=request.endpoint,
+                            status=resp.status_code, detail=detail)
+        elif request.method == "GET" and resp.status_code < 400 \
+                and resp.headers.get("Content-Disposition", "").startswith("attachment"):
+            disp = resp.headers.get("Content-Disposition", "")
+            detail = {"file": disp.split("filename=")[-1].strip('"; ') if "filename=" in disp else ""}
+            if request.args:
+                detail["query"] = {k: str(v)[:100] for k, v in list(request.args.items())[:10]}
+            audit.log_event("export", user=user, ip=ip, method="GET", path=path, endpoint=request.endpoint,
+                            status=resp.status_code, detail=detail)
+    except Exception:                          # jurnal xatosi asosiy so'rovni buzmasin
+        log("AUDIT JURNALI XATOSI:\n" + traceback.format_exc())
+    return resp
+
+
 @app.route("/set_language/<lang>")
 def set_language(lang):
     if lang in LANGS:
@@ -331,13 +370,19 @@ def login():
         user = authenticate(request.form.get("username", ""), request.form.get("password", ""))
         if user:
             session["user_id"] = user["id"]
+            audit.log_event("login", user=user, ip=_client_ip(), method="POST", path="/login", status=302)
             return redirect(request.args.get("next") or url_for("index"))
+        audit.log_event("login_failed", username=request.form.get("username", "")[:80], ip=_client_ip(),
+                        method="POST", path="/login", status=200)
         flash(t("flash.login_failed", g.lang), "error")
     return render_template("login.html")
 
 
 @app.route("/logout")
 def logout():
+    u = current_user()
+    if u:
+        audit.log_event("logout", user=u, ip=_client_ip(), method="GET", path="/logout", status=302)
     session.clear()
     return redirect(url_for("login"))
 
@@ -1750,6 +1795,54 @@ def rooms_webhooks_page():
     return render_template("rooms_webhooks.html", active_page="rooms", rooms_tab="settings",
                            events=xs.list_events(50), access=xs.list_access(100),
                            poll_info=db.get_setting("exely_bookings_poll_info"))
+
+
+# -- Audit jurnali (faqat Super Admin)
+
+AUDIT_ACTIONS = ("login", "login_failed", "logout", "create", "update", "delete", "import", "export", "rejected")
+
+
+def _audit_summary(d):
+    if not d:
+        return ""
+    if d.get("result"):
+        return "; ".join(d["result"])[:140]
+    if d.get("files"):
+        return ", ".join(f["name"] for f in d["files"].values())[:140]
+    if d.get("file"):
+        return d["file"][:140]
+    if d.get("form"):
+        return ", ".join(f"{k}={v}" for k, v in d["form"].items())[:140]
+    return ""
+
+
+@app.route("/audit")
+@super_admin_required
+def audit_page():
+    f_user = request.args.get("user_id", "").strip()
+    f_action = request.args.get("action", "").strip()
+    f_q = request.args.get("q", "").strip()
+    f_from = request.args.get("from", "").strip()
+    f_to = request.args.get("to", "").strip()
+    if f_action not in AUDIT_ACTIONS:
+        f_action = ""
+    per_page = 50
+    page = max(request.args.get("page", 1, type=int) or 1, 1)
+    common = dict(user_id=int(f_user) if f_user.isdigit() else None, action=f_action or None, q=f_q or None,
+                  date_from=f_from or None, date_to=f_to or None)
+    _, total = audit.query(limit=1, **common)
+    total_pages = max((total + per_page - 1) // per_page, 1)
+    page = min(page, total_pages)
+    rows, _ = audit.query(limit=per_page, offset=(page - 1) * per_page, **common)
+    for r in rows:
+        d = json.loads(r["detail"]) if r["detail"] else None
+        r["detail_pretty"] = json.dumps(d, ensure_ascii=False, indent=2) if d else ""
+        r["summary"] = _audit_summary(d) or r["path"] or ""
+    qs = "".join(f"{k}={quote(v)}&" for k, v in (("user_id", f_user), ("action", f_action), ("q", f_q),
+                                                 ("from", f_from), ("to", f_to)) if v)
+    return render_template("audit.html", active_page="audit", rows=rows, total=total, page=page,
+                           total_pages=total_pages, qs=qs, actors=audit.actor_list(), actions=AUDIT_ACTIONS,
+                           f_user=f_user, f_action=f_action, f_q=f_q, f_from=f_from, f_to=f_to)
 
 
 # -- bandlik foizi
