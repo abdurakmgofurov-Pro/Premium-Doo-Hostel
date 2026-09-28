@@ -4,5 +4,6 @@
   "property_id": "YOUR_EXELY_PROPERTY_ID",
   "output_dir": "reports",
   "refresh_minutes": 30,
-  "webhook_secret": "UZUN_TASODIFIY_MAXFIY_KALIT"
+  "webhook_secret": "UZUN_TASODIFIY_MAXFIY_KALIT",
+  "webhook_allowed_ips": []
 }

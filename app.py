@@ -1664,17 +1664,33 @@ def _process_webhook(event_id, numbers):
         xs.finish_event(event_id, "error", str(e))
 
 
+def _client_ip():
+    """So'rov egasining IP'si. Nginx orqali kelganda (remote_addr = loopback) IP'ni nginx
+    qo'shgan SO'NGGI X-Forwarded-For yozuvidan olamiz (birinchisini mijoz soxtalashtirishi mumkin)."""
+    addr = request.remote_addr or ""
+    if addr in ("127.0.0.1", "::1"):
+        xff = request.headers.get("X-Forwarded-For", "")
+        if xff:
+            return xff.split(",")[-1].strip()
+        return request.headers.get("X-Real-IP", addr).strip()
+    return addr
+
+
 @app.route("/webhooks/exely/<secret>", methods=["POST"])
 def exely_webhook(secret):
     try:
-        expected = load_config().get("webhook_secret") or ""
+        cfg = load_config()
     except RuntimeError:
-        expected = ""
+        cfg = {}
+    expected = cfg.get("webhook_secret") or ""
     if not expected or not hmac.compare_digest(secret, expected):
+        abort(404)
+    allowed = cfg.get("webhook_allowed_ips") or []
+    if allowed and _client_ip() not in allowed:      # ruxsat etilmagan IP — endpoint "yo'q" kabi ko'rinadi
         abort(404)
     body = request.get_data(cache=False)[:200_000].decode("utf-8", "replace")
     numbers = xs.extract_reservation_numbers(body)
-    event_id = xs.record_event(request.headers.get("X-Forwarded-For", request.remote_addr), body, numbers)
+    event_id = xs.record_event(_client_ip(), body, numbers)
     threading.Thread(target=_process_webhook, args=(event_id, numbers), daemon=True).start()
     return jsonify(ok=True)
 
