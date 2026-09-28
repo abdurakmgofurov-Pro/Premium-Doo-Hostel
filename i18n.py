@@ -427,6 +427,7 @@ TR = {
     "rooms.wh_th_numbers": {"ru": "Брони", "en": "Bookings", "uz": "Bronlar"},
     "rooms.wh_th_body": {"ru": "Сообщение", "en": "Message", "uz": "Xabar"},
     "rooms.wh_empty": {"ru": "Событий пока нет.", "en": "No events yet.", "uz": "Hodisalar hali kelmagan."},
+    "rooms.flash_stays_synced": {"ru": "Размещение обновлено по данным Exely: {summary}  (+ заселено, ≈ привязано, → переселено, ↺ выезд отменён, ✓ выехал, − заезд отменён, ? комната не найдена)", "en": "Placements updated from Exely: {summary}  (+ checked in, ≈ linked, → moved, ↺ check-out undone, ✓ checked out, − check-in cancelled, ? room not found)", "uz": "Joylashtirish Exely ma'lumoti bo'yicha yangilandi: {summary}  (+ joylashtirildi, ≈ bog'landi, → ko'chirildi, ↺ chiqish bekor, ✓ chiqdi, − kirish bekor, ? xona topilmadi)"},
     "nav.audit": {"ru": "Журнал действий", "en": "Audit log", "uz": "Harakatlar jurnali"},
     "audit.title": {"ru": "Журнал действий", "en": "Audit log", "uz": "Harakatlar jurnali"},
     "audit.subtitle": {"ru": "Кто, когда и откуда вошёл, что добавил, изменил, удалил, импортировал и выгрузил. Пароли и ключи не записываются; сохраняются только присланные (новые) значения.", "en": "Who logged in, when and from where, and what they added, changed, deleted, imported and exported. Passwords and keys are never recorded; only the submitted (new) values are kept.", "uz": "Kim, qachon va qayerdan kirgani, nima qo'shgani, o'zgartirgani, o'chirgani, import va eksport qilgani. Parol va kalitlar yozilmaydi; faqat yuborilgan (yangi) qiymatlar saqlanadi."},

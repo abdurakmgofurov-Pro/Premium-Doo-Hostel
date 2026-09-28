@@ -560,6 +560,11 @@ def init_db():
         )
     """)
     conn.execute("CREATE INDEX IF NOT EXISTS idx_stays_room ON stays(room_id, check_out)")
+    # Exely'dan (vebhuk/zaxira tekshiruv) yaratilgan joylashtirish — Exely roomStay id'si bilan bog'lanadi
+    stays_cols = [r["name"] for r in conn.execute("PRAGMA table_info(stays)").fetchall()]
+    if "exely_stay_id" not in stays_cols:
+        conn.execute("ALTER TABLE stays ADD COLUMN exely_stay_id TEXT")
+    conn.execute("CREATE INDEX IF NOT EXISTS idx_stays_exely ON stays(exely_stay_id)")
     # Exely vebhuklari: kelgan xom xabarlar (tekshirish va qayta ishlash tarixi)
     conn.execute("""
         CREATE TABLE IF NOT EXISTS webhook_events (

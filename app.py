@@ -247,10 +247,11 @@ def poll_hostel_bookings():
     except (TypeError, ValueError):
         since = now - timedelta(days=2)
     since = max(since, now - timedelta(days=364))
-    found, rows, failed = xs.poll_modified(_exely_client(), since, now)
+    found, rows, failed, stays = xs.poll_modified(_exely_client(), since, now)
     if not failed:
         db.set_setting("exely_bookings_last_poll", now.isoformat(timespec="seconds"))
-    db.set_setting("exely_bookings_poll_info", f"{now:%Y-%m-%d %H:%M} — {found} / {rows}" + (f" / xato: {len(failed)}" if failed else ""))
+    db.set_setting("exely_bookings_poll_info", f"{now:%Y-%m-%d %H:%M} — {found} / {rows}" + (f" / xato: {len(failed)}" if failed else "")
+                    + (f" · {xs.stays_summary(stays)}" if stays else ""))
     log(f"Xonalar bronlari zaxira tekshiruvi: topilgan {found}, qatorlar {rows}, yuklanmagan {len(failed)}")
 
 
@@ -1606,6 +1607,9 @@ def rooms_bookings_import_commit():
         flash(t("tx.import_expired", g.lang), "error")
         return redirect(url_for("rooms_bookings_page"))
     added, updated, unchanged = rm.import_bookings(stash["rows"])
+    stays = xs.reconcile_stays(stash["rows"]) if any(r.get("stay_key") for r in stash["rows"]) else {}
+    if stays:
+        flash(t("rooms.flash_stays_synced", g.lang).format(summary=xs.stays_summary(stays)), "success")
     if stash.get("exely_sync_started"):
         db.set_setting("exely_bookings_last_sync", stash["exely_sync_started"])
     flash(t("rooms.flash_import_done", g.lang).format(added=added, updated=updated, unchanged=unchanged), "success")
@@ -1726,9 +1730,11 @@ def _process_webhook(event_id, numbers, types=""):
         if not numbers:
             xs.finish_event(event_id, "ignored", pre + "bron raqami topilmadi")
             return
-        count, failed = xs.sync_reservations(_exely_client(), numbers)
+        count, failed, stays = xs.sync_reservations(_exely_client(), numbers)
+        summ = xs.stays_summary(stays)
         xs.finish_event(event_id, "error" if failed else "processed",
-                        pre + f"qatorlar: {count}" + (f"; yuklanmadi: {', '.join(failed)}" if failed else ""))
+                        pre + f"qatorlar: {count}" + (f"; joylashtirish: {summ}" if summ else "")
+                        + (f"; yuklanmadi: {', '.join(failed)}" if failed else ""))
     except Exception as e:                      # noqa: BLE001
         log("EXELY VEBHUK QAYTA ISHLASH XATOSI:\n" + traceback.format_exc())
         xs.finish_event(event_id, "error", pre + str(e))

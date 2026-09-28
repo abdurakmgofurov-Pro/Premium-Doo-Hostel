@@ -168,6 +168,10 @@ def reservation_to_rows(res, guest_name_of, room_names, type_names):
             "room_type": type_names.get(str(st.get("roomTypeId")), ""),
             "room": room_names.get(str(st.get("roomId")), ""),
             "status": status, "note": note,
+            # joylashtirishni moslash uchun (bron jadvaliga yozilmaydi):
+            "stay_key": str(st.get("pmsRoomStayId") or ""), "stay_status": st.get("status") or "",
+            "actual_in": (st.get("actualCheckInDateTime") or "")[:10],
+            "actual_out": (st.get("actualCheckOutDateTime") or "")[:10],
         })
     return rows
 
@@ -367,18 +371,123 @@ def list_events(limit=50):
     return [dict(r) for r in rows]
 
 
+def reconcile_stays(rows, today=None):
+    """Exely'dagi o'rin HOLATIGA qarab bizdagi joylashtirishni (stays) moslaydi — hodisa
+    turiga bog'liq emas, shuning uchun takroran kelgan yoki tartibi buzilgan hodisalar ham xavfsiz:
+      CheckedIn  -> ochiq joylashtirish yaratiladi (yoki mavjudi qayta ochiladi / xonasi almashtiriladi);
+      CheckedOut -> joylashtirish yopiladi (yo'q bo'lsa tarix uchun yopiq yoziladi);
+      New/Cancelled -> Exely'dan yaratilgan joylashtirish (bo'lsa) olib tashlanadi ("заезд bekor").
+    Qo'lda kiritilgan joylashtirishlar (exely_stay_id yo'q) faqat shu bronga bog'langan bo'lsa
+    'o'zlashtiriladi', aks holda tegilmaydi. Qaytaradi: hisoblagich {amal: son}."""
+    import rooms as rm
+    today = today or date.today().isoformat()
+    counts = Counter()
+    conn = get_conn()
+    try:
+        rooms = {r["number"]: r["id"] for r in conn.execute("SELECT id, number FROM rooms")}
+        for r in rows:
+            key = r.get("stay_key")
+            if not key:
+                continue
+            status = r.get("stay_status") or ""
+            bk = conn.execute("SELECT id, stay_id FROM hostel_bookings WHERE dedup_key=?",
+                              (rm.dedup_key(r["ref"], r["guest"], r["arrival"], r["departure"], r["room"]),)).fetchone()
+            cur = conn.execute("SELECT * FROM stays WHERE exely_stay_id=? ORDER BY id DESC LIMIT 1", (key,)).fetchone()
+            room_id = rooms.get((r["room"] or "").split(".")[0].strip())
+            planned_out = r["departure"] or None
+            check_in = r.get("actual_in") or r["arrival"]
+
+            def link(stay_id):
+                if bk:
+                    conn.execute("UPDATE hostel_bookings SET stay_id=? WHERE id=?", (stay_id, bk["id"]))
+
+            def insert(room, ci, co, note="Exely"):
+                cur2 = conn.execute(
+                    "INSERT INTO stays (room_id, guest_name, check_in, expected_departure, check_out, booking_id, note, exely_stay_id)"
+                    " VALUES (?,?,?,?,?,?,?,?)", (room, r["guest"], ci, planned_out, co, bk["id"] if bk else None, note, key))
+                return cur2.lastrowid
+
+            if status not in ("CheckedIn", "CheckedOut"):
+                gone = [x["id"] for x in conn.execute("SELECT id FROM stays WHERE exely_stay_id=?", (key,))]
+                for sid in gone:
+                    conn.execute("UPDATE hostel_bookings SET stay_id=NULL WHERE stay_id=?", (sid,))
+                    conn.execute("DELETE FROM stays WHERE id=?", (sid,))
+                    counts["removed"] += 1
+                continue
+
+            if cur is None and bk and bk["stay_id"]:          # qo'lda joylashtirilgan bo'lsa — o'zlashtiramiz
+                manual = conn.execute("SELECT * FROM stays WHERE id=? AND exely_stay_id IS NULL", (bk["stay_id"],)).fetchone()
+                if manual and (manual["check_out"] is None or status == "CheckedOut"):
+                    conn.execute("UPDATE stays SET exely_stay_id=? WHERE id=?", (key, manual["id"]))
+                    cur = conn.execute("SELECT * FROM stays WHERE id=?", (manual["id"],)).fetchone()
+                    counts["adopted"] += 1
+
+            if status == "CheckedIn":
+                if cur is None:
+                    if room_id is None:
+                        counts["no_room"] += 1
+                        continue
+                    link(insert(room_id, check_in, None))
+                    counts["created"] += 1
+                    continue
+                if cur["check_out"] is not None:
+                    conn.execute("UPDATE stays SET check_out=NULL WHERE id=?", (cur["id"],))
+                    counts["reopened"] += 1
+                if room_id and cur["room_id"] != room_id:
+                    if cur["check_in"] >= today:
+                        conn.execute("UPDATE stays SET room_id=? WHERE id=?", (room_id, cur["id"]))
+                    else:
+                        conn.execute("UPDATE stays SET check_out=? WHERE id=?", (today, cur["id"]))
+                        link(insert(room_id, today, None, "Exely [ko'chirildi]"))
+                    counts["moved"] += 1
+                elif bk and bk["stay_id"] != cur["id"]:
+                    link(cur["id"])
+                if planned_out and cur["expected_departure"] != planned_out:
+                    conn.execute("UPDATE stays SET expected_departure=? WHERE exely_stay_id=? AND check_out IS NULL", (planned_out, key))
+                continue
+
+            # CheckedOut
+            out_date = r.get("actual_out") or planned_out or today
+            if cur is None:
+                if room_id is None:
+                    counts["no_room"] += 1
+                    continue
+                link(insert(room_id, check_in, max(out_date, check_in), "Exely"))
+                counts["closed_new"] += 1
+            else:
+                out_date = max(out_date, cur["check_in"])
+                if cur["check_out"] != out_date:
+                    conn.execute("UPDATE stays SET check_out=? WHERE id=?", (out_date, cur["id"]))
+                    counts["closed"] += 1
+        conn.commit()
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        conn.close()
+    return dict(counts)
+
+
+def stays_summary(counts):
+    labels = (("created", "+"), ("adopted", "≈"), ("moved", "→"), ("reopened", "↺"), ("closed", "✓"),
+              ("closed_new", "✓+"), ("removed", "−"), ("no_room", "?"))
+    return " ".join(f"{sym}{counts[k]}" for k, sym in labels if counts.get(k))
+
+
 def sync_reservations(client, numbers):
-    """Berilgan bronlarni Exely'dan (GET) olib hostel_bookings'ga upsert qiladi.
-    Qaytaradi: (qatorlar soni, yuklanmagan bron raqamlari)."""
+    """Berilgan bronlarni Exely'dan (GET) olib hostel_bookings'ga upsert qiladi va
+    joylashtirishni moslaydi. Qaytaradi: (qatorlar soni, yuklanmagan bron raqamlari, joylashtirish hisobi)."""
     import rooms as rm
     job = BookingFetchJob(client, None, None, False)
     room_names = {str(r["id"]): r["displayName"] for r in client.rooms()}
     type_names = {k: normalize_type_name(v) for k, v in client.room_type_names().items()}
     for n in numbers:
         job._one(n, room_names, type_names)
+    stays = {}
     if job.rows:
         rm.import_bookings(job.rows)
-    return len(job.rows), job.failed
+        stays = reconcile_stays(job.rows)
+    return len(job.rows), job.failed, stays
 
 
 ACCESS_LOG_MAX = 5000
@@ -412,12 +521,12 @@ def list_access(limit=100):
 def poll_modified(client, since, until):
     """Zaxira tekshiruv: [since, until] oralig'ida o'zgargan bronlarni (faol va bekor
     qilinganlarini) Exely'dan o'qib, hostel_bookings'ga upsert qiladi (faqat GET).
-    Qaytaradi: (topilgan bronlar soni, qatorlar soni, yuklanmaganlar)."""
+    Qaytaradi: (topilgan bronlar soni, qatorlar soni, yuklanmaganlar, joylashtirish hisobi)."""
     numbers = []
     for state in ("Active", "Cancelled"):
         numbers += client.search_reservation_numbers(since, until, True, state)
     numbers = list(dict.fromkeys(numbers))
     if not numbers:
-        return 0, 0, []
-    rows, failed = sync_reservations(client, numbers)
-    return len(numbers), rows, failed
+        return 0, 0, [], {}
+    rows, failed, stays = sync_reservations(client, numbers)
+    return len(numbers), rows, failed, stays
