@@ -334,6 +334,14 @@ def extract_reservation_numbers(body_text):
     return list(dict.fromkeys(_RESERVATION_NO.findall(body_text or "")))[:20]
 
 
+_EVENT_TYPE = re.compile(r'"eventType"\s*:\s*"([^"]+)"')
+
+
+def extract_event_types(body_text):
+    """Exely xabaridagi hodisa turlari (masalan webpms:change_check_out_datetime)."""
+    return list(dict.fromkeys(_EVENT_TYPE.findall(body_text or "")))[:10]
+
+
 def record_event(source_ip, body, numbers):
     conn = get_conn()
     cur = conn.execute("INSERT INTO webhook_events (received_at, source_ip, body, numbers) VALUES (datetime('now','localtime'),?,?,?)",

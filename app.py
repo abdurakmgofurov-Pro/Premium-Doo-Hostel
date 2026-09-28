@@ -1651,17 +1651,18 @@ def rooms_exely_bookings_job(job_id):
 # Himoya: manzil oxiridagi maxfiy kalit (config.json `webhook_secret`). Xabar mazmuniga
 # ISHONILMAYDI — undan faqat bron raqami olinadi, ma'lumot Exely'dan GET bilan qayta o'qiladi.
 
-def _process_webhook(event_id, numbers):
+def _process_webhook(event_id, numbers, types=""):
+    pre = (types + "; ") if types else ""
     try:
         if not numbers:
-            xs.finish_event(event_id, "ignored", "bron raqami topilmadi")
+            xs.finish_event(event_id, "ignored", pre + "bron raqami topilmadi")
             return
         count, failed = xs.sync_reservations(_exely_client(), numbers)
         xs.finish_event(event_id, "error" if failed else "processed",
-                        f"qatorlar: {count}" + (f"; yuklanmadi: {', '.join(failed)}" if failed else ""))
+                        pre + f"qatorlar: {count}" + (f"; yuklanmadi: {', '.join(failed)}" if failed else ""))
     except Exception as e:                      # noqa: BLE001
         log("EXELY VEBHUK QAYTA ISHLASH XATOSI:\n" + traceback.format_exc())
-        xs.finish_event(event_id, "error", str(e))
+        xs.finish_event(event_id, "error", pre + str(e))
 
 
 def _client_ip():
@@ -1708,7 +1709,7 @@ def exely_webhook(secret):
     if outcome == "ok":
         numbers = xs.extract_reservation_numbers(body)
         event_id = xs.record_event(ip, body, numbers)
-        threading.Thread(target=_process_webhook, args=(event_id, numbers), daemon=True).start()
+        threading.Thread(target=_process_webhook, args=(event_id, numbers, ", ".join(xs.extract_event_types(body))), daemon=True).start()
     try:
         xs.log_access(client_ip=ip, remote_addr=request.remote_addr, method=request.method, outcome=outcome,
                       headers=dict(request.headers), body_size=size, body_preview=body, event_id=event_id)
