@@ -56,7 +56,7 @@
             <td class="mono">{{ b.ref or t('common.dash') }}</td>
             <td>{{ b.guest_name }}{% if b.note %}<span class="g-dates">{{ b.note }}</span>{% endif %}</td>
             <td>{{ b.arrival }}</td><td>{{ b.departure or t('common.dash') }}</td>
-            <td>{{ b.room_type_text or t('common.dash') }}</td><td>{{ b.room_text or t('common.dash') }}</td>
+            <td>{{ (b.room_type_text|type_label) or t('common.dash') }}</td><td>{{ b.room_text or t('common.dash') }}</td>
             <td>{{ b.status_text or t('common.dash') }}{% if b.is_cancelled %} ({{ t('rooms.bk_cancelled') }}){% endif %}</td>
             <td>
               {% if b.placed_room_number %}

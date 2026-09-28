@@ -10,7 +10,7 @@
     <input type="hidden" name="back" value="{{ back }}">
     <div class="field full"><label>{{ t('rooms.field_room') }}</label>
       <select name="room_id" required>
-        {% for r in free_rooms %}<option value="{{ r.id }}">{{ r.number }} · {{ r.type_name or '' }} ({{ t('rooms.beds_line').format(o=r.occupied, c=r.capacity) }})</option>{% endfor %}
+        {% for r in free_rooms %}<option value="{{ r.id }}">{{ r.number }} · {{ r.type_name|type_label or '' }} ({{ t('rooms.beds_line').format(o=r.occupied, c=r.capacity) }})</option>{% endfor %}
       </select></div>
     <div class="field full"><label>{{ t('rooms.field_booking') }}</label>
       <select name="booking_id" id="checkinBooking">
@@ -36,7 +36,7 @@
     <input type="hidden" name="back" value="{{ back }}">
     <div class="field full"><label>{{ t('rooms.field_target_room') }}</label>
       <select name="room_id" required>
-        {% for r in free_rooms %}<option value="{{ r.id }}">{{ r.number }} · {{ r.type_name or '' }} ({{ t('rooms.beds_line').format(o=r.occupied, c=r.capacity) }})</option>{% endfor %}
+        {% for r in free_rooms %}<option value="{{ r.id }}">{{ r.number }} · {{ r.type_name|type_label or '' }} ({{ t('rooms.beds_line').format(o=r.occupied, c=r.capacity) }})</option>{% endfor %}
       </select></div>
     <div class="field full"><label>{{ t('rooms.field_date') }}</label><input type="date" name="date" value="{{ today }}" max="{{ today }}"></div>
     <div class="field full"><button class="btn primary" type="submit">{{ t('rooms.btn_move') }}</button></div>

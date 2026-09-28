@@ -27,7 +27,7 @@
             {% for r in rows[:500] %}
             <tr>
               <td class="mono">{{ r.ref or t('common.dash') }}</td><td>{{ r.guest }}</td><td>{{ r.arrival }}</td>
-              <td>{{ r.departure or t('common.dash') }}</td><td>{{ r.room_type or t('common.dash') }}</td>
+              <td>{{ r.departure or t('common.dash') }}</td><td>{{ (r.room_type|type_label) or t('common.dash') }}</td>
               <td>{{ r.room or t('common.dash') }}</td><td>{{ r.status or t('common.dash') }}</td>
               <td><span class="import-badge {{ r.state }}">{{ t('rooms.bk_state_' + r.state) }}</span></td>
             </tr>

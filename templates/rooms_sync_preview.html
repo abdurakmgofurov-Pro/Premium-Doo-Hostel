@@ -24,9 +24,9 @@
           <tbody>
             {% for r in plan.rooms %}
             <tr>
-              <td><b class="mono">{{ r.number }}</b></td><td>{{ r.floor }}</td><td>{{ r.type_name or t('common.dash') }}</td>
+              <td><b class="mono">{{ r.number }}</b></td><td>{{ r.floor }}</td><td>{{ (r.type_name|type_label) or t('common.dash') }}</td>
               <td class="num">{{ r.capacity }}</td>
-              <td>{% for field, old, new in r.changes %}{{ t('rooms.th_' ~ field) }}: {{ old }} → {{ new }}{% if not loop.last %}; {% endif %}{% endfor %}</td>
+              <td>{% for field, old, new in r.changes %}{{ t('rooms.th_' ~ field) }}: {{ old|type_label }} → {{ new|type_label }}{% if not loop.last %}; {% endif %}{% endfor %}</td>
               <td>{% if r.action == 'blocked' %}<span class="import-badge changed">{{ t('rooms.ex_state_blocked') }}</span>
                   {% else %}<span class="import-badge {{ {'new': 'new', 'update': 'changed', 'same': 'same'}[r.action] }}">{{ t('rooms.bk_state_' ~ {'new': 'new', 'update': 'changed', 'same': 'same'}[r.action]) }}</span>{% endif %}</td>
             </tr>

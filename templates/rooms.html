@@ -32,7 +32,7 @@
     </select>
     <select name="type_id" onchange="this.form.submit()">
       <option value="">{{ t('rooms.filter_type') }}: {{ t('rooms.filter_all') }}</option>
-      {% for ty in room_types %}<option value="{{ ty.id }}" {{ 'selected' if f_type|string == ty.id|string else '' }}>{{ ty.name }}</option>{% endfor %}
+      {% for ty in room_types %}<option value="{{ ty.id }}" {{ 'selected' if f_type|string == ty.id|string else '' }}>{{ ty.name|type_label }}</option>{% endfor %}
     </select>
     <select name="status" onchange="this.form.submit()">
       <option value="">{{ t('rooms.filter_status') }}: {{ t('rooms.filter_all') }}</option>
@@ -55,7 +55,7 @@
       <div class="room-head">
         <div>
           <div class="room-no">{{ r.number }}</div>
-          <div class="room-meta">{{ t('rooms.floor_n').format(n=r.floor) }}{% if r.type_name %} · {{ r.type_name }}{% endif %}{% if r.price %} · {{ r.price|money }} {{ r.currency }}{% endif %}</div>
+          <div class="room-meta">{{ t('rooms.floor_n').format(n=r.floor) }}{% if r.type_name %} · {{ r.type_name|type_label }}{% endif %}{% if r.price %} · {{ r.price|money }} {{ r.currency }}{% endif %}</div>
         </div>
         <span class="st-badge">{{ t('rooms.st_' + r.status) }}</span>
       </div>
@@ -107,7 +107,7 @@
         <tbody>
           {% for r in rows %}
           <tr class="st-{{ r.status }}">
-            <td><b class="mono">{{ r.number }}</b></td><td>{{ r.floor }}</td><td>{{ r.type_name or t('common.dash') }}</td>
+            <td><b class="mono">{{ r.number }}</b></td><td>{{ r.floor }}</td><td>{{ (r.type_name|type_label) or t('common.dash') }}</td>
             <td class="num">{{ r.capacity }}</td><td class="num">{{ r.occupied }}</td><td class="num">{{ r.free_beds }}</td>
             <td><span class="st-dot"></span>{{ t('rooms.st_' + r.status) }}</td>
             <td>{{ r.occupants|map(attribute='guest_name')|join(', ') or t('common.dash') }}</td>

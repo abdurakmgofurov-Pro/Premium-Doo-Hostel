@@ -20,6 +20,7 @@ Ochish:            http://127.0.0.1:5000
 """
 import hmac
 import json
+import re
 import secrets
 import sqlite3
 import threading
@@ -347,6 +348,27 @@ def set_display_currency(cur):
     if cur in ("UZS", "USD"):
         session["display_currency"] = cur
     return redirect(request.referrer or url_for("index"))
+
+
+_TYPE_NAME_RE = re.compile(r"^(\d+) kishilik(?: \((erkaklar|ayollar)\))?$")
+
+
+@app.template_filter("type_label")
+def type_label(name):
+    """Xona turi nomini (bazada o'zbekcha: «4 kishilik (erkaklar)») foydalanuvchi tiliga o'giradi.
+    Boshqacha (qo'lda kiritilgan) nomlar o'zgarishsiz qoladi."""
+    if not isinstance(name, str):
+        return name
+    m = _TYPE_NAME_RE.match(name.strip())
+    if not m:
+        return name
+    n, gender = m.groups()
+    lang = getattr(g, "lang", "uz")
+    if lang == "ru":
+        return f"{n}-местный" + {"erkaklar": " (мужчины)", "ayollar": " (женщины)"}.get(gender, "")
+    if lang == "en":
+        return f"{n}-bed dorm" + {"erkaklar": " (men)", "ayollar": " (women)"}.get(gender, "")
+    return name
 
 
 def to_display_amount(uzs, usd, rate):

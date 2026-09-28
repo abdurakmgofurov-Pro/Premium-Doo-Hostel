@@ -36,7 +36,7 @@
         <tbody>
           {% for ty in room_types %}
           <tr>
-            <td>{{ ty.name }}</td><td class="num">{{ ty.capacity }}</td>
+            <td>{{ ty.name|type_label }}</td><td class="num">{{ ty.capacity }}</td>
             <td class="num">{{ ty.price|money if ty.price else t('common.dash') }} {{ ty.currency if ty.price else '' }}</td>
             <td class="num">{{ ty.rooms_count }}</td>
             <td style="display:flex;gap:.4rem;justify-content:flex-end">
@@ -70,7 +70,7 @@
           {% for r in rooms %}
           <tr {% if not r.active %}class="is-cancelled"{% endif %}>
             <td><b class="mono">{{ r.number }}</b>{% if not r.active %} <span class="tag">{{ t('rooms.tag_inactive') }}</span>{% endif %}</td>
-            <td>{{ r.floor }}</td><td>{{ r.type_name or t('common.dash') }}</td>
+            <td>{{ r.floor }}</td><td>{{ (r.type_name|type_label) or t('common.dash') }}</td>
             <td class="num">{{ r.capacity }}</td>
             <td class="num">{{ r.price|money if r.price else t('common.dash') }} {{ r.currency if r.price else '' }}</td>
             <td>{{ r.note or '' }}</td>
@@ -111,7 +111,7 @@
       <div class="field full"><label>{{ t('rooms.field_type') }}</label>
         <select name="room_type_id" id="roomTypeSelect">
           <option value="">{{ t('rooms.no_type') }}</option>
-          {% for ty in room_types %}<option value="{{ ty.id }}" data-capacity="{{ ty.capacity }}" data-price="{{ ty.price }}" data-currency="{{ ty.currency }}">{{ ty.name }}</option>{% endfor %}
+          {% for ty in room_types %}<option value="{{ ty.id }}" data-capacity="{{ ty.capacity }}" data-price="{{ ty.price }}" data-currency="{{ ty.currency }}">{{ ty.name|type_label }}</option>{% endfor %}
         </select></div>
       <div class="field"><label>{{ t('rooms.field_capacity') }}</label><input type="number" name="capacity" min="1" required></div>
       <div class="field"><label>{{ t('rooms.field_price') }}</label><input type="text" inputmode="decimal" class="money-input" name="price"></div>
