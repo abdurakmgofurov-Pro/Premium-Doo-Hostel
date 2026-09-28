@@ -422,8 +422,7 @@ def import_bookings(rows):
     return added, updated, unchanged
 
 
-def list_bookings(search=None, only_unplaced=False, hide_cancelled=True, limit=100, offset=0):
-    conn = get_conn()
+def _bookings_where(search, only_unplaced, hide_cancelled):
     where, params = [], []
     if search:
         where.append("(guest_name LIKE ? OR ref LIKE ? OR room_text LIKE ?)")
@@ -432,7 +431,12 @@ def list_bookings(search=None, only_unplaced=False, hide_cancelled=True, limit=1
         where.append("is_cancelled=0")
     if only_unplaced:
         where.append("NOT EXISTS (SELECT 1 FROM stays s WHERE s.booking_id=hostel_bookings.id)")
-    w = (" WHERE " + " AND ".join(where)) if where else ""
+    return ((" WHERE " + " AND ".join(where)) if where else ""), params
+
+
+def list_bookings(search=None, only_unplaced=False, hide_cancelled=True, limit=100, offset=0):
+    conn = get_conn()
+    w, params = _bookings_where(search, only_unplaced, hide_cancelled)
     total = conn.execute("SELECT COUNT(*) c FROM hostel_bookings" + w, params).fetchone()["c"]
     rows = conn.execute(
         "SELECT b.*, s.room_id AS placed_room_id, s.check_out AS placed_check_out,"
@@ -442,7 +446,25 @@ def list_bookings(search=None, only_unplaced=False, hide_cancelled=True, limit=1
         params + [limit, offset],
     ).fetchall()
     conn.close()
-    return [dict(r) for r in rows], total
+    out = [dict(r) for r in rows]
+    for r in out:
+        r["balance"] = _balance(r)
+    return out, total
+
+
+def bookings_totals(search=None, only_unplaced=False):
+    """Filtrga mos (bekor qilinmagan) bronlar summasi valyutalar bo'yicha:
+    [{currency, count, total, paid, balance}] — narxi ma'lum bronlar uchun."""
+    conn = get_conn()
+    w, params = _bookings_where(search, only_unplaced, True)
+    w += (" AND " if w else " WHERE ") + "total_amount IS NOT NULL"
+    rows = conn.execute(
+        "SELECT COALESCE(NULLIF(currency,''),'?') cur, COUNT(*) n, SUM(total_amount) total,"
+        " SUM(COALESCE(paid_amount,0)) paid, SUM(COALESCE(refund_amount,0)) refund"
+        " FROM hostel_bookings" + w + " GROUP BY cur ORDER BY total DESC", params).fetchall()
+    conn.close()
+    return [{"currency": r["cur"], "count": r["n"], "total": round(r["total"] or 0, 2), "paid": round(r["paid"] or 0, 2),
+             "balance": round((r["total"] or 0) - (r["paid"] or 0) + (r["refund"] or 0), 2)} for r in rows]
 
 
 def get_booking(booking_id):

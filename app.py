@@ -87,6 +87,21 @@ app.jinja_env.filters["money"] = format_money
 app.jinja_env.filters["qty"] = format_qty
 
 
+def format_amount(value, currency=""):
+    """Bron summasi: UZS — butun son, boshqa valyutalar — 2 xonagacha kasr; ma'lumot yo'q bo'lsa «—»."""
+    if value is None:
+        return "—"
+    if currency == "UZS":
+        text = f"{round(value):,}".replace(",", "\u00a0")
+    else:
+        text = f"{value:,.2f}".replace(",", "\u00a0").replace(".", ",")
+        text = text[:-3] if text.endswith(",00") else text
+    return f"{text} {currency}".strip()
+
+
+app.jinja_env.filters["amount"] = format_amount
+
+
 def parse_amount(s):
     """Summa maydonlaridan keladigan qiymatni o'qiydi — JS mingliklarni
     bo'sh joy bilan formatlaydi va yuborishdan oldin olib tashlaydi, lekin
@@ -1585,6 +1600,7 @@ def rooms_bookings_page():
     return render_template(
         "rooms_bookings.html", active_page="rooms", rooms_tab="bookings", rows=rows, total=total,
         unplaced_bookings=unplaced, exely_last_sync=db.get_setting("exely_bookings_last_sync"),
+        totals=rm.bookings_totals(q or None, only_unplaced),
         page=page, total_pages=total_pages, f_q=q, f_unplaced=only_unplaced, f_cancelled=show_cancelled,
         free_rooms=[r for r in all_rows if r["status"] in ("free", "partial")], today=rm.today_str(),
         can_create=db.has_permission(u, "rooms", "create"), can_delete=db.has_permission(u, "rooms", "delete"),

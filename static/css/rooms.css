@@ -78,3 +78,13 @@ tr.is-cancelled td { opacity: .55; }
 .occ-tip strong { display: block; margin-bottom: .15rem; font-size: .78rem; }
 .occ-tip i { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: .4rem; }
 .occ-tip span { color: var(--ink-secondary); }
+
+.nowrap { white-space: nowrap; }
+.bk-totals { display: flex; flex-direction: column; gap: .5rem; margin-bottom: 1rem; }
+.bk-total { display: flex; flex-wrap: wrap; align-items: baseline; gap: .4rem 1.4rem; padding: .7rem 1rem; font-size: .84rem;
+  background: var(--bg-surface); border: 1px solid var(--border); border-radius: var(--radius); color: var(--ink-secondary); }
+.bk-total .cur { font-weight: 800; color: var(--ink-primary); }
+.bk-total b { color: var(--ink-primary); }
+.bk-total .cnt { margin-left: auto; font-size: .74rem; color: var(--ink-muted); }
+.bal-due, .bk-total b.bal-due { color: var(--warn); font-weight: 700; }
+.bal-ok, .bk-total b.bal-ok { color: var(--good); }

@@ -41,6 +41,20 @@
     <span class="beds-line">{{ t('rooms.bk_total').format(n=total) }}</span>
   </form>
 
+  {% if totals %}
+  <div class="bk-totals">
+    {% for tt in totals %}
+    <div class="bk-total">
+      <span class="cur">{{ tt.currency }}</span>
+      <span>{{ t('rooms.bk_th_amount') }}: <b>{{ tt.total|amount(tt.currency) }}</b></span>
+      <span>{{ t('rooms.bk_th_paid') }}: <b>{{ tt.paid|amount(tt.currency) }}</b></span>
+      <span>{{ t('rooms.bk_th_balance') }}: <b class="{{ 'bal-due' if tt.balance > 0 else 'bal-ok' }}">{{ tt.balance|amount(tt.currency) }}</b></span>
+      <span class="cnt">{{ t('rooms.bk_totals_note').format(n=tt.count) }}</span>
+    </div>
+    {% endfor %}
+  </div>
+  {% endif %}
+
   <div class="card">
     <div class="overflow-x">
       {% if rows %}
@@ -48,7 +62,7 @@
         <thead><tr>
           <th>{{ t('rooms.bk_th_ref') }}</th><th>{{ t('rooms.bk_th_guest') }}</th><th>{{ t('rooms.bk_th_arrival') }}</th>
           <th>{{ t('rooms.bk_th_departure') }}</th><th>{{ t('rooms.bk_th_room_type') }}</th><th>{{ t('rooms.bk_th_room') }}</th>
-          <th>{{ t('rooms.bk_th_status') }}</th><th>{{ t('rooms.bk_th_placement') }}</th><th></th>
+          <th>{{ t('rooms.bk_th_status') }}</th><th class="num">{{ t('rooms.bk_th_amount') }}</th><th class="num">{{ t('rooms.bk_th_paid') }}</th><th class="num">{{ t('rooms.bk_th_balance') }}</th><th>{{ t('rooms.bk_th_placement') }}</th><th></th>
         </tr></thead>
         <tbody>
           {% for b in rows %}
@@ -58,6 +72,9 @@
             <td>{{ b.arrival }}</td><td>{{ b.departure or t('common.dash') }}</td>
             <td>{{ (b.room_type_text|type_label) or t('common.dash') }}</td><td>{{ b.room_text or t('common.dash') }}</td>
             <td>{{ b.status_text or t('common.dash') }}{% if b.is_cancelled %} ({{ t('rooms.bk_cancelled') }}){% endif %}</td>
+            <td class="num nowrap">{{ b.total_amount|amount(b.currency) }}</td>
+            <td class="num nowrap">{{ b.paid_amount|amount(b.currency) }}</td>
+            <td class="num nowrap {{ ('bal-due' if b.balance > 0 else 'bal-ok') if b.balance is not none else '' }}">{{ b.balance|amount(b.currency) }}</td>
             <td>
               {% if b.placed_room_number %}
                 {% if b.placed_check_out %}{{ t('rooms.bk_checked_out').format(room=b.placed_room_number) }}
