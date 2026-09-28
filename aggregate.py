@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 """Exely Public API'dan kelgan xom bron ma'lumotlarini moliyaviy hisobot uchun yig'ish."""
+from names import canon_room_type, canon_rate_plan
 from collections import defaultdict
 from datetime import datetime
 
@@ -65,10 +66,10 @@ def _room_stay_info(booking):
     for rs in booking.get("roomStays") or []:
         rt_name = (rs.get("roomType") or {}).get("name")
         if rt_name and not room_type:
-            room_type = rt_name
+            room_type = canon_room_type(rt_name)
         rate_plans = rs.get("ratePlans") or []
         if rate_plans and not rate_plan:
-            rate_plan = rate_plans[0].get("name")
+            rate_plan = canon_rate_plan(rate_plans[0].get("name"))
         guest_count = rs.get("guestCount") or {}
         adults += guest_count.get("adultCount") or 0
         children += len(guest_count.get("childAges") or [])

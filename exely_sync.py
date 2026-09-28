@@ -19,19 +19,14 @@ from datetime import date, datetime, timedelta
 
 from db import get_conn
 from exely_pms import ExelyPmsError
+from names import canon_room_type
 
 
 # ----------------------------------------------------------------- xonalar
 
 def normalize_type_name(name):
-    """«4-местный номер (мужчины)» -> «4 kishilik (erkaklar)»; tanib bo'lmasa — o'zgarmaydi."""
-    name = (name or "").strip()
-    m = re.match(r"^(\d+)\s*-?\s*мест", name, re.IGNORECASE)
-    if not m:
-        return name
-    low = name.lower()
-    gender = " (erkaklar)" if "мужч" in low else " (ayollar)" if "женщ" in low else ""
-    return f"{m.group(1)} kishilik{gender}"
+    """«4-местный номер (мужчины)» / «4-bed room (men)» -> «4 kishilik (erkaklar)»; tanib bo'lmasa — o'zgarmaydi."""
+    return canon_room_type(name or "")
 
 
 def _type_capacity(exely_name, beds):

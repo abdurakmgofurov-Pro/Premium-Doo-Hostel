@@ -42,6 +42,7 @@ from exely_api import ExelyApiClient
 from exely_pms import ExelyPmsClient
 import exely_sync as xs
 import audit
+import names
 from exely_expense_import import parse_expense_xlsx
 from forma1 import build_forma1
 from forma2 import build_forma2
@@ -350,25 +351,20 @@ def set_display_currency(cur):
     return redirect(request.referrer or url_for("index"))
 
 
-_TYPE_NAME_RE = re.compile(r"^(\d+) kishilik(?: \((erkaklar|ayollar)\))?$")
-
-
 @app.template_filter("type_label")
 def type_label(name):
-    """Xona turi nomini (bazada o'zbekcha: «4 kishilik (erkaklar)») foydalanuvchi tiliga o'giradi.
-    Boshqacha (qo'lda kiritilgan) nomlar o'zgarishsiz qoladi."""
-    if not isinstance(name, str):
-        return name
-    m = _TYPE_NAME_RE.match(name.strip())
-    if not m:
-        return name
-    n, gender = m.groups()
-    lang = getattr(g, "lang", "uz")
-    if lang == "ru":
-        return f"{n}-местный" + {"erkaklar": " (мужчины)", "ayollar": " (женщины)"}.get(gender, "")
-    if lang == "en":
-        return f"{n}-bed dorm" + {"erkaklar": " (men)", "ayollar": " (women)"}.get(gender, "")
-    return name
+    """Xona turi nomini foydalanuvchi tiliga o'giradi («4 kishilik (erkaklar)» -> «4-местный (мужчины)»)."""
+    return names.label_room_type(name, getattr(g, "lang", "uz"))
+
+
+def localize_agg(data, lang):
+    """Dashboard uchun: xona turi va tarif reja nomlarini foydalanuvchi tiliga o'giradi."""
+    if not data:
+        return data
+    out = dict(data)
+    out["by_room_type"] = {names.label_room_type(k, lang): v for k, v in (data.get("by_room_type") or {}).items()}
+    out["by_rate_plan"] = {names.label_rate_plan(k, lang): v for k, v in (data.get("by_rate_plan") or {}).items()}
+    return out
 
 
 def to_display_amount(uzs, usd, rate):
@@ -780,7 +776,7 @@ def api_data():
         "last_attempt": last_attempt,
         "last_success": last_success,
         "progress": progress,
-        "data": data,
+        "data": localize_agg(data, g.lang),
         "manual": db.summarize_transactions(year, month),
         "real_cash": real_cash_totals(year, month),
     })

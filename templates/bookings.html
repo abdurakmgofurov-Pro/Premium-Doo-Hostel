@@ -51,7 +51,7 @@
           <td class="num">{{r.revenue|money}}</td>
           <td class="num">{{r.prepaid|money}}</td>
           <td>{{ r.arrival[:10] if r.arrival else t('common.dash') }}</td>
-          <td>{{r.room_type or t('common.dash')}}</td>
+          <td>{{ (r.room_type|type_label) or t('common.dash') }}</td>
           <td class="num">{{ r.nights if r.nights is not none else t('common.dash') }}</td>
           <td>{{ r.adults }}{% if r.children %} + {{ r.children }}👶{% endif %}</td>
           <td>{{r.payment_method or t('common.dash')}}</td>
