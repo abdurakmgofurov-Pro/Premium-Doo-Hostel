@@ -1870,6 +1870,37 @@ def audit_page():
                            f_user=f_user, f_action=f_action, f_q=f_q, f_from=f_from, f_to=f_to)
 
 
+# -- shaxmatka (Exely'dagi kabi: kunlar bo'yicha bronlar jadvali) — faqat ko'rish
+
+WEEKDAYS = {"ru": ("Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс"), "en": ("Mo", "Tu", "We", "Th", "Fr", "Sa", "Su"),
+            "uz": ("Du", "Se", "Ch", "Pa", "Ju", "Sh", "Ya")}
+
+
+@app.route("/rooms/chart")
+@permission_required("rooms", "view")
+def rooms_chart_page():
+    today = date.today()
+    days = 14 if request.args.get("days") == "14" else 31
+    try:
+        start = datetime.strptime(request.args.get("from", ""), "%Y-%m-%d").date()
+    except ValueError:
+        start = today - timedelta(days=3)
+    data = rm.chart_data(start, days, today)
+    months = []
+    for d in data["days"]:
+        label = f"{t_month(d.month, g.lang)} {d.year}"
+        if months and months[-1]["label"] == label:
+            months[-1]["span"] += 1
+        else:
+            months.append({"label": label, "span": 1})
+    return render_template(
+        "rooms_chart.html", active_page="rooms", rooms_tab="chart", data=data, months=months, start=start, days=days,
+        today=today, weekdays=WEEKDAYS.get(g.lang, WEEKDAYS["uz"]),
+        prev_from=(start - timedelta(days=7)).isoformat(), next_from=(start + timedelta(days=7)).isoformat(),
+        today_from=(today - timedelta(days=3)).isoformat(),
+    )
+
+
 # -- bandlik foizi
 
 @app.route("/rooms/occupancy")

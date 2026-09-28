@@ -1,0 +1,110 @@
+{% extends "base.html" %}
+{% block title %}{{ t('rooms.tab_chart') }}{% endblock %}
+{% block head %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/rooms.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/rooms_chart.css') }}">
+{% endblock %}
+{% block content %}
+  {% set c = data.cards %}
+  <div style="margin-bottom:1.2rem">
+    <h1 style="font-size:1.55rem">{{ t('rooms.chart_title') }}</h1>
+  </div>
+  {% include "_rooms_tabs.html" %}
+
+  <div class="cc-cards">
+    <div class="cc-card">
+      <h3>{{ t('rooms.cd_load') }}</h3>
+      <div class="cc-load">
+        <div class="cc-pct {{ 'hot' if c.load_pct >= 90 else '' }}">{{ c.load_pct }}%</div>
+        <div><b>{{ c.staying }}</b> {{ t('rooms.cd_occupied') }}<br><b>{{ c.total_beds }}</b> {{ t('rooms.cd_total_beds') }}</div>
+      </div>
+    </div>
+    <div class="cc-card">
+      <h3>{{ t('rooms.cd_guests') }}</h3>
+      <dl class="cc-list">
+        <dt>{{ t('rooms.cd_arrivals') }}</dt><dd>{{ c.arrivals }} / {{ c.arrivals_checked_in }}</dd>
+        <dt>{{ t('rooms.cd_departures') }}</dt><dd>{{ c.departures }}</dd>
+        <dt>{{ t('rooms.cd_staying') }}</dt><dd>{{ c.staying }}</dd>
+        <dt>{{ t('rooms.cd_not_arrived') }}</dt><dd>{{ c.not_arrived }}</dd>
+        <dt>{{ t('rooms.cd_free') }}</dt><dd>{{ c.free }}</dd>
+      </dl>
+    </div>
+    <div class="cc-card">
+      <h3>{{ t('rooms.cd_state') }}</h3>
+      {% for label, n, cls in ((t('rooms.cd_ready'), c.ready, 'ok'), (t('rooms.cd_cleaning'), c.cleaning, 'warn'), (t('rooms.cd_maintenance'), c.maintenance, 'bad')) %}
+      <div class="cc-bar-row"><span>{{ label }}</span>
+        <div class="cc-track"><div class="cc-fill {{ cls }}" style="width:{{ (n / c.rooms * 100) if c.rooms else 0 }}%"></div></div><b>{{ n }}</b></div>
+      {% endfor %}
+    </div>
+  </div>
+
+  <div class="cc-toolbar">
+    <form method="get" class="cc-nav">
+      <input type="hidden" name="days" value="{{ days }}">
+      <a class="btn small" href="?from={{ prev_from }}&days={{ days }}">‹</a>
+      <input type="date" name="from" value="{{ start.isoformat() }}" onchange="this.form.submit()">
+      <a class="btn small" href="?from={{ next_from }}&days={{ days }}">›</a>
+      <a class="btn small" href="?from={{ today_from }}&days={{ days }}">{{ t('rooms.chart_today') }}</a>
+    </form>
+    <div class="cc-range">
+      <a class="btn small {{ 'primary' if days == 14 else '' }}" href="?from={{ start.isoformat() }}&days=14">{{ t('rooms.chart_14') }}</a>
+      <a class="btn small {{ 'primary' if days == 31 else '' }}" href="?from={{ start.isoformat() }}&days=31">{{ t('rooms.chart_31') }}</a>
+    </div>
+    <div class="cc-legend">
+      <span><i class="lg new"></i>{{ t('rooms.lg_new') }}</span>
+      <span><i class="lg in"></i>{{ t('rooms.lg_in') }}</span>
+      <span><i class="lg out"></i>{{ t('rooms.lg_out') }}</span>
+    </div>
+  </div>
+
+  {% if not data.has_data %}<div class="note" style="margin-bottom:.8rem">{{ t('rooms.chart_empty') }}</div>{% endif %}
+
+  <div class="cc-scroll">
+    <div class="cc" style="--days:{{ days }}">
+      <div class="cc-head">
+        <div class="cc-row">
+          <div class="cc-label"></div>
+          <div class="cc-days">
+            {% for m in months %}<div class="cc-month" style="width:calc(var(--cell) * {{ m.span }})">{{ m.label }}</div>{% endfor %}
+          </div>
+        </div>
+        <div class="cc-row">
+          <div class="cc-label"></div>
+          <div class="cc-days">
+            {% for d in data.days %}
+            <div class="cc-cell hd {{ 'we' if d.weekday() >= 5 else '' }} {{ 'today' if d == today else '' }}">
+              <b>{{ d.day }}</b><span>{{ weekdays[d.weekday()] }}</span></div>
+            {% endfor %}
+          </div>
+        </div>
+      </div>
+
+      {% for g in data.groups %}
+      <div class="cc-row cc-group">
+        <div class="cc-label">{{ (g.name|type_label) or t('common.dash') }}</div>
+        <div class="cc-days">
+          {% for n in g.free %}<div class="cc-cell {{ 'we' if data.days[loop.index0].weekday() >= 5 else '' }} {{ 'today' if data.days[loop.index0] == today else '' }} {{ 'zero' if n <= 0 else '' }}">{{ n }}</div>{% endfor %}
+        </div>
+      </div>
+      <div class="cc-row cc-un">
+        <div class="cc-label">{{ t('rooms.chart_unassigned') }}</div>
+        <div class="cc-days">
+          {% for n in g.unassigned %}<div class="cc-cell {{ 'we' if data.days[loop.index0].weekday() >= 5 else '' }} {{ 'today' if data.days[loop.index0] == today else '' }}">{% if n %}<span class="un">{{ n }}</span>{% endif %}</div>{% endfor %}
+        </div>
+      </div>
+      {% for bed in g.beds %}
+      <div class="cc-row cc-bed">
+        <div class="cc-label"><span class="mono">{{ bed.label }}</span></div>
+        <div class="cc-days">
+          {% for d in data.days %}<div class="cc-cell {{ 'we' if d.weekday() >= 5 else '' }} {{ 'today' if d == today else '' }}"></div>{% endfor %}
+          {% for b in bed.bars %}
+          <div class="cc-bar {{ b.cls }}" title="{{ b.tip }}" style="left:calc(var(--cell) * {{ b.left }});width:calc(var(--cell) * {{ b.width }})">{{ b.name }}</div>
+          {% endfor %}
+        </div>
+      </div>
+      {% endfor %}
+      {% endfor %}
+    </div>
+  </div>
+  <p class="note">{{ t('rooms.chart_note') }}</p>
+{% endblock %}

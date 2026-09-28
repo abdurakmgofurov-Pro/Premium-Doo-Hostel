@@ -527,3 +527,116 @@ def _avg_exely(group):
     n = len(have)
     return {"ex_occ": round(sum(i["ex_occ"] for i in have) / n, 1), "ex_total": have[-1]["ex_total"],
             "ex_pct": round(sum(i["ex_pct"] for i in have) / n, 1)}
+
+
+# ------------------------------------------------------------------ shaxmatka
+
+def _d(text):
+    try:
+        return datetime.strptime((text or "")[:10], "%Y-%m-%d").date()
+    except ValueError:
+        return None
+
+
+def _booking_class(status_text):
+    s = status_text or ""
+    if "CheckedOut" in s:
+        return "out"
+    if "CheckedIn" in s:
+        return "in"
+    return "new"
+
+
+def chart_data(start, days, today=None):
+    """Shaxmatka (Exely'dagi kabi): qatorlar — o'rinlar (101.1, 101.2 ...) tur bo'yicha guruhlangan,
+    ustunlar — kunlar, chiziqlar — bronlar (kelish kunining o'rtasidan ketish kunining o'rtasigacha).
+    Bronlar `hostel_bookings`dan (Exely/Excel), xonasi bo'lmaganlari «xona tayinlanmagan» qatorida.
+    Qaytaradi: {"days": [...], "groups": [...], "cards": {...}}."""
+    today = today or date.today()
+    end = start + timedelta(days=days)
+    day_list = [start + timedelta(days=i) for i in range(days)]
+    # tartib Exely'dagidek: sig'im bo'yicha, har bir sig'imda avval erkaklar, keyin ayollar
+    type_order = {t["name"]: (t["capacity"], 1 if "ayollar" in t["name"] else 0, t["name"]) for t in list_room_types()}
+    rooms = list_rooms(include_inactive=False)
+
+    groups = {}
+    bed_index = {}                       # "101.2" -> (guruh nomi, bed dict)
+    for r in rooms:
+        g = groups.setdefault(r["type_name"] or "", {"name": r["type_name"] or "", "beds": [], "beds_total": 0})
+        for i in range(1, r["capacity"] + 1):
+            bed = {"label": f"{r['number']}.{i}", "bars": []}
+            g["beds"].append(bed)
+            bed_index[bed["label"]] = (g["name"], bed)
+        g["beds_total"] += r["capacity"]
+    ordered = sorted(groups.values(), key=lambda g: type_order.get(g["name"], (10**6, 0, g["name"])))
+    for g in ordered:
+        g["occupied"] = [0] * days
+        g["unassigned"] = [0] * days
+
+    conn = get_conn()
+    all_rows = [dict(r) for r in conn.execute("SELECT * FROM hostel_bookings WHERE is_cancelled=0")]
+    conn.close()
+
+    def span(b):
+        a = _d(b["arrival"])
+        dep = _d(b["departure"])
+        if not a:
+            return None, None
+        if not dep or dep <= a:
+            dep = a + timedelta(days=1)
+        return a, dep
+
+    fallback = ordered[0] if ordered else None
+    for b in all_rows:
+        a, dep = span(b)
+        if not a or dep <= start or a >= end:
+            continue
+        ai, di = (a - start).days, (dep - start).days
+        room_key = (b["room_text"] or "").strip()
+        gname, bed = bed_index.get(room_key, (None, None))
+        grp = groups.get(gname) if gname is not None else groups.get(b["room_type_text"] or "", fallback)
+        if grp is None:
+            continue
+        for idx in range(max(ai, 0), min(di, days)):
+            grp["occupied"][idx] += 1
+            if bed is None:
+                grp["unassigned"][idx] += 1
+        if bed is not None:
+            left = max(ai + 0.5, 0)
+            right = min(di + 0.5, days)
+            if right > left:
+                who = b["guest_name"] + ("" if not b["note"] else " · " + b["note"].split(" · ")[0])
+                bed["bars"].append({
+                    "left": round(left, 2), "width": round(right - left, 2), "name": who,
+                    "cls": _booking_class(b["status_text"]),
+                    "tip": f"{b['guest_name']} · {b['arrival']} → {b['departure'] or ''} · {b['status_text'] or ''}"
+                           f"{' · ' + b['note'] if b['note'] else ''} · {b['ref'] or ''}",
+                })
+    for g in ordered:
+        g["free"] = [g["beds_total"] - o for o in g["occupied"]]
+
+    # bugungi kartalar (butun bronlar bo'yicha, ko'rinish oralig'iga bog'liq emas)
+    total_beds = sum(g["beds_total"] for g in ordered)
+    arrivals = checked = departures = staying = not_arrived = 0
+    for b in all_rows:
+        a, dep = span(b)
+        if not a:
+            continue
+        cls = _booking_class(b["status_text"])
+        if a == today:
+            arrivals += 1
+            checked += 1 if cls != "new" else 0
+            not_arrived += 1 if cls == "new" else 0
+        if dep == today:
+            departures += 1
+        if a <= today < dep:
+            staying += 1
+    cleaning = sum(1 for r in rooms if r["manual_status"] == "cleaning")
+    maintenance = sum(1 for r in rooms if r["manual_status"] == "maintenance")
+    cards = {
+        "total_beds": total_beds, "staying": staying, "load_pct": round(staying / total_beds * 100) if total_beds else 0,
+        "arrivals": arrivals, "arrivals_checked_in": checked, "departures": departures, "not_arrived": not_arrived,
+        "free": max(total_beds - staying, 0), "rooms": len(rooms), "cleaning": cleaning, "maintenance": maintenance,
+        "ready": len(rooms) - cleaning - maintenance,
+    }
+    return {"days": day_list, "groups": ordered, "cards": cards, "has_data": bool(all_rows)}

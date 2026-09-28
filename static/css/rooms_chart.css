@@ -1,0 +1,49 @@
+/* Shaxmatka: chapdagi ustun yopishqoq, kunlar gorizontal aylanadi */
+.cc-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 1rem; margin-bottom: 1.2rem; }
+.cc-card { background: var(--bg-surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 1rem 1.2rem; }
+.cc-card h3 { margin: 0 0 .7rem; font-size: .95rem; }
+.cc-load { display: flex; align-items: center; gap: 1rem; font-size: .85rem; color: var(--ink-secondary); line-height: 1.6; }
+.cc-pct { font-size: 1.8rem; font-weight: 800; padding: .7rem 1rem; border-radius: 10px; background: color-mix(in srgb, var(--good) 22%, transparent); color: var(--good); }
+.cc-pct.hot { background: color-mix(in srgb, var(--bad) 20%, transparent); color: var(--bad); }
+.cc-load b { color: var(--ink-primary); }
+.cc-list { display: grid; grid-template-columns: 1fr auto; gap: .35rem 1rem; margin: 0; font-size: .85rem; }
+.cc-list dt { color: var(--ink-secondary); } .cc-list dd { margin: 0; font-weight: 700; text-align: right; }
+.cc-bar-row { display: grid; grid-template-columns: 90px 1fr 30px; gap: .6rem; align-items: center; font-size: .82rem; margin-bottom: .45rem; }
+.cc-bar-row b { text-align: right; }
+.cc-track { height: 8px; background: var(--bg-surface-3); border-radius: 4px; overflow: hidden; }
+.cc-fill { height: 100%; } .cc-fill.ok { background: var(--good); } .cc-fill.warn { background: var(--warn); } .cc-fill.bad { background: var(--bad); }
+
+.cc-toolbar { display: flex; flex-wrap: wrap; gap: .8rem; align-items: center; margin-bottom: 1rem; }
+.cc-nav, .cc-range { display: flex; gap: .4rem; align-items: center; margin: 0; }
+.cc-nav input[type="date"] { background: var(--bg-surface-2); color: var(--ink-primary); border: 1px solid var(--border);
+  border-radius: 10px; padding: .35rem .6rem; font: inherit; font-size: .82rem; }
+.cc-legend { display: flex; gap: 1rem; margin-left: auto; font-size: .78rem; color: var(--ink-secondary); }
+.cc-legend i.lg { display: inline-block; width: 14px; height: 10px; border-radius: 3px; margin-right: .35rem; }
+
+.cc-scroll { overflow: auto; max-height: 72vh; border: 1px solid var(--border); border-radius: var(--radius); background: var(--bg-surface); }
+.cc { --cell: 42px; --label: 150px; width: calc(var(--label) + var(--cell) * var(--days)); font-size: .74rem; }
+.cc-head { position: sticky; top: 0; z-index: 5; background: var(--bg-surface); }
+.cc-row { display: flex; border-bottom: 1px solid var(--border); }
+.cc-label { position: sticky; left: 0; z-index: 3; flex: 0 0 var(--label); width: var(--label); box-sizing: border-box;
+  padding: .3rem .6rem; background: var(--bg-surface); border-right: 1px solid var(--border);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: flex; align-items: center; }
+.cc-head .cc-label { z-index: 6; }
+.cc-days { position: relative; display: flex; flex: 0 0 auto; width: calc(var(--cell) * var(--days)); }
+.cc-cell { flex: 0 0 var(--cell); width: var(--cell); box-sizing: border-box; text-align: center; border-right: 1px solid var(--border);
+  display: flex; align-items: center; justify-content: center; color: var(--ink-secondary); min-height: 24px; }
+.cc-cell.we { background: color-mix(in srgb, var(--accent) 7%, transparent); }
+.cc-cell.today { background: color-mix(in srgb, var(--accent) 16%, transparent); box-shadow: inset 2px 0 0 var(--accent); }
+.cc-cell.hd { flex-direction: column; min-height: 36px; line-height: 1.25; }
+.cc-cell.hd b { color: var(--ink-primary); font-size: .8rem; } .cc-cell.hd span { font-size: .66rem; }
+.cc-month { box-sizing: border-box; padding: .3rem .6rem; font-weight: 700; border-right: 1px solid var(--border); white-space: nowrap; overflow: hidden; }
+.cc-group { background: var(--bg-surface-2); font-weight: 700; }
+.cc-group .cc-label { background: var(--bg-surface-2); }
+.cc-group .cc-cell { color: var(--ink-primary); } .cc-group .cc-cell.zero { color: var(--bad); }
+.cc-un .cc-label { color: var(--ink-secondary); font-size: .7rem; }
+.cc-cell .un { background: color-mix(in srgb, var(--series-2) 45%, transparent); color: var(--ink-primary); font-weight: 700; padding: .05rem .5rem; border-radius: 4px; }
+.cc-bed .cc-cell { min-height: 26px; }
+.cc-bar { position: absolute; top: 3px; bottom: 3px; box-sizing: border-box; padding: 0 .45rem; border-radius: 6px; line-height: 20px;
+  overflow: hidden; white-space: nowrap; text-overflow: ellipsis; color: #14161d; font-weight: 600; cursor: default; }
+.cc-bar.new, .lg.new { background: var(--series-6); }
+.cc-bar.in, .lg.in { background: var(--series-4); }
+.cc-bar.out, .lg.out { background: color-mix(in srgb, var(--ink-muted) 55%, var(--bg-surface)); color: var(--ink-primary); }
