@@ -21,15 +21,16 @@
 .cc-legend i.lg { display: inline-block; width: 14px; height: 10px; border-radius: 3px; margin-right: .35rem; }
 
 .cc-scroll { overflow: auto; max-height: 72vh; border: 1px solid var(--border); border-radius: var(--radius); background: var(--bg-surface); }
-.cc { --cell: 42px; --label: 150px; width: calc(var(--label) + var(--cell) * var(--days)); font-size: .74rem; }
+/* kenglik mavjud joyga cho'ziladi; tor ekranda kamida 42px/kun bo'lib, gorizontal aylantiriladi */
+.cc { --cell: 42px; --label: 150px; width: 100%; min-width: calc(var(--label) + var(--cell) * var(--days)); font-size: .74rem; }
 .cc-head { position: sticky; top: 0; z-index: 5; background: var(--bg-surface); }
 .cc-row { display: flex; border-bottom: 1px solid var(--border); }
 .cc-label { position: sticky; left: 0; z-index: 3; flex: 0 0 var(--label); width: var(--label); box-sizing: border-box;
   padding: .3rem .6rem; background: var(--bg-surface); border-right: 1px solid var(--border);
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: flex; align-items: center; }
 .cc-head .cc-label { z-index: 6; }
-.cc-days { position: relative; display: flex; flex: 0 0 auto; width: calc(var(--cell) * var(--days)); }
-.cc-cell { flex: 0 0 var(--cell); width: var(--cell); box-sizing: border-box; text-align: center; border-right: 1px solid var(--border);
+.cc-days { position: relative; display: flex; flex: 1 1 0; min-width: 0; }
+.cc-cell { flex: 1 1 0; min-width: 0; box-sizing: border-box; text-align: center; border-right: 1px solid var(--border);
   display: flex; align-items: center; justify-content: center; color: var(--ink-secondary); min-height: 24px; }
 .cc-cell.we { background: color-mix(in srgb, var(--accent) 7%, transparent); }
 .cc-cell.today { background: color-mix(in srgb, var(--accent) 16%, transparent); box-shadow: inset 2px 0 0 var(--accent); }

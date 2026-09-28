@@ -65,7 +65,7 @@
         <div class="cc-row">
           <div class="cc-label"></div>
           <div class="cc-days">
-            {% for m in months %}<div class="cc-month" style="width:calc(var(--cell) * {{ m.span }})">{{ m.label }}</div>{% endfor %}
+            {% for m in months %}<div class="cc-month" style="width:{{ (m.span / days * 100)|round(4) }}%">{{ m.label }}</div>{% endfor %}
           </div>
         </div>
         <div class="cc-row">
@@ -98,7 +98,7 @@
         <div class="cc-days">
           {% for d in data.days %}<div class="cc-cell {{ 'we' if d.weekday() >= 5 else '' }} {{ 'today' if d == today else '' }}"></div>{% endfor %}
           {% for b in bed.bars %}
-          <div class="cc-bar {{ b.cls }}" title="{{ b.tip }}" style="left:calc(var(--cell) * {{ b.left }});width:calc(var(--cell) * {{ b.width }})">{{ b.name }}</div>
+          <div class="cc-bar {{ b.cls }}" title="{{ b.tip }}" style="left:{{ (b.left / days * 100)|round(4) }}%;width:{{ (b.width / days * 100)|round(4) }}%">{{ b.name }}</div>
           {% endfor %}
         </div>
       </div>
