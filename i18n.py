@@ -427,6 +427,7 @@ TR = {
     "rooms.wh_th_numbers": {"ru": "Брони", "en": "Bookings", "uz": "Bronlar"},
     "rooms.wh_th_body": {"ru": "Сообщение", "en": "Message", "uz": "Xabar"},
     "rooms.wh_empty": {"ru": "Событий пока нет.", "en": "No events yet.", "uz": "Hodisalar hali kelmagan."},
+    "rooms.wh_poll": {"ru": "Автопроверка (резерв): время — найдено броней / строк", "en": "Auto-check (backup): time — bookings found / rows", "uz": "Avtomatik tekshiruv (zaxira): vaqt — topilgan bronlar / qatorlar"},
     "rooms.wh_access_title": {"ru": "Журнал запросов к вебхуку", "en": "Webhook request log", "uz": "Vebhukka kelgan barcha so'rovlar"},
     "rooms.wh_access_help": {"ru": "Все обращения к адресу вебхука, включая отклонённые: кто (IP), с какого сервера, каким методом и какие данные прислал. Ключ из адреса не сохраняется; cookie и Authorization скрыты.", "en": "Every request to the webhook address, including rejected ones: who (IP), from which server, which method and what data was sent. The key from the URL is not stored; cookie and Authorization are hidden.", "uz": "Vebhuk manziliga kelgan barcha murojaatlar, rad etilganlari ham: kim (IP), qaysi serverdan, qaysi usulda va qanday ma'lumot yuborgani. Manzildagi kalit saqlanmaydi; cookie va Authorization yashirilgan."},
     "rooms.wh_th_result": {"ru": "Результат", "en": "Result", "uz": "Natija"},

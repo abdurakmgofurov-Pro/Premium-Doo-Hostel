@@ -232,6 +232,26 @@ def ensure_today_cbu_rate():
             pass
 
 
+POLL_OVERLAP = timedelta(minutes=10)
+
+
+def poll_hostel_bookings():
+    """Vebhuk o'tib ketgan bo'lsa ham bronlar yo'qolmasligi uchun zaxira: oxirgi
+    muvaffaqiyatli tekshiruvdan (10 daqiqa ustma-ust) beri o'zgargan bronlar
+    Xonalar → Bronlarga olinadi. Faqat o'qish."""
+    now = datetime.now()
+    try:
+        since = datetime.fromisoformat(db.get_setting("exely_bookings_last_poll")) - POLL_OVERLAP
+    except (TypeError, ValueError):
+        since = now - timedelta(days=2)
+    since = max(since, now - timedelta(days=364))
+    found, rows, failed = xs.poll_modified(_exely_client(), since, now)
+    if not failed:
+        db.set_setting("exely_bookings_last_poll", now.isoformat(timespec="seconds"))
+    db.set_setting("exely_bookings_poll_info", f"{now:%Y-%m-%d %H:%M} — {found} / {rows}" + (f" / xato: {len(failed)}" if failed else ""))
+    log(f"Xonalar bronlari zaxira tekshiruvi: topilgan {found}, qatorlar {rows}, yuklanmagan {len(failed)}")
+
+
 def background_loop():
     while True:
         try:
@@ -241,6 +261,10 @@ def background_loop():
             interval = 20 * 60
         refresh_once()
         ensure_today_cbu_rate()
+        try:
+            poll_hostel_bookings()
+        except Exception:
+            log("XONALAR BRONLARI ZAXIRA TEKSHIRUVI XATOSI:\n" + traceback.format_exc())
         time.sleep(interval)
 
 
@@ -1724,7 +1748,8 @@ def exely_webhook(secret):
 @permission_required("rooms", "edit")
 def rooms_webhooks_page():
     return render_template("rooms_webhooks.html", active_page="rooms", rooms_tab="settings",
-                           events=xs.list_events(50), access=xs.list_access(100))
+                           events=xs.list_events(50), access=xs.list_access(100),
+                           poll_info=db.get_setting("exely_bookings_poll_info"))
 
 
 # -- bandlik foizi

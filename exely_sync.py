@@ -407,3 +407,17 @@ def list_access(limit=100):
     rows = conn.execute("SELECT * FROM webhook_access_log ORDER BY id DESC LIMIT ?", (limit,)).fetchall()
     conn.close()
     return [dict(r) for r in rows]
+
+
+def poll_modified(client, since, until):
+    """Zaxira tekshiruv: [since, until] oralig'ida o'zgargan bronlarni (faol va bekor
+    qilinganlarini) Exely'dan o'qib, hostel_bookings'ga upsert qiladi (faqat GET).
+    Qaytaradi: (topilgan bronlar soni, qatorlar soni, yuklanmaganlar)."""
+    numbers = []
+    for state in ("Active", "Cancelled"):
+        numbers += client.search_reservation_numbers(since, until, True, state)
+    numbers = list(dict.fromkeys(numbers))
+    if not numbers:
+        return 0, 0, []
+    rows, failed = sync_reservations(client, numbers)
+    return len(numbers), rows, failed
