@@ -371,12 +371,22 @@ def preview_import(rows):
     return out, {"new": new, "changed": changed, "same": same}
 
 
+# Exely PMS'dan keladigan qo'shimcha maydonlar; Excel qatorlarida bo'lmasligi mumkin (u holda tegilmaydi)
+EXTRA_FIELDS = ("customer_name", "phone", "adults", "children", "check_in_at", "check_out_at", "actual_in_at",
+                "actual_out_at", "total_amount", "paid_amount", "refund_amount", "currency")
+
+
+def _norm_extra(v):
+    return "" if v is None else v
+
+
 def _row_differs(cur, r):
     return (
         (cur["guest_name"] or "") != r["guest"] or (cur["arrival"] or "") != (r["arrival"] or "")
         or (cur["departure"] or "") != (r["departure"] or "") or (cur["room_type_text"] or "") != r["room_type"]
         or (cur["room_text"] or "") != r["room"] or (cur["status_text"] or "") != r["status"]
         or (cur["note"] or "") != r["note"]
+        or any(k in r and _norm_extra(cur[k]) != _norm_extra(r[k]) for k in EXTRA_FIELDS)
     )
 
 
@@ -389,22 +399,21 @@ def import_bookings(rows):
     for r in rows:
         key = dedup_key(r["ref"], r["guest"], r["arrival"], r["departure"], r["room"])
         cancelled = 1 if is_cancelled_text(r["status"]) else 0
+        extra = {k: r[k] for k in EXTRA_FIELDS if k in r}
         cur = conn.execute("SELECT * FROM hostel_bookings WHERE dedup_key=?", (key,)).fetchone()
         if not cur:
-            conn.execute(
-                "INSERT INTO hostel_bookings (dedup_key, ref, guest_name, arrival, departure, room_type_text,"
-                " room_text, status_text, is_cancelled, note) VALUES (?,?,?,?,?,?,?,?,?,?)",
-                (key, r["ref"] or None, r["guest"], r["arrival"], r["departure"] or None, r["room_type"],
-                 r["room"], r["status"], cancelled, r["note"]),
-            )
+            cols = ["dedup_key", "ref", "guest_name", "arrival", "departure", "room_type_text", "room_text",
+                    "status_text", "is_cancelled", "note"] + list(extra)
+            vals = [key, r["ref"] or None, r["guest"], r["arrival"], r["departure"] or None, r["room_type"], r["room"],
+                    r["status"], cancelled, r["note"]] + list(extra.values())
+            conn.execute(f"INSERT INTO hostel_bookings ({', '.join(cols)}) VALUES ({', '.join('?' * len(cols))})", vals)
             added += 1
         elif _row_differs(cur, r):
-            conn.execute(
-                "UPDATE hostel_bookings SET guest_name=?, arrival=?, departure=?, room_type_text=?, room_text=?,"
-                " status_text=?, is_cancelled=?, note=?, updated_at=datetime('now') WHERE id=?",
-                (r["guest"], r["arrival"], r["departure"] or None, r["room_type"], r["room"], r["status"],
-                 cancelled, r["note"], cur["id"]),
-            )
+            sets = ["guest_name=?", "arrival=?", "departure=?", "room_type_text=?", "room_text=?", "status_text=?",
+                    "is_cancelled=?", "note=?"] + [f"{k}=?" for k in extra]
+            vals = [r["guest"], r["arrival"], r["departure"] or None, r["room_type"], r["room"], r["status"],
+                    cancelled, r["note"]] + list(extra.values()) + [cur["id"]]
+            conn.execute(f"UPDATE hostel_bookings SET {', '.join(sets)}, updated_at=datetime('now') WHERE id=?", vals)
             updated += 1
         else:
             unchanged += 1
@@ -538,6 +547,13 @@ def _d(text):
         return None
 
 
+def _balance(b):
+    """Bron balansi: jami - to'langan + qaytarilgan (Exely'dagidek); ma'lumot bo'lmasa None."""
+    if b.get("total_amount") is None:
+        return None
+    return round((b["total_amount"] or 0) - (b.get("paid_amount") or 0) + (b.get("refund_amount") or 0), 2)
+
+
 def _booking_class(status_text):
     s = status_text or ""
     if "CheckedOut" in s:
@@ -572,6 +588,7 @@ def chart_data(start, days, today=None):
     for g in ordered:
         g["occupied"] = [0] * days
         g["unassigned"] = [0] * days
+        g["un_list"] = [[] for _ in range(days)]
 
     conn = get_conn()
     all_rows = [dict(r) for r in conn.execute("SELECT * FROM hostel_bookings WHERE is_cancelled=0")]
@@ -601,16 +618,26 @@ def chart_data(start, days, today=None):
             grp["occupied"][idx] += 1
             if bed is None:
                 grp["unassigned"][idx] += 1
+                grp["un_list"][idx].append({
+                    "id": b["id"], "ref": b["ref"] or "", "guest": b["guest_name"],
+                    "arrival_at": b["check_in_at"] or b["arrival"], "departure_at": b["check_out_at"] or (b["departure"] or ""),
+                    "paid": b["paid_amount"], "balance": _balance(b), "currency": b["currency"] or ""})
         if bed is not None:
             left = max(ai + 0.5, 0)
             right = min(di + 0.5, days)
             if right > left:
                 who = b["guest_name"] + ("" if not b["note"] else " · " + b["note"].split(" · ")[0])
+                channel, _, comment = (b["note"] or "").partition(" · ")
                 bed["bars"].append({
                     "left": round(left, 2), "width": round(right - left, 2), "name": who,
                     "cls": _booking_class(b["status_text"]),
-                    "tip": f"{b['guest_name']} · {b['arrival']} → {b['departure'] or ''} · {b['status_text'] or ''}"
-                           f"{' · ' + b['note'] if b['note'] else ''} · {b['ref'] or ''}",
+                    "info": {   # sichqoncha ustiga borganda ko'rsatiladigan ma'lumot (batafsili — bosilganda serverdan)
+                        "id": b["id"], "guest": b["guest_name"], "arrival": b["arrival"], "departure": b["departure"] or "",
+                        "arrival_at": b["check_in_at"] or b["arrival"], "departure_at": b["check_out_at"] or (b["departure"] or ""),
+                        "nights": (dep - a).days, "bed": bed["label"], "status": _booking_class(b["status_text"]),
+                        "channel": channel, "comment": comment, "ref": b["ref"] or "",
+                        "total": b["total_amount"], "paid": b["paid_amount"], "balance": _balance(b), "currency": b["currency"] or "",
+                    },
                 })
     for g in ordered:
         g["free"] = [g["beds_total"] - o for o in g["occupied"]]

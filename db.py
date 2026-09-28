@@ -567,6 +567,13 @@ def init_db():
     conn.execute("CREATE INDEX IF NOT EXISTS idx_stays_exely ON stays(exely_stay_id)")
     if "passport" not in stays_cols:
         conn.execute("ALTER TABLE stays ADD COLUMN passport TEXT")
+    # Exely PMS'dan keladigan qo'shimcha bron ma'lumotlari (shaxmatka kartochkasi va paneli uchun)
+    hb_cols = [r["name"] for r in conn.execute("PRAGMA table_info(hostel_bookings)").fetchall()]
+    for col, typ in (("customer_name", "TEXT"), ("phone", "TEXT"), ("adults", "INTEGER"), ("children", "INTEGER"),
+                     ("check_in_at", "TEXT"), ("check_out_at", "TEXT"), ("actual_in_at", "TEXT"), ("actual_out_at", "TEXT"),
+                     ("total_amount", "REAL"), ("paid_amount", "REAL"), ("refund_amount", "REAL"), ("currency", "TEXT")):
+        if col not in hb_cols:
+            conn.execute(f"ALTER TABLE hostel_bookings ADD COLUMN {col} {typ}")
     # Exely vebhuklari: kelgan xom xabarlar (tekshirish va qayta ishlash tarixi)
     conn.execute("""
         CREATE TABLE IF NOT EXISTS webhook_events (

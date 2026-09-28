@@ -1901,6 +1901,51 @@ def rooms_chart_page():
     )
 
 
+@app.route("/rooms/chart/booking/<int:booking_id>")
+@permission_required("rooms", "view")
+def rooms_chart_booking(booking_id):
+    """Shaxmatkada bronni bosganda ochiladigan panel ma'lumoti: hostel_bookings (PMS) + Dashboard keshi
+    (tarif, xizmatlar, kafolat usuli, bron sanasi)."""
+    b = rm.get_booking(booking_id)
+    if not b:
+        abort(404)
+    flat = {}
+    base = (b["ref"] or "").split("/")[0]
+    if base:
+        conn = db.get_conn()
+        row = conn.execute("SELECT raw_json FROM bookings_cache WHERE number=?", (base,)).fetchone()
+        conn.close()
+        if row:
+            flat = flatten_booking(json.loads(row["raw_json"]))
+    arrival, departure = _d_or_none(b["arrival"]), _d_or_none(b["departure"])
+    return jsonify({
+        "id": b["id"], "ref": b["ref"] or "", "bed": b["room_text"] or "", "guest": b["guest_name"],
+        "customer": b.get("customer_name") or "", "phone": b.get("phone") or "",
+        "status": rm._booking_class(b["status_text"]), "status_text": b["status_text"] or "",
+        "type": names.label_room_type(b["room_type_text"] or "", g.lang),
+        "arrival_at": b.get("check_in_at") or b["arrival"], "departure_at": b.get("check_out_at") or (b["departure"] or ""),
+        "actual_in_at": b.get("actual_in_at") or "", "actual_out_at": b.get("actual_out_at") or "",
+        "nights": (departure - arrival).days if arrival and departure else None,
+        "booked_at": (flat.get("created") or "").replace("T", " ")[:16],
+        "rate_plan": names.label_rate_plan(flat.get("rate_plan"), g.lang) if flat.get("rate_plan") else "",
+        "adults": b.get("adults") if b.get("adults") is not None else flat.get("adults"),
+        "children": b.get("children") if b.get("children") is not None else flat.get("children"),
+        "services": [s["name"] for s in (flat.get("room_services") or [])],
+        "source": flat.get("channel_name") or (b["note"] or "").split(" · ")[0],
+        "guarantee": flat.get("payment_method") or "",
+        "comment": (b["note"] or "").partition(" · ")[2],
+        "total": b.get("total_amount"), "paid": b.get("paid_amount"), "refund": b.get("refund_amount"),
+        "balance": rm._balance(b), "currency": b.get("currency") or flat.get("currency") or "",
+    })
+
+
+def _d_or_none(text):
+    try:
+        return datetime.strptime((text or "")[:10], "%Y-%m-%d").date()
+    except ValueError:
+        return None
+
+
 # -- bandlik foizi
 
 @app.route("/rooms/occupancy")

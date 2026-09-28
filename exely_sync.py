@@ -139,6 +139,12 @@ def _person_name(pn):
     return " ".join(p.strip() for p in parts if p and p.strip())
 
 
+def _amt(stay, key):
+    """roomStay.totalPrice.<key>.value (o'rin bo'yicha summa) yoki None."""
+    v = (((stay.get("totalPrice") or {}).get(key)) or {}).get("value")
+    return float(v) if v is not None else None
+
+
 def reservation_to_rows(res, guest_name_of, room_names, type_names):
     """Bitta Exely broni -> hostel_bookings qatorlari (har bir roomStay = 1 o'rin = 1 qator).
     Bron raqami ref bo'ladi (bitta o'rinli bronda), ko'p o'rinlida `raqam/stayId`."""
@@ -146,6 +152,8 @@ def reservation_to_rows(res, guest_name_of, room_names, type_names):
     number = res["number"]
     customer = res.get("customer") or {}
     channel = ((res.get("channelInformation") or {}).get("channelName") or "").strip()
+    if not channel:      # to'g'ridan-to'g'ri kiritilgan bronda kanal yo'q — yaratilish manbasi ko'rsatiladi
+        channel = ((res.get("creationSource") or {}).get("name") or "").strip()
     comment = (res.get("customerComment") or "").strip().replace("\n", " ")[:120]
     note = " · ".join(x for x in (channel, comment) if x)
     rows = []
@@ -167,6 +175,14 @@ def reservation_to_rows(res, guest_name_of, room_names, type_names):
             "stay_key": str(st.get("pmsRoomStayId") or ""), "stay_status": st.get("status") or "",
             "actual_in": (st.get("actualCheckInDateTime") or "")[:10],
             "actual_out": (st.get("actualCheckOutDateTime") or "")[:10],
+            # shaxmatka tafsiloti uchun (hostel_bookings'ga yoziladi):
+            "customer_name": _person_name(customer.get("personName")),
+            "phone": ((customer.get("phones") or [{}])[0].get("phoneNumber") or ""),
+            "adults": (st.get("guestCount") or {}).get("adults"), "children": (st.get("guestCount") or {}).get("children"),
+            "check_in_at": st.get("checkInDateTime") or "", "check_out_at": st.get("checkOutDateTime") or "",
+            "actual_in_at": st.get("actualCheckInDateTime") or "", "actual_out_at": st.get("actualCheckOutDateTime") or "",
+            "total_amount": _amt(st, "amount"), "paid_amount": _amt(st, "payAmount"), "refund_amount": _amt(st, "refundAmount"),
+            "currency": res.get("currencyCode") or "",
         })
     return rows
 

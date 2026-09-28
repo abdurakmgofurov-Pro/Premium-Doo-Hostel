@@ -89,16 +89,16 @@
       <div class="cc-row cc-un">
         <div class="cc-label">{{ t('rooms.chart_unassigned') }}</div>
         <div class="cc-days">
-          {% for n in g.unassigned %}<div class="cc-cell {{ 'we' if data.days[loop.index0].weekday() >= 5 else '' }} {{ 'today' if data.days[loop.index0] == today else '' }}">{% if n %}<span class="un">{{ n }}</span>{% endif %}</div>{% endfor %}
+          {% for n in g.unassigned %}<div class="cc-cell {{ 'we' if data.days[loop.index0].weekday() >= 5 else '' }} {{ 'today' if data.days[loop.index0] == today else '' }}">{% if n %}<span class="un" data-un='{{ g.un_list[loop.index0]|tojson }}' data-date="{{ data.days[loop.index0].isoformat() }}">{{ n }}</span>{% endif %}</div>{% endfor %}
         </div>
       </div>
       {% for bed in g.beds %}
-      <div class="cc-row cc-bed">
+      <div class="cc-row cc-bed" data-type="{{ (g.name|type_label) or '' }}">
         <div class="cc-label"><span class="mono">{{ bed.label }}</span></div>
         <div class="cc-days">
           {% for d in data.days %}<div class="cc-cell {{ 'we' if d.weekday() >= 5 else '' }} {{ 'today' if d == today else '' }}"></div>{% endfor %}
           {% for b in bed.bars %}
-          <div class="cc-bar {{ b.cls }}" title="{{ b.tip }}" style="left:{{ (b.left / days * 100)|round(4) }}%;width:{{ (b.width / days * 100)|round(4) }}%">{{ b.name }}</div>
+          <div class="cc-bar {{ b.cls }}" data-tip='{{ b.info|tojson }}' style="left:{{ (b.left / days * 100)|round(4) }}%;width:{{ (b.width / days * 100)|round(4) }}%">{{ b.name }}</div>
           {% endfor %}
         </div>
       </div>
@@ -107,4 +107,25 @@
     </div>
   </div>
   <p class="note">{{ t('rooms.chart_note') }}</p>
+
+  <dialog id="unDialog" class="rooms-dialog cc-dialog">
+    <div class="modal-head"><h2 id="unTitle"></h2><button type="button" class="modal-close-btn" data-close-dialog>✕</button></div>
+    <div class="overflow-x">
+      <table class="data-table">
+        <thead><tr>
+          <th>{{ t('rooms.un_th_ref') }}</th><th>{{ t('rooms.un_th_guest') }}</th><th>{{ t('rooms.un_th_in') }}</th>
+          <th>{{ t('rooms.un_th_out') }}</th><th>{{ t('rooms.dr_paid') }}</th><th>{{ t('rooms.un_th_balance') }}</th><th></th>
+        </tr></thead>
+        <tbody id="unBody"></tbody>
+      </table>
+    </div>
+  </dialog>
+
+  <aside id="ccDrawer" class="cc-drawer" hidden>
+    <div class="cc-drawer-head"><h2 id="ccDrawerTitle"></h2><button type="button" id="ccDrawerClose" class="modal-close-btn">✕</button></div>
+    <div class="cc-drawer-body" id="ccDrawerBody"></div>
+  </aside>
+{% endblock %}
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/rooms_chart.js') }}"></script>
 {% endblock %}
