@@ -588,7 +588,7 @@ TR = {
     "rooms.wh_out_bad_method": {"ru": "не тот метод", "en": "wrong method", "uz": "usul noto'g'ri"},
     "rooms.wh_out_too_large": {"ru": "слишком большой", "en": "too large", "uz": "juda katta"},
     "rooms.wh_out_disabled": {"ru": "вебхук отключён", "en": "webhook disabled", "uz": "vebhuk o'chirilgan"},
-    "rooms.occ_exely": {"ru": "Exely (факт)", "en": "Exely (actual)", "uz": "Exely (haqiqiy)"},
+    "rooms.occ_exely": {"ru": "Exely", "en": "Exely", "uz": "Exely"},
     "rooms.occ_exely_sub": {"ru": "Места по данным Exely PMS", "en": "Beds per Exely PMS", "uz": "O'rinlar — Exely PMS ma'lumoti"},
     "rooms.occ_exely_err": {"ru": "Данные Exely получить не удалось: {error}", "en": "Could not get Exely data: {error}", "uz": "Exely ma'lumotini olib bo'lmadi: {error}"},
     "rooms.ex_state_blocked": {"ru": "не изменить (есть гости)", "en": "not changed (guests inside)", "uz": "o'zgarmaydi (ichida mehmon bor)"},
