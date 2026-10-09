@@ -220,12 +220,13 @@
             <div class="field grow"><label>{{ t('bar.product') }}</label>
               <select name="product_id[]">
                 {% for p in products %}
-                <option value="{{p.id}}" data-price="{{p.cost_price}}" data-currency="{{p.currency}}" data-barcode="{{p.barcode or ''}}">{{p.name}} ({{ p.unit|t_unit }}) — {{ t('bar.stock') }}: {{ p.stock_qty|qty }}</option>
+                <option value="{{p.id}}" data-price="{{p.cost_price}}" data-sale-price="{{p.sale_price}}" data-currency="{{p.currency}}" data-barcode="{{p.barcode or ''}}">{{p.name}} ({{ p.unit|t_unit }}) — {{ t('bar.stock') }}: {{ p.stock_qty|qty }}</option>
                 {% endfor %}
               </select>
             </div>
             <div class="field qty"><label>{{ t('bar.qty') }}</label><input type="number" step="0.01" min="0.01" name="qty[]" value="1" required></div>
             <div class="field price"><label>{{ t('bar.cost_price') }}</label><input type="text" inputmode="decimal" class="money-input intake-price-input" name="price[]" autocomplete="off"></div>
+            <div class="field price"><label>{{ t('bar.sale_price') }}</label><input type="text" inputmode="decimal" class="money-input intake-sale-price-input" name="sale_price[]" autocomplete="off"></div>
             <button type="button" class="intake-remove-btn" disabled>✕</button>
           </div>
         </div>

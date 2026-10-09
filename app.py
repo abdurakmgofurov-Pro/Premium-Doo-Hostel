@@ -2130,28 +2130,31 @@ def bar_restock():
     product_ids = request.form.getlist("product_id[]")
     qtys = request.form.getlist("qty[]")
     prices = request.form.getlist("price[]")
+    sale_prices = request.form.getlist("sale_price[]")
     lines = []
-    for pid, qty, price in zip(product_ids, qtys, prices):
+    for pid, qty, price, sale_price in zip(product_ids, qtys, prices, sale_prices):
         if not pid or not qty:
             continue
         try:
             pid_i, qty_f = int(pid), float(qty)
             price_f = parse_amount(price) if price.strip() else None
+            sale_price_f = parse_amount(sale_price) if sale_price.strip() else None
         except ValueError:
             flash(t("flash.error_prefix", g.lang) + "invalid_qty", "error")
             return redirect(url_for("sklad_page"))
-        if qty_f <= 0 or (price_f is not None and price_f < 0) or not db.get_bar_product(pid_i):
+        if (qty_f <= 0 or (price_f is not None and price_f < 0) or (sale_price_f is not None and sale_price_f < 0)
+                or not db.get_bar_product(pid_i)):
             flash(t("flash.error_prefix", g.lang) + "invalid_line", "error")
             return redirect(url_for("sklad_page"))
-        lines.append((pid_i, qty_f, price_f))
+        lines.append((pid_i, qty_f, price_f, sale_price_f))
     # Avval BARCHA qatorlar tekshirilib bo'lingandan keyingina saqlanadi —
     # aks holda savatdagi 3-qator xato bersa, 1- va 2-qator allaqachon
     # bazaga yozilib, zaxira/kassa qisman o'zgargan holda qolib ketardi.
-    for pid_i, qty_f, price_f in lines:
+    for pid_i, qty_f, price_f, sale_price_f in lines:
         try:
             db.add_bar_transaction(
                 date=date_str, product_id=pid_i, ttype="restock",
-                qty=qty_f, source=source, unit_price=price_f,
+                qty=qty_f, source=source, unit_price=price_f, sale_price=sale_price_f,
                 counterparty=counterparty, description="", status=status,
             )
         except ValueError as e:

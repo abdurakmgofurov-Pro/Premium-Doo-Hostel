@@ -150,10 +150,13 @@
     function updatePriceHint(row) {
       const select = row.querySelector("select[name='product_id[]']");
       const priceInput = row.querySelector(".intake-price-input");
+      const salePriceInput = row.querySelector(".intake-sale-price-input");
       const opt = select.options[select.selectedIndex];
       if (!opt) return;
       const price = parseFloat(opt.getAttribute("data-price") || "0") || 0;
+      const salePrice = parseFloat(opt.getAttribute("data-sale-price") || "0") || 0;
       priceInput.placeholder = window.T["sklad.current_price_hint"].replace("{price}", fmtMoney(price));
+      salePriceInput.placeholder = window.T["sklad.current_price_hint"].replace("{price}", fmtMoney(salePrice));
     }
     function computeTotal() {
       const totals = {};
@@ -198,6 +201,7 @@
       const clone = rows[rows.length - 1].cloneNode(true);
       clone.querySelector("input[name='qty[]']").value = "1";
       clone.querySelector(".intake-price-input").value = "";
+      clone.querySelector(".intake-sale-price-input").value = "";
       clone.querySelector(".intake-remove-btn").disabled = false;
       container.appendChild(clone);
       updatePriceHint(clone);

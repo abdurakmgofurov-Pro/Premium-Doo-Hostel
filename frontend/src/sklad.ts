@@ -183,10 +183,13 @@ function suggestNewProduct(code: string, name: string): void {
   function updatePriceHint(row: Element): void {
     const select = row.querySelector<HTMLSelectElement>("select[name='product_id[]']")!;
     const priceInput = row.querySelector<HTMLInputElement>(".intake-price-input")!;
+    const salePriceInput = row.querySelector<HTMLInputElement>(".intake-sale-price-input")!;
     const opt = select.options[select.selectedIndex];
     if (!opt) return;
     const price = parseFloat(opt.getAttribute("data-price") || "0") || 0;
+    const salePrice = parseFloat(opt.getAttribute("data-sale-price") || "0") || 0;
     priceInput.placeholder = window.T["sklad.current_price_hint"].replace("{price}", fmtMoney(price));
+    salePriceInput.placeholder = window.T["sklad.current_price_hint"].replace("{price}", fmtMoney(salePrice));
   }
 
   function computeTotal(): void {
@@ -236,6 +239,7 @@ function suggestNewProduct(code: string, name: string): void {
     const clone = rows[rows.length - 1].cloneNode(true) as HTMLElement;
     (clone.querySelector("input[name='qty[]']") as HTMLInputElement).value = "1";
     (clone.querySelector(".intake-price-input") as HTMLInputElement).value = "";
+    (clone.querySelector(".intake-sale-price-input") as HTMLInputElement).value = "";
     (clone.querySelector(".intake-remove-btn") as HTMLButtonElement).disabled = false;
     container.appendChild(clone);
     updatePriceHint(clone);
