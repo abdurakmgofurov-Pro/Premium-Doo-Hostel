@@ -2121,10 +2121,13 @@ def bar_restock():
     if rate_missing_for(date_str):
         flash(t("flash.rate_required", g.lang), "error")
         return redirect(url_for("sklad_page"))
-    source = f.get("source", "kassa")
+    # Tovar kirimi har doim yetkazib beruvchiga qarz (Kt) sifatida yoziladi —
+    # to'lov esa alohida, Дт/Кт'dan shu kontragentga to'lov qo'shish orqali
+    # amalga oshiriladi (standart buxgalteriya: kirim va to'lov ajratilgan).
+    source = "kassa"
     counterparty = f.get("counterparty", "")
-    status = f.get("status", "paid")
-    if status == "unpaid" and not counterparty.strip():
+    status = "unpaid"
+    if not counterparty.strip():
         flash(t("sklad.unpaid_needs_supplier", g.lang), "error")
         return redirect(url_for("sklad_page"))
     product_ids = request.form.getlist("product_id[]")

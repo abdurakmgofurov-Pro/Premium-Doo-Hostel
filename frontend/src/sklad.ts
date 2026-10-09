@@ -245,14 +245,6 @@ function suggestNewProduct(code: string, name: string): void {
     totalEl.textContent = `${window.T["bar.cart_total"]}: ` + (parts.length ? parts.join(" + ") : "0");
   }
 
-  const statusSelect = document.getElementById("intakeStatus") as HTMLSelectElement;
-  const payTypeField = document.getElementById("intakePayTypeField") as HTMLElement;
-  function updatePayTypeVisibility(): void {
-    const unpaid = statusSelect.value === "unpaid";
-    payTypeField.style.display = unpaid ? "none" : "";
-  }
-  statusSelect.addEventListener("change", updatePayTypeVisibility);
-
   const barcodeInput = document.getElementById("intakeBarcodeInput") as HTMLInputElement | null;
   const barcodeMsg = document.getElementById("intakeBarcodeMsg") as HTMLElement | null;
 
@@ -262,7 +254,6 @@ function suggestNewProduct(code: string, name: string): void {
     modal.showModal();
     container.querySelectorAll(".intake-row").forEach(updatePriceHint);
     computeTotal();
-    updatePayTypeVisibility();
     barcodeInput?.focus();
   });
   closeBtn.addEventListener("click", () => modal.close());

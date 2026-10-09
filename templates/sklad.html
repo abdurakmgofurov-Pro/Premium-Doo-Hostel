@@ -191,20 +191,9 @@
     </div>
     <form method="post" action="/bar/restock" id="intakeForm" class="form-grid">
       <div class="field"><label>{{ t('bar.date') }}</label><input type="date" name="date" required value="{{today}}"></div>
-      <div class="field"><label>{{ t('sklad.supplier') }}</label><input type="text" name="counterparty" id="intakeCounterparty" list="counterpartyList"></div>
+      <div class="field grow"><label>{{ t('sklad.supplier') }}</label><input type="text" name="counterparty" id="intakeCounterparty" list="counterpartyList" required></div>
       {% include "_counterparty_datalist.html" %}
-      <div class="field"><label>{{ t('sklad.pay_status') }}</label>
-        <select name="status" id="intakeStatus">
-          <option value="paid">{{ t('common.paid') }}</option>
-          <option value="unpaid">{{ t('common.unpaid') }}</option>
-        </select>
-      </div>
-      <div class="field" id="intakePayTypeField"><label>{{ t('sklad.pay_type') }}</label>
-        <select name="source" id="intakeSource">
-          <option value="kassa">{{ t('cash.source_kassa') }}</option>
-          <option value="bank">{{ t('cash.source_bank') }}</option>
-        </select>
-      </div>
+      <div class="field full"><span class="modal-hint">{{ t('sklad.intake_is_payable_hint') }}</span></div>
 
       <div class="field full barcode-field"><label>{{ t('bar.barcode_scan_label') }}</label>
         <input type="text" id="intakeBarcodeInput" autocomplete="off" placeholder="{{ t('bar.barcode_scan_placeholder') }}">

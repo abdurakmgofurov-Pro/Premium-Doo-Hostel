@@ -204,13 +204,6 @@
       });
       totalEl.textContent = `${window.T["bar.cart_total"]}: ` + (parts.length ? parts.join(" + ") : "0");
     }
-    const statusSelect = document.getElementById("intakeStatus");
-    const payTypeField = document.getElementById("intakePayTypeField");
-    function updatePayTypeVisibility() {
-      const unpaid = statusSelect.value === "unpaid";
-      payTypeField.style.display = unpaid ? "none" : "";
-    }
-    statusSelect.addEventListener("change", updatePayTypeVisibility);
     const barcodeInput = document.getElementById("intakeBarcodeInput");
     const barcodeMsg = document.getElementById("intakeBarcodeMsg");
     wireRowMarginCalc(container.querySelector(".intake-row"));
@@ -218,7 +211,6 @@
       modal.showModal();
       container.querySelectorAll(".intake-row").forEach(updatePriceHint);
       computeTotal();
-      updatePayTypeVisibility();
       barcodeInput?.focus();
     });
     closeBtn.addEventListener("click", () => modal.close());

@@ -39,9 +39,8 @@ dialog#intakeModal::backdrop { background: rgba(0,0,0,.55); }
 #intakeRows { display: flex; flex-direction: column; gap: .6rem; margin-bottom: .8rem; }
 .intake-row { position: relative; display: flex; flex-direction: column; gap: .6rem; padding: .8rem 3rem .8rem .9rem;
   border: 1px solid var(--border); border-radius: 10px; background: var(--bg-surface-2); }
-.intake-row .field { min-width: 0; }
-.intake-row .field.grow { flex: 1 1 240px; min-width: 0; }
-.intake-row-prices { display: flex; gap: .6rem; flex-wrap: wrap; align-items: flex-end; }
+.intake-row .field { min-width: 0; flex: 0 0 auto; }
+.intake-row-prices { display: flex; gap: .6rem; flex-wrap: wrap; align-items: flex-end; flex: 0 0 auto; }
 .intake-row .field.qty { width: 90px; flex: 0 0 auto; }
 .intake-row .field.price { width: 130px; flex: 0 0 auto; }
 .intake-row .field.margin { width: 90px; flex: 0 0 auto; }
