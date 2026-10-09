@@ -857,11 +857,6 @@ TR = {
     "bar.barcode_scan_placeholder": {"ru": "Наведите курсор сюда и сканируйте…", "en": "Focus here and scan…", "uz": "Kursorni shu yerga qo'yib skanerlang…"},
     "bar.barcode_not_found": {"ru": "Товар с этим штрих-кодом не найден", "en": "No product with this barcode", "uz": "Bu shtrix-kodli mahsulot topilmadi"},
     "bar.duplicate_barcode_error": {"ru": "Такой штрих-код уже используется другим товаром.", "en": "This barcode is already used by another product.", "uz": "Bu shtrix-kod boshqa mahsulotda allaqachon ishlatilgan."},
-    "sklad.price_set_at_intake": {
-        "ru": "Укажете при приходе товара",
-        "en": "Set it later, at intake",
-        "uz": "Keyin, tovar kirimida kiritiladi",
-    },
     "sklad.current_price_hint": {"ru": "тек.: {price}", "en": "cur.: {price}", "uz": "joriy: {price}"},
     "bar.barcode_new_suggestion": {
         "ru": "Не найден в каталоге. Похоже, это «{name}» — заполните форму ниже и добавьте товар.",
