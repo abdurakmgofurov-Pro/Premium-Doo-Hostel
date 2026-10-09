@@ -37,13 +37,16 @@ dialog#intakeModal::backdrop { background: rgba(0,0,0,.55); }
 .modal-hint { font-size: .78rem; color: var(--ink-secondary); margin-right: auto; }
 
 #intakeRows { display: flex; flex-direction: column; gap: .6rem; margin-bottom: .8rem; }
-.intake-row { display: flex; gap: .6rem; align-items: flex-end; flex-wrap: wrap; }
+.intake-row { position: relative; display: flex; flex-direction: column; gap: .6rem; padding: .8rem 3rem .8rem .9rem;
+  border: 1px solid var(--border); border-radius: 10px; background: var(--bg-surface-2); }
 .intake-row .field { min-width: 0; }
 .intake-row .field.grow { flex: 1 1 240px; min-width: 0; }
-.intake-row .field.qty { width: 100px; flex: 0 0 auto; }
-.intake-row .field.price { width: 140px; flex: 0 0 auto; }
-.intake-remove-btn { background: none; border: 1px solid var(--border); border-radius: 9px; color: var(--ink-secondary);
-  width: 38px; height: 38px; flex: 0 0 auto; cursor: pointer; font-size: .9rem; line-height: 1; }
+.intake-row-prices { display: flex; gap: .6rem; flex-wrap: wrap; align-items: flex-end; }
+.intake-row .field.qty { width: 90px; flex: 0 0 auto; }
+.intake-row .field.price { width: 130px; flex: 0 0 auto; }
+.intake-row .field.margin { width: 90px; flex: 0 0 auto; }
+.intake-remove-btn { position: absolute; top: .6rem; right: .6rem; background: none; border: 1px solid var(--border); border-radius: 9px; color: var(--ink-secondary);
+  width: 32px; height: 32px; flex: 0 0 auto; cursor: pointer; font-size: .9rem; line-height: 1; }
 .intake-remove-btn:hover { color: var(--bad); border-color: var(--bad); }
 .intake-remove-btn:disabled { opacity: .3; cursor: default; }
 .modal-total { font-size: 1rem; font-weight: 700; font-family: "IBM Plex Mono", monospace; margin: .8rem 0; }

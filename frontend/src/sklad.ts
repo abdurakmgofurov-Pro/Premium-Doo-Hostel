@@ -177,12 +177,18 @@ function suggestNewProduct(code: string, name: string): void {
     return v === "" ? NaN : parseFloat(v);
   }
 
+  function fmtPct(n: number): string {
+    if (!isFinite(n)) return "";
+    return (Math.round(n * 100) / 100).toString();
+  }
+
   // Narx maydoni bo'sh qoldirilsa, mahsulotning joriy tan narxi ishlatiladi
   // (narx har safar kirimda o'zgarishi mumkin bo'lgani uchun, kiritilsa shu
   // yangi narx ishlatiladi va mahsulotning joriy narxi ham shunga yangilanadi).
   function updatePriceHint(row: Element): void {
     const select = row.querySelector<HTMLSelectElement>("select[name='product_id[]']")!;
     const priceInput = row.querySelector<HTMLInputElement>(".intake-price-input")!;
+    const marginInput = row.querySelector<HTMLInputElement>(".intake-margin-input")!;
     const salePriceInput = row.querySelector<HTMLInputElement>(".intake-sale-price-input")!;
     const opt = select.options[select.selectedIndex];
     if (!opt) return;
@@ -190,6 +196,32 @@ function suggestNewProduct(code: string, name: string): void {
     const salePrice = parseFloat(opt.getAttribute("data-sale-price") || "0") || 0;
     priceInput.placeholder = window.T["sklad.current_price_hint"].replace("{price}", fmtMoney(price));
     salePriceInput.placeholder = window.T["sklad.current_price_hint"].replace("{price}", fmtMoney(salePrice));
+    marginInput.placeholder = price > 0 ? fmtPct(((salePrice - price) / price) * 100) + "%" : "%";
+  }
+
+  // Tan narx/foiz/sotish narxi — uchtasidan ikkitasi kiritilsa, uchinchisi
+  // (sklad.html'dagi Yangi mahsulot/Tahrirlash formalaridagi kabi) avtomatik
+  // hisoblanadi; farqi shundaki, bu yerda bir nechta qator bo'lgani uchun
+  // har bir qator o'zining uchligini alohida hisoblaydi.
+  function wireRowMarginCalc(row: Element): void {
+    const costInput = row.querySelector<HTMLInputElement>(".intake-price-input")!;
+    const marginInput = row.querySelector<HTMLInputElement>(".intake-margin-input")!;
+    const saleInput = row.querySelector<HTMLInputElement>(".intake-sale-price-input")!;
+    row.addEventListener("input", (e: Event) => {
+      const el = e.target as HTMLInputElement;
+      if (el !== costInput && el !== marginInput && el !== saleInput) return;
+      const c = parsePrice(costInput.value);
+      if (el === marginInput) {
+        const p = parsePrice(marginInput.value);
+        if (isFinite(c) && c > 0 && isFinite(p)) saleInput.value = fmtMoney(c * (1 + p / 100));
+      } else if (el === costInput) {
+        const p2 = parsePrice(marginInput.value);
+        if (isFinite(c) && c > 0 && isFinite(p2)) saleInput.value = fmtMoney(c * (1 + p2 / 100));
+      } else if (el === saleInput) {
+        const s = parsePrice(saleInput.value);
+        if (isFinite(c) && c > 0 && isFinite(s)) marginInput.value = fmtPct(((s - c) / c) * 100);
+      }
+    });
   }
 
   function computeTotal(): void {
@@ -224,6 +256,8 @@ function suggestNewProduct(code: string, name: string): void {
   const barcodeInput = document.getElementById("intakeBarcodeInput") as HTMLInputElement | null;
   const barcodeMsg = document.getElementById("intakeBarcodeMsg") as HTMLElement | null;
 
+  wireRowMarginCalc(container.querySelector(".intake-row")!);
+
   openBtn.addEventListener("click", () => {
     modal.showModal();
     container.querySelectorAll(".intake-row").forEach(updatePriceHint);
@@ -240,8 +274,10 @@ function suggestNewProduct(code: string, name: string): void {
     (clone.querySelector("input[name='qty[]']") as HTMLInputElement).value = "1";
     (clone.querySelector(".intake-price-input") as HTMLInputElement).value = "";
     (clone.querySelector(".intake-sale-price-input") as HTMLInputElement).value = "";
+    (clone.querySelector(".intake-margin-input") as HTMLInputElement).value = "";
     (clone.querySelector(".intake-remove-btn") as HTMLButtonElement).disabled = false;
     container.appendChild(clone);
+    wireRowMarginCalc(clone);
     updatePriceHint(clone);
     updateRemoveButtons();
     return clone;

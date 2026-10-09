@@ -147,9 +147,14 @@
       const v = (s || "").replace(/\s/g, "");
       return v === "" ? NaN : parseFloat(v);
     }
+    function fmtPct(n) {
+      if (!isFinite(n)) return "";
+      return (Math.round(n * 100) / 100).toString();
+    }
     function updatePriceHint(row) {
       const select = row.querySelector("select[name='product_id[]']");
       const priceInput = row.querySelector(".intake-price-input");
+      const marginInput = row.querySelector(".intake-margin-input");
       const salePriceInput = row.querySelector(".intake-sale-price-input");
       const opt = select.options[select.selectedIndex];
       if (!opt) return;
@@ -157,6 +162,27 @@
       const salePrice = parseFloat(opt.getAttribute("data-sale-price") || "0") || 0;
       priceInput.placeholder = window.T["sklad.current_price_hint"].replace("{price}", fmtMoney(price));
       salePriceInput.placeholder = window.T["sklad.current_price_hint"].replace("{price}", fmtMoney(salePrice));
+      marginInput.placeholder = price > 0 ? fmtPct((salePrice - price) / price * 100) + "%" : "%";
+    }
+    function wireRowMarginCalc(row) {
+      const costInput = row.querySelector(".intake-price-input");
+      const marginInput = row.querySelector(".intake-margin-input");
+      const saleInput = row.querySelector(".intake-sale-price-input");
+      row.addEventListener("input", (e) => {
+        const el = e.target;
+        if (el !== costInput && el !== marginInput && el !== saleInput) return;
+        const c = parsePrice(costInput.value);
+        if (el === marginInput) {
+          const p = parsePrice(marginInput.value);
+          if (isFinite(c) && c > 0 && isFinite(p)) saleInput.value = fmtMoney(c * (1 + p / 100));
+        } else if (el === costInput) {
+          const p2 = parsePrice(marginInput.value);
+          if (isFinite(c) && c > 0 && isFinite(p2)) saleInput.value = fmtMoney(c * (1 + p2 / 100));
+        } else if (el === saleInput) {
+          const s = parsePrice(saleInput.value);
+          if (isFinite(c) && c > 0 && isFinite(s)) marginInput.value = fmtPct((s - c) / c * 100);
+        }
+      });
     }
     function computeTotal() {
       const totals = {};
@@ -187,6 +213,7 @@
     statusSelect.addEventListener("change", updatePayTypeVisibility);
     const barcodeInput = document.getElementById("intakeBarcodeInput");
     const barcodeMsg = document.getElementById("intakeBarcodeMsg");
+    wireRowMarginCalc(container.querySelector(".intake-row"));
     openBtn.addEventListener("click", () => {
       modal.showModal();
       container.querySelectorAll(".intake-row").forEach(updatePriceHint);
@@ -202,8 +229,10 @@
       clone.querySelector("input[name='qty[]']").value = "1";
       clone.querySelector(".intake-price-input").value = "";
       clone.querySelector(".intake-sale-price-input").value = "";
+      clone.querySelector(".intake-margin-input").value = "";
       clone.querySelector(".intake-remove-btn").disabled = false;
       container.appendChild(clone);
+      wireRowMarginCalc(clone);
       updatePriceHint(clone);
       updateRemoveButtons();
       return clone;
