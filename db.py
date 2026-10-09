@@ -377,6 +377,9 @@ def init_db():
             created_at TEXT DEFAULT (datetime('now'))
         )
     """)
+    bar_product_cols = [r["name"] for r in conn.execute("PRAGMA table_info(bar_products)").fetchall()]
+    if "barcode" not in bar_product_cols:
+        conn.execute("ALTER TABLE bar_products ADD COLUMN barcode TEXT")
     if _table_exists(conn, "bar_transactions") and not _table_exists(conn, "bar_transactions_old_nostatus"):
         old_bar_tx_cols = [r["name"] for r in conn.execute("PRAGMA table_info(bar_transactions)").fetchall()]
         if "status" not in old_bar_tx_cols:
@@ -1516,21 +1519,30 @@ def total_fixed_assets_value(currency, upto_date=None):
 # zaxirani (stock_qty) yangilaydi va Kassa/Bank'ga avtomatik pul harakati
 # sifatida yoziladi (kassa balansi va Forma 1/3 to'g'ri bo'lishi uchun).
 
-def add_bar_product(name, unit, cost_price, sale_price, currency):
+def add_bar_product(name, unit, cost_price, sale_price, currency, barcode=""):
+    barcode = (barcode or "").strip() or None
     conn = get_conn()
+    if barcode and conn.execute("SELECT 1 FROM bar_products WHERE barcode=?", (barcode,)).fetchone():
+        conn.close()
+        raise ValueError("duplicate_barcode")
     conn.execute(
-        "INSERT INTO bar_products (name, unit, cost_price, sale_price, currency) VALUES (?,?,?,?,?)",
-        (name, unit, cost_price, sale_price, currency),
+        "INSERT INTO bar_products (name, unit, cost_price, sale_price, currency, barcode) VALUES (?,?,?,?,?,?)",
+        (name, unit, cost_price, sale_price, currency, barcode),
     )
     conn.commit()
     conn.close()
 
 
-def update_bar_product(product_id, name, unit, cost_price, sale_price, currency):
+def update_bar_product(product_id, name, unit, cost_price, sale_price, currency, barcode=""):
+    barcode = (barcode or "").strip() or None
     conn = get_conn()
+    if barcode and conn.execute(
+            "SELECT 1 FROM bar_products WHERE barcode=? AND id<>?", (barcode, product_id)).fetchone():
+        conn.close()
+        raise ValueError("duplicate_barcode")
     conn.execute(
-        "UPDATE bar_products SET name=?, unit=?, cost_price=?, sale_price=?, currency=? WHERE id=?",
-        (name, unit, cost_price, sale_price, currency, product_id),
+        "UPDATE bar_products SET name=?, unit=?, cost_price=?, sale_price=?, currency=?, barcode=? WHERE id=?",
+        (name, unit, cost_price, sale_price, currency, barcode, product_id),
     )
     conn.commit()
     conn.close()

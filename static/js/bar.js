@@ -26,14 +26,18 @@
     const totalEl = document.getElementById("cartTotal");
     const submitBtn = document.getElementById("sellSubmitBtn");
     const products = {};
+    const byBarcode = {};
     grid.querySelectorAll(".pick-card").forEach((card) => {
       const id = card.getAttribute("data-id");
+      const barcode = card.getAttribute("data-barcode") || "";
       products[id] = {
         name: card.getAttribute("data-name") || "",
         price: parseFloat(card.getAttribute("data-price") || "0") || 0,
         currency: card.getAttribute("data-currency") || "UZS",
-        stock: parseFloat(card.getAttribute("data-stock") || "0") || 0
+        stock: parseFloat(card.getAttribute("data-stock") || "0") || 0,
+        barcode
       };
+      if (barcode) byBarcode[barcode] = id;
     });
     const cart = {};
     function fmtMoney(n) {
@@ -89,22 +93,56 @@
       totalEl.textContent = `${window.T["bar.cart_total"]}: ` + (parts.length ? parts.join(" + ") : "0");
       submitBtn.disabled = ids.length === 0;
     }
+    function addToCart(id) {
+      const card = grid.querySelector(`.pick-card[data-id="${id}"]`);
+      if (card && card.disabled) return;
+      if (cart[id] > 0) {
+        cart[id] += 1;
+        const row = cartRows.querySelector(`.cart-row[data-id="${id}"]`);
+        if (row) row.querySelector(".cr-qty").value = String(cart[id]);
+      } else {
+        cart[id] = 1;
+        cartRows.appendChild(buildRow(id));
+        if (card) card.classList.add("selected");
+      }
+      updateAll();
+    }
     grid.querySelectorAll(".pick-card").forEach((card) => {
       card.addEventListener("click", () => {
         if (card.disabled) return;
-        const id = card.getAttribute("data-id");
-        if (cart[id] > 0) {
-          cart[id] += 1;
-          const row = cartRows.querySelector(`.cart-row[data-id="${id}"]`);
-          if (row) row.querySelector(".cr-qty").value = String(cart[id]);
-        } else {
-          cart[id] = 1;
-          cartRows.appendChild(buildRow(id));
-          card.classList.add("selected");
-        }
-        updateAll();
+        addToCart(card.getAttribute("data-id"));
       });
     });
+    const barcodeInput = document.getElementById("sellBarcodeInput");
+    const barcodeMsg = document.getElementById("sellBarcodeMsg");
+    if (barcodeInput && barcodeMsg) {
+      let msgTimer;
+      const showMsg = (text, isError) => {
+        barcodeMsg.textContent = text;
+        barcodeMsg.className = "barcode-msg " + (isError ? "error" : "ok");
+        window.clearTimeout(msgTimer);
+        msgTimer = window.setTimeout(() => {
+          barcodeMsg.textContent = "";
+        }, 2500);
+      };
+      barcodeInput.addEventListener("keydown", (e) => {
+        if (e.key !== "Enter") return;
+        e.preventDefault();
+        const code = barcodeInput.value.trim();
+        barcodeInput.value = "";
+        if (!code) return;
+        const id = byBarcode[code];
+        if (!id) {
+          showMsg(window.T["bar.barcode_not_found"], true);
+        } else if (products[id].stock <= 0) {
+          showMsg(window.T["bar.out_of_stock"], true);
+        } else {
+          addToCart(id);
+          showMsg(products[id].name, false);
+        }
+        barcodeInput.focus();
+      });
+    }
     updateAll();
   })();
 })();

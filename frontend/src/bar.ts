@@ -11,6 +11,7 @@ interface CartProduct {
   price: number;
   currency: string;
   stock: number;
+  barcode: string;
 }
 
 (function editModal() {
@@ -40,14 +41,18 @@ interface CartProduct {
   const submitBtn = document.getElementById("sellSubmitBtn") as HTMLButtonElement;
 
   const products: Record<string, CartProduct> = {};
+  const byBarcode: Record<string, string> = {};
   grid.querySelectorAll<HTMLButtonElement>(".pick-card").forEach((card) => {
     const id = card.getAttribute("data-id")!;
+    const barcode = card.getAttribute("data-barcode") || "";
     products[id] = {
       name: card.getAttribute("data-name") || "",
       price: parseFloat(card.getAttribute("data-price") || "0") || 0,
       currency: card.getAttribute("data-currency") || "UZS",
       stock: parseFloat(card.getAttribute("data-stock") || "0") || 0,
+      barcode,
     };
+    if (barcode) byBarcode[barcode] = id;
   });
 
   const cart: Record<string, number> = {};
@@ -117,22 +122,61 @@ interface CartProduct {
     submitBtn.disabled = ids.length === 0;
   }
 
+  function addToCart(id: string): void {
+    const card = grid!.querySelector<HTMLButtonElement>(`.pick-card[data-id="${id}"]`);
+    if (card && card.disabled) return;
+    if (cart[id] > 0) {
+      cart[id] += 1;
+      const row = cartRows.querySelector(`.cart-row[data-id="${id}"]`);
+      if (row) (row.querySelector(".cr-qty") as HTMLInputElement).value = String(cart[id]);
+    } else {
+      cart[id] = 1;
+      cartRows.appendChild(buildRow(id));
+      if (card) card.classList.add("selected");
+    }
+    updateAll();
+  }
+
   grid.querySelectorAll<HTMLButtonElement>(".pick-card").forEach((card) => {
     card.addEventListener("click", () => {
       if (card.disabled) return;
-      const id = card.getAttribute("data-id")!;
-      if (cart[id] > 0) {
-        cart[id] += 1;
-        const row = cartRows.querySelector(`.cart-row[data-id="${id}"]`);
-        if (row) (row.querySelector(".cr-qty") as HTMLInputElement).value = String(cart[id]);
-      } else {
-        cart[id] = 1;
-        cartRows.appendChild(buildRow(id));
-        card.classList.add("selected");
-      }
-      updateAll();
+      addToCart(card.getAttribute("data-id")!);
     });
   });
+
+  // Shtrix-kod skaneri: skaner klaviatura sifatida ishlaydi — kodni yozib, oxirida
+  // Enter yuboradi. Topilsa savatga qo'shiladi (qayta skanerlash — miqdorni +1 qiladi),
+  // topilmasa yoki tugagan bo'lsa, qisqa xabar ko'rsatiladi.
+  const barcodeInput = document.getElementById("sellBarcodeInput") as HTMLInputElement | null;
+  const barcodeMsg = document.getElementById("sellBarcodeMsg") as HTMLElement | null;
+  if (barcodeInput && barcodeMsg) {
+    let msgTimer: number | undefined;
+    const showMsg = (text: string, isError: boolean) => {
+      barcodeMsg.textContent = text;
+      barcodeMsg.className = "barcode-msg " + (isError ? "error" : "ok");
+      window.clearTimeout(msgTimer);
+      msgTimer = window.setTimeout(() => {
+        barcodeMsg.textContent = "";
+      }, 2500);
+    };
+    barcodeInput.addEventListener("keydown", (e: KeyboardEvent) => {
+      if (e.key !== "Enter") return;
+      e.preventDefault();
+      const code = barcodeInput.value.trim();
+      barcodeInput.value = "";
+      if (!code) return;
+      const id = byBarcode[code];
+      if (!id) {
+        showMsg(window.T["bar.barcode_not_found"], true);
+      } else if (products[id].stock <= 0) {
+        showMsg(window.T["bar.out_of_stock"], true);
+      } else {
+        addToCart(id);
+        showMsg(products[id].name, false);
+      }
+      barcodeInput.focus();
+    });
+  }
 
   updateAll();
 })();

@@ -38,7 +38,7 @@
         {% for p in products %}
         <div class="product-card">
           <div class="pc-name">{{p.name}}</div>
-          <div class="pc-unit">{{ p.unit|t_unit }} · {{p.currency}}</div>
+          <div class="pc-unit">{{ p.unit|t_unit }} · {{p.currency}}{% if p.barcode %} · <span class="mono">{{p.barcode}}</span>{% endif %}</div>
           <div class="pc-stock">{{ t('bar.stock') }}: {{ p.stock_qty|qty }}</div>
           <div class="pc-stats">
             <div class="k">{{ t('bar.cost_price') }}</div><div class="v">{{ p.cost_price|money }}</div>
@@ -52,6 +52,7 @@
               <summary>{{ t('bar.edit') }}</summary>
               <form method="post" action="/bar/product/{{p.id}}/edit" class="form-grid" style="grid-template-columns:1fr 1fr;min-width:0">
                 <div class="field full"><label>{{ t('bar.product_name') }}</label><input type="text" name="name" value="{{p.name}}" required></div>
+                <div class="field"><label>{{ t('bar.barcode') }}</label><input type="text" name="barcode" value="{{p.barcode or ''}}" autocomplete="off"></div>
                 <div class="field"><label>{{ t('bar.unit') }}</label><input type="text" name="unit" value="{{p.unit}}" required></div>
                 <div class="field"><label>{{ t('bar.currency') }}</label>
                   <select name="currency">
@@ -86,6 +87,7 @@
       <h2>{{ t('bar.add_product_title') }}</h2>
       <form class="form-grid" method="post" action="/bar/product/add">
         <div class="field full"><label>{{ t('bar.product_name') }}</label><input type="text" name="name" required></div>
+        <div class="field"><label>{{ t('bar.barcode') }}</label><input type="text" name="barcode" autocomplete="off"></div>
         <div class="field"><label>{{ t('bar.unit') }}</label><input type="text" name="unit" value="dona" required></div>
         <div class="field"><label>{{ t('bar.currency') }}</label>
           <select name="currency"><option value="UZS">UZS</option><option value="USD">USD</option></select>
@@ -203,13 +205,18 @@
         </select>
       </div>
 
+      <div class="field full barcode-field"><label>{{ t('bar.barcode_scan_label') }}</label>
+        <input type="text" id="intakeBarcodeInput" autocomplete="off" placeholder="{{ t('bar.barcode_scan_placeholder') }}">
+        <div class="barcode-msg" id="intakeBarcodeMsg"></div>
+      </div>
+
       <div class="field full">
         <div id="intakeRows">
           <div class="intake-row">
             <div class="field grow"><label>{{ t('bar.product') }}</label>
               <select name="product_id[]">
                 {% for p in products %}
-                <option value="{{p.id}}" data-price="{{p.cost_price}}" data-currency="{{p.currency}}">{{p.name}} ({{ p.unit|t_unit }}) — {{ t('bar.stock') }}: {{ p.stock_qty|qty }}</option>
+                <option value="{{p.id}}" data-price="{{p.cost_price}}" data-currency="{{p.currency}}" data-barcode="{{p.barcode or ''}}">{{p.name}} ({{ p.unit|t_unit }}) — {{ t('bar.stock') }}: {{ p.stock_qty|qty }}</option>
                 {% endfor %}
               </select>
             </div>

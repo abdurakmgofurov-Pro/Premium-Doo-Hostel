@@ -39,3 +39,9 @@ dialog#barEditModal::backdrop { background: rgba(0,0,0,.55); }
   .sell-footer .field.source { max-width: none; flex-basis: 100%; }
   .sell-footer button[type=submit] { flex: 1 1 100%; }
 }
+
+.barcode-field { margin-bottom: 1rem; position: relative; }
+.barcode-field input { font-size: 1rem; letter-spacing: .02em; }
+.barcode-msg { font-size: .8rem; margin-top: .3rem; min-height: 1.1em; font-weight: 600; }
+.barcode-msg.ok { color: var(--good); }
+.barcode-msg.error { color: var(--bad); }

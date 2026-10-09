@@ -139,23 +139,83 @@ import "./types";
   }
   statusSelect.addEventListener("change", updatePayTypeVisibility);
 
+  const barcodeInput = document.getElementById("intakeBarcodeInput") as HTMLInputElement | null;
+  const barcodeMsg = document.getElementById("intakeBarcodeMsg") as HTMLElement | null;
+
   openBtn.addEventListener("click", () => {
     modal.showModal();
     computeTotal();
     updatePayTypeVisibility();
+    barcodeInput?.focus();
   });
   closeBtn.addEventListener("click", () => modal.close());
   cancelBtn.addEventListener("click", () => modal.close());
 
-  addBtn.addEventListener("click", () => {
+  function addRow(): HTMLElement {
     const rows = container.querySelectorAll(".intake-row");
     const clone = rows[rows.length - 1].cloneNode(true) as HTMLElement;
     (clone.querySelector("input[name='qty[]']") as HTMLInputElement).value = "1";
     (clone.querySelector(".intake-remove-btn") as HTMLButtonElement).disabled = false;
     container.appendChild(clone);
     updateRemoveButtons();
+    return clone;
+  }
+
+  addBtn.addEventListener("click", () => {
+    addRow();
     computeTotal();
   });
+
+  // Shtrix-kod skaneri: topilgan mahsulot bilan qator qo'shadi (yoki shu mahsulot
+  // allaqachon qatorda bo'lsa — miqdorini +1 qiladi), skaner klaviatura sifatida
+  // ishlab, kod oxirida Enter yuboradi.
+  if (barcodeInput && barcodeMsg) {
+    const firstSelect = container.querySelector<HTMLSelectElement>("select[name='product_id[]']")!;
+    const byBarcode: Record<string, string> = {};
+    Array.from(firstSelect.options).forEach((opt) => {
+      const code = opt.getAttribute("data-barcode");
+      if (code) byBarcode[code] = opt.value;
+    });
+    let msgTimer: number | undefined;
+    const showMsg = (text: string, isError: boolean) => {
+      barcodeMsg.textContent = text;
+      barcodeMsg.className = "barcode-msg " + (isError ? "error" : "ok");
+      window.clearTimeout(msgTimer);
+      msgTimer = window.setTimeout(() => {
+        barcodeMsg.textContent = "";
+      }, 2500);
+    };
+    barcodeInput.addEventListener("keydown", (e: KeyboardEvent) => {
+      if (e.key !== "Enter") return;
+      e.preventDefault();
+      const code = barcodeInput.value.trim();
+      barcodeInput.value = "";
+      if (!code) return;
+      const productId = byBarcode[code];
+      if (!productId) {
+        showMsg(window.T["bar.barcode_not_found"], true);
+        barcodeInput.focus();
+        return;
+      }
+      const existing = Array.from(container.querySelectorAll<HTMLSelectElement>("select[name='product_id[]']"))
+        .find((sel) => sel.value === productId);
+      let name = "";
+      if (existing) {
+        const row = existing.closest(".intake-row") as HTMLElement;
+        const qtyInput = row.querySelector<HTMLInputElement>("input[name='qty[]']")!;
+        qtyInput.value = String((parseFloat(qtyInput.value) || 0) + 1);
+        name = existing.options[existing.selectedIndex].text;
+      } else {
+        const row = addRow();
+        const select = row.querySelector<HTMLSelectElement>("select[name='product_id[]']")!;
+        select.value = productId;
+        name = select.options[select.selectedIndex].text;
+      }
+      computeTotal();
+      showMsg(name, false);
+      barcodeInput.focus();
+    });
+  }
 
   container.addEventListener("click", (e: Event) => {
     const target = e.target as HTMLElement;

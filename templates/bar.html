@@ -18,11 +18,16 @@
     {% if products %}
     <form class="form-grid sell-form" method="post" action="/bar/sell" id="sellForm">
       <div class="field full">
+        <div class="field barcode-field"><label>{{ t('bar.barcode_scan_label') }}</label>
+          <input type="text" id="sellBarcodeInput" autocomplete="off" autofocus placeholder="{{ t('bar.barcode_scan_placeholder') }}">
+          <div class="barcode-msg" id="sellBarcodeMsg"></div>
+        </div>
         <div class="pick-title">{{ t('bar.pick_title') }}</div>
         <div class="pick-grid" id="pickGrid">
           {% for p in products %}
           <button type="button" class="pick-card" data-id="{{p.id}}" data-name="{{p.name}}"
             data-price="{{p.sale_price}}" data-currency="{{p.currency}}" data-stock="{{p.stock_qty}}"
+            data-barcode="{{p.barcode or ''}}"
             {% if p.stock_qty <= 0 %}disabled{% endif %}>
             <div class="pk-name">{{p.name}}</div>
             <div class="pk-price">{{ p.sale_price|money }} {{p.currency}}</div>

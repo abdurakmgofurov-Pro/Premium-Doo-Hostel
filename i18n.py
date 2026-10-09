@@ -852,6 +852,11 @@ TR = {
     "bar.empty": {"ru": "Операции пока не добавлены.", "en": "No transactions yet.", "uz": "Hali operatsiya kiritilmagan."},
     "bar.insufficient_stock_error": {"ru": "Недостаточно товара на складе для этой продажи.", "en": "Not enough stock for this sale.", "uz": "Bu sotuv uchun ombordagi mahsulot yetarli emas."},
     "bar.product_delete_error": {"ru": "Нельзя удалить товар — по нему уже есть операции.", "en": "Cannot delete — this product already has transactions.", "uz": "Bu mahsulotni o'chirib bo'lmaydi — unga tegishli operatsiyalar mavjud."},
+    "bar.barcode": {"ru": "Штрих-код", "en": "Barcode", "uz": "Shtrix-kod"},
+    "bar.barcode_scan_label": {"ru": "Сканировать штрих-код", "en": "Scan barcode", "uz": "Shtrix-kodni skanerlash"},
+    "bar.barcode_scan_placeholder": {"ru": "Наведите курсор сюда и сканируйте…", "en": "Focus here and scan…", "uz": "Kursorni shu yerga qo'yib skanerlang…"},
+    "bar.barcode_not_found": {"ru": "Товар с этим штрих-кодом не найден", "en": "No product with this barcode", "uz": "Bu shtrix-kodli mahsulot topilmadi"},
+    "bar.duplicate_barcode_error": {"ru": "Такой штрих-код уже используется другим товаром.", "en": "This barcode is already used by another product.", "uz": "Bu shtrix-kod boshqa mahsulotda allaqachon ishlatilgan."},
     "bar.note": {
         "ru": "Продажи и закупки автоматически отражаются в Кассе/Банке (приход/расход) и в Форме №2 (выручка / себестоимость).",
         "en": "Sales and purchases are automatically reflected in Cash & Bank (income/expense) and in Form 2 (revenue / cost of goods).",

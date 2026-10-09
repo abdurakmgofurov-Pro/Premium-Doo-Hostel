@@ -122,22 +122,75 @@
       payTypeField.style.display = unpaid ? "none" : "";
     }
     statusSelect.addEventListener("change", updatePayTypeVisibility);
+    const barcodeInput = document.getElementById("intakeBarcodeInput");
+    const barcodeMsg = document.getElementById("intakeBarcodeMsg");
     openBtn.addEventListener("click", () => {
       modal.showModal();
       computeTotal();
       updatePayTypeVisibility();
+      barcodeInput?.focus();
     });
     closeBtn.addEventListener("click", () => modal.close());
     cancelBtn.addEventListener("click", () => modal.close());
-    addBtn.addEventListener("click", () => {
+    function addRow() {
       const rows = container.querySelectorAll(".intake-row");
       const clone = rows[rows.length - 1].cloneNode(true);
       clone.querySelector("input[name='qty[]']").value = "1";
       clone.querySelector(".intake-remove-btn").disabled = false;
       container.appendChild(clone);
       updateRemoveButtons();
+      return clone;
+    }
+    addBtn.addEventListener("click", () => {
+      addRow();
       computeTotal();
     });
+    if (barcodeInput && barcodeMsg) {
+      const firstSelect = container.querySelector("select[name='product_id[]']");
+      const byBarcode = {};
+      Array.from(firstSelect.options).forEach((opt) => {
+        const code = opt.getAttribute("data-barcode");
+        if (code) byBarcode[code] = opt.value;
+      });
+      let msgTimer;
+      const showMsg = (text, isError) => {
+        barcodeMsg.textContent = text;
+        barcodeMsg.className = "barcode-msg " + (isError ? "error" : "ok");
+        window.clearTimeout(msgTimer);
+        msgTimer = window.setTimeout(() => {
+          barcodeMsg.textContent = "";
+        }, 2500);
+      };
+      barcodeInput.addEventListener("keydown", (e) => {
+        if (e.key !== "Enter") return;
+        e.preventDefault();
+        const code = barcodeInput.value.trim();
+        barcodeInput.value = "";
+        if (!code) return;
+        const productId = byBarcode[code];
+        if (!productId) {
+          showMsg(window.T["bar.barcode_not_found"], true);
+          barcodeInput.focus();
+          return;
+        }
+        const existing = Array.from(container.querySelectorAll("select[name='product_id[]']")).find((sel) => sel.value === productId);
+        let name = "";
+        if (existing) {
+          const row = existing.closest(".intake-row");
+          const qtyInput = row.querySelector("input[name='qty[]']");
+          qtyInput.value = String((parseFloat(qtyInput.value) || 0) + 1);
+          name = existing.options[existing.selectedIndex].text;
+        } else {
+          const row = addRow();
+          const select = row.querySelector("select[name='product_id[]']");
+          select.value = productId;
+          name = select.options[select.selectedIndex].text;
+        }
+        computeTotal();
+        showMsg(name, false);
+        barcodeInput.focus();
+      });
+    }
     container.addEventListener("click", (e) => {
       const target = e.target;
       if (target.classList.contains("intake-remove-btn") && !target.disabled) {

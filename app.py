@@ -2067,11 +2067,14 @@ def sklad_page():
 @permission_required("bar", "create")
 def bar_product_add():
     f = request.form
-    db.add_bar_product(
-        name=f["name"], unit=f.get("unit") or "dona",
-        cost_price=parse_amount(f["cost_price"]), sale_price=parse_amount(f["sale_price"]),
-        currency=f["currency"],
-    )
+    try:
+        db.add_bar_product(
+            name=f["name"], unit=f.get("unit") or "dona",
+            cost_price=parse_amount(f["cost_price"]), sale_price=parse_amount(f["sale_price"]),
+            currency=f["currency"], barcode=f.get("barcode", ""),
+        )
+    except ValueError:
+        flash(t("bar.duplicate_barcode_error", g.lang), "error")
     return redirect(url_for("sklad_page"))
 
 
@@ -2079,11 +2082,14 @@ def bar_product_add():
 @permission_required("bar", "edit")
 def bar_product_edit(product_id):
     f = request.form
-    db.update_bar_product(
-        product_id, name=f["name"], unit=f.get("unit") or "dona",
-        cost_price=parse_amount(f["cost_price"]), sale_price=parse_amount(f["sale_price"]),
-        currency=f["currency"],
-    )
+    try:
+        db.update_bar_product(
+            product_id, name=f["name"], unit=f.get("unit") or "dona",
+            cost_price=parse_amount(f["cost_price"]), sale_price=parse_amount(f["sale_price"]),
+            currency=f["currency"], barcode=f.get("barcode", ""),
+        )
+    except ValueError:
+        flash(t("bar.duplicate_barcode_error", g.lang), "error")
     return redirect(url_for("sklad_page"))
 
 
