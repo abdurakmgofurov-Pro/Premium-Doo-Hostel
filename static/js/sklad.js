@@ -5,6 +5,26 @@
     const m = raw.match(/^01(\d{14})/);
     return m ? m[1] : raw;
   }
+  async function lookupBarcodeName(code) {
+    try {
+      const res = await fetch(`/bar/barcode_lookup/${encodeURIComponent(code)}`);
+      if (!res.ok) return null;
+      const data = await res.json();
+      return data.name || null;
+    } catch {
+      return null;
+    }
+  }
+  function suggestNewProduct(code, name) {
+    const barcodeField = document.getElementById("addProductBarcode");
+    const nameField = barcodeField?.closest("form")?.querySelector("[name=name]");
+    if (!barcodeField || !nameField) return;
+    barcodeField.value = code;
+    if (!nameField.value.trim()) nameField.value = name;
+    document.querySelector('.tab-btn[data-tab="products"]')?.click();
+    nameField.scrollIntoView({ behavior: "smooth", block: "center" });
+    nameField.focus();
+  }
   (function marginCalc() {
     function raw(el) {
       if (!el) return NaN;
@@ -45,14 +65,23 @@
   (function addProductBarcodeScan() {
     const scanInput = document.getElementById("addProductBarcodeInput");
     const barcodeField = document.getElementById("addProductBarcode");
+    const msgEl = document.getElementById("addProductBarcodeMsg");
     if (!scanInput || !barcodeField) return;
-    scanInput.addEventListener("keydown", (e) => {
+    const nameField = barcodeField.closest("form").querySelector("[name=name]");
+    scanInput.addEventListener("keydown", async (e) => {
       if (e.key !== "Enter") return;
       e.preventDefault();
       const code = extractGtin(scanInput.value.trim());
       scanInput.value = "";
       if (!code) return;
       barcodeField.value = code;
+      if (nameField && !nameField.value.trim()) {
+        const name = await lookupBarcodeName(code);
+        if (name && !nameField.value.trim()) {
+          nameField.value = name;
+          if (msgEl) msgEl.textContent = name;
+        }
+      }
     });
   })();
   (function tabs() {
@@ -114,14 +143,28 @@
         row.querySelector(".intake-remove-btn").disabled = rows.length <= 1;
       });
     }
+    function parsePrice(s) {
+      const v = (s || "").replace(/\s/g, "");
+      return v === "" ? NaN : parseFloat(v);
+    }
+    function updatePriceHint(row) {
+      const select = row.querySelector("select[name='product_id[]']");
+      const priceInput = row.querySelector(".intake-price-input");
+      const opt = select.options[select.selectedIndex];
+      if (!opt) return;
+      const price = parseFloat(opt.getAttribute("data-price") || "0") || 0;
+      priceInput.placeholder = window.T["sklad.current_price_hint"].replace("{price}", fmtMoney(price));
+    }
     function computeTotal() {
       const totals = {};
       container.querySelectorAll(".intake-row").forEach((row) => {
         const select = row.querySelector("select[name='product_id[]']");
         const qtyInput = row.querySelector("input[name='qty[]']");
+        const priceInput = row.querySelector(".intake-price-input");
         const opt = select.options[select.selectedIndex];
         if (!opt) return;
-        const price = parseFloat(opt.getAttribute("data-price") || "0") || 0;
+        const enteredPrice = parsePrice(priceInput.value);
+        const price = isFinite(enteredPrice) ? enteredPrice : parseFloat(opt.getAttribute("data-price") || "0") || 0;
         const currency = opt.getAttribute("data-currency") || "UZS";
         const qty = parseFloat(qtyInput.value) || 0;
         totals[currency] = (totals[currency] || 0) + price * qty;
@@ -143,6 +186,7 @@
     const barcodeMsg = document.getElementById("intakeBarcodeMsg");
     openBtn.addEventListener("click", () => {
       modal.showModal();
+      container.querySelectorAll(".intake-row").forEach(updatePriceHint);
       computeTotal();
       updatePayTypeVisibility();
       barcodeInput?.focus();
@@ -153,8 +197,10 @@
       const rows = container.querySelectorAll(".intake-row");
       const clone = rows[rows.length - 1].cloneNode(true);
       clone.querySelector("input[name='qty[]']").value = "1";
+      clone.querySelector(".intake-price-input").value = "";
       clone.querySelector(".intake-remove-btn").disabled = false;
       container.appendChild(clone);
+      updatePriceHint(clone);
       updateRemoveButtons();
       return clone;
     }
@@ -178,7 +224,7 @@
           barcodeMsg.textContent = "";
         }, 2500);
       };
-      barcodeInput.addEventListener("keydown", (e) => {
+      barcodeInput.addEventListener("keydown", async (e) => {
         if (e.key !== "Enter") return;
         e.preventDefault();
         const code = extractGtin(barcodeInput.value.trim());
@@ -186,8 +232,14 @@
         if (!code) return;
         const productId = byBarcode[code];
         if (!productId) {
-          showMsg(window.T["bar.barcode_not_found"], true);
-          barcodeInput.focus();
+          const foundName = await lookupBarcodeName(code);
+          if (foundName) {
+            modal.close();
+            suggestNewProduct(code, foundName);
+          } else {
+            showMsg(window.T["bar.barcode_not_found"], true);
+            barcodeInput.focus();
+          }
           return;
         }
         const existing = Array.from(container.querySelectorAll("select[name='product_id[]']")).find((sel) => sel.value === productId);
@@ -202,6 +254,7 @@
           const select = row.querySelector("select[name='product_id[]']");
           select.value = productId;
           name = select.options[select.selectedIndex].text;
+          updatePriceHint(row);
         }
         computeTotal();
         showMsg(name, false);
@@ -217,6 +270,10 @@
       }
     });
     container.addEventListener("input", computeTotal);
-    container.addEventListener("change", computeTotal);
+    container.addEventListener("change", (e) => {
+      const target = e.target;
+      if (target.matches("select[name='product_id[]']")) updatePriceHint(target.closest(".intake-row"));
+      computeTotal();
+    });
   })();
 })();

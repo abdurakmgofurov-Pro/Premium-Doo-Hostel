@@ -12,6 +12,32 @@ function extractGtin(raw: string): string {
   return m ? m[1] : raw;
 }
 
+// Lokal katalogda topilmagan shtrix-kodni Open Food Facts (ochiq mahsulotlar
+// bazasi) orqali qidiradi, topilsa mahsulot nomini qaytaradi.
+async function lookupBarcodeName(code: string): Promise<string | null> {
+  try {
+    const res = await fetch(`/bar/barcode_lookup/${encodeURIComponent(code)}`);
+    if (!res.ok) return null;
+    const data = await res.json();
+    return data.name || null;
+  } catch {
+    return null;
+  }
+}
+
+// Kirim oynasida shtrix-kod katalogda topilmasa, ochiq bazadan nomini qidirib,
+// "Yangi mahsulot qo'shish" formasiga (nomi + shtrix-kodi bilan) o'tkazadi.
+function suggestNewProduct(code: string, name: string): void {
+  const barcodeField = document.getElementById("addProductBarcode") as HTMLInputElement | null;
+  const nameField = barcodeField?.closest("form")?.querySelector<HTMLInputElement>("[name=name]");
+  if (!barcodeField || !nameField) return;
+  barcodeField.value = code;
+  if (!nameField.value.trim()) nameField.value = name;
+  document.querySelector<HTMLButtonElement>('.tab-btn[data-tab="products"]')?.click();
+  nameField.scrollIntoView({ behavior: "smooth", block: "center" });
+  nameField.focus();
+}
+
 (function marginCalc() {
   function raw(el: HTMLInputElement | null): number {
     if (!el) return NaN;
@@ -55,14 +81,23 @@ function extractGtin(raw: string): string {
 (function addProductBarcodeScan() {
   const scanInput = document.getElementById("addProductBarcodeInput") as HTMLInputElement | null;
   const barcodeField = document.getElementById("addProductBarcode") as HTMLInputElement | null;
+  const msgEl = document.getElementById("addProductBarcodeMsg") as HTMLElement | null;
   if (!scanInput || !barcodeField) return;
-  scanInput.addEventListener("keydown", (e: KeyboardEvent) => {
+  const nameField = barcodeField.closest("form")!.querySelector<HTMLInputElement>("[name=name]");
+  scanInput.addEventListener("keydown", async (e: KeyboardEvent) => {
     if (e.key !== "Enter") return;
     e.preventDefault();
     const code = extractGtin(scanInput.value.trim());
     scanInput.value = "";
     if (!code) return;
     barcodeField.value = code;
+    if (nameField && !nameField.value.trim()) {
+      const name = await lookupBarcodeName(code);
+      if (name && !nameField.value.trim()) {
+        nameField.value = name;
+        if (msgEl) msgEl.textContent = name;
+      }
+    }
   });
 })();
 
@@ -137,14 +172,33 @@ function extractGtin(raw: string): string {
     });
   }
 
+  function parsePrice(s: string): number {
+    const v = (s || "").replace(/\s/g, "");
+    return v === "" ? NaN : parseFloat(v);
+  }
+
+  // Narx maydoni bo'sh qoldirilsa, mahsulotning joriy tan narxi ishlatiladi
+  // (narx har safar kirimda o'zgarishi mumkin bo'lgani uchun, kiritilsa shu
+  // yangi narx ishlatiladi va mahsulotning joriy narxi ham shunga yangilanadi).
+  function updatePriceHint(row: Element): void {
+    const select = row.querySelector<HTMLSelectElement>("select[name='product_id[]']")!;
+    const priceInput = row.querySelector<HTMLInputElement>(".intake-price-input")!;
+    const opt = select.options[select.selectedIndex];
+    if (!opt) return;
+    const price = parseFloat(opt.getAttribute("data-price") || "0") || 0;
+    priceInput.placeholder = window.T["sklad.current_price_hint"].replace("{price}", fmtMoney(price));
+  }
+
   function computeTotal(): void {
     const totals: Record<string, number> = {};
     container.querySelectorAll(".intake-row").forEach((row) => {
       const select = row.querySelector<HTMLSelectElement>("select[name='product_id[]']")!;
       const qtyInput = row.querySelector<HTMLInputElement>("input[name='qty[]']")!;
+      const priceInput = row.querySelector<HTMLInputElement>(".intake-price-input")!;
       const opt = select.options[select.selectedIndex];
       if (!opt) return;
-      const price = parseFloat(opt.getAttribute("data-price") || "0") || 0;
+      const enteredPrice = parsePrice(priceInput.value);
+      const price = isFinite(enteredPrice) ? enteredPrice : parseFloat(opt.getAttribute("data-price") || "0") || 0;
       const currency = opt.getAttribute("data-currency") || "UZS";
       const qty = parseFloat(qtyInput.value) || 0;
       totals[currency] = (totals[currency] || 0) + price * qty;
@@ -169,6 +223,7 @@ function extractGtin(raw: string): string {
 
   openBtn.addEventListener("click", () => {
     modal.showModal();
+    container.querySelectorAll(".intake-row").forEach(updatePriceHint);
     computeTotal();
     updatePayTypeVisibility();
     barcodeInput?.focus();
@@ -180,8 +235,10 @@ function extractGtin(raw: string): string {
     const rows = container.querySelectorAll(".intake-row");
     const clone = rows[rows.length - 1].cloneNode(true) as HTMLElement;
     (clone.querySelector("input[name='qty[]']") as HTMLInputElement).value = "1";
+    (clone.querySelector(".intake-price-input") as HTMLInputElement).value = "";
     (clone.querySelector(".intake-remove-btn") as HTMLButtonElement).disabled = false;
     container.appendChild(clone);
+    updatePriceHint(clone);
     updateRemoveButtons();
     return clone;
   }
@@ -210,7 +267,7 @@ function extractGtin(raw: string): string {
         barcodeMsg.textContent = "";
       }, 2500);
     };
-    barcodeInput.addEventListener("keydown", (e: KeyboardEvent) => {
+    barcodeInput.addEventListener("keydown", async (e: KeyboardEvent) => {
       if (e.key !== "Enter") return;
       e.preventDefault();
       const code = extractGtin(barcodeInput.value.trim());
@@ -218,8 +275,14 @@ function extractGtin(raw: string): string {
       if (!code) return;
       const productId = byBarcode[code];
       if (!productId) {
-        showMsg(window.T["bar.barcode_not_found"], true);
-        barcodeInput.focus();
+        const foundName = await lookupBarcodeName(code);
+        if (foundName) {
+          modal.close();
+          suggestNewProduct(code, foundName);
+        } else {
+          showMsg(window.T["bar.barcode_not_found"], true);
+          barcodeInput.focus();
+        }
         return;
       }
       const existing = Array.from(container.querySelectorAll<HTMLSelectElement>("select[name='product_id[]']"))
@@ -235,6 +298,7 @@ function extractGtin(raw: string): string {
         const select = row.querySelector<HTMLSelectElement>("select[name='product_id[]']")!;
         select.value = productId;
         name = select.options[select.selectedIndex].text;
+        updatePriceHint(row);
       }
       computeTotal();
       showMsg(name, false);
@@ -252,5 +316,9 @@ function extractGtin(raw: string): string {
   });
 
   container.addEventListener("input", computeTotal);
-  container.addEventListener("change", computeTotal);
+  container.addEventListener("change", (e: Event) => {
+    const target = e.target as HTMLElement;
+    if (target.matches("select[name='product_id[]']")) updatePriceHint(target.closest(".intake-row")!);
+    computeTotal();
+  });
 })();

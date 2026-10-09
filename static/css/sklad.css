@@ -41,6 +41,7 @@ dialog#intakeModal::backdrop { background: rgba(0,0,0,.55); }
 .intake-row .field { min-width: 0; }
 .intake-row .field.grow { flex: 1 1 240px; min-width: 0; }
 .intake-row .field.qty { width: 100px; flex: 0 0 auto; }
+.intake-row .field.price { width: 140px; flex: 0 0 auto; }
 .intake-remove-btn { background: none; border: 1px solid var(--border); border-radius: 9px; color: var(--ink-secondary);
   width: 38px; height: 38px; flex: 0 0 auto; cursor: pointer; font-size: .9rem; line-height: 1; }
 .intake-remove-btn:hover { color: var(--bad); border-color: var(--bad); }

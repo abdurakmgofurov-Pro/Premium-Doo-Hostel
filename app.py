@@ -47,6 +47,7 @@ from exely_expense_import import parse_expense_xlsx
 from forma1 import build_forma1
 from forma2 import build_forma2
 from hostel_bookings_import import parse_bookings_xlsx
+from barcode_lookup import lookup_product_name
 import rooms as rm
 from i18n import (
     LANGS, LANG_LABELS, DEFAULT_LANG, t, t_all, t_group, t_cat,
@@ -2063,6 +2064,12 @@ def sklad_page():
     )
 
 
+@app.route("/bar/barcode_lookup/<code>")
+@permission_required("bar", "create")
+def bar_barcode_lookup(code):
+    return jsonify({"name": lookup_product_name(code)})
+
+
 @app.route("/bar/product/add", methods=["POST"])
 @permission_required("bar", "create")
 def bar_product_add():
@@ -2070,7 +2077,7 @@ def bar_product_add():
     try:
         db.add_bar_product(
             name=f["name"], unit=f.get("unit") or "dona",
-            cost_price=parse_amount(f["cost_price"]), sale_price=parse_amount(f["sale_price"]),
+            cost_price=parse_amount(f.get("cost_price") or "0"), sale_price=parse_amount(f.get("sale_price") or "0"),
             currency=f["currency"], barcode=f.get("barcode", ""),
         )
     except ValueError:
@@ -2122,27 +2129,29 @@ def bar_restock():
         return redirect(url_for("sklad_page"))
     product_ids = request.form.getlist("product_id[]")
     qtys = request.form.getlist("qty[]")
+    prices = request.form.getlist("price[]")
     lines = []
-    for pid, qty in zip(product_ids, qtys):
+    for pid, qty, price in zip(product_ids, qtys, prices):
         if not pid or not qty:
             continue
         try:
             pid_i, qty_f = int(pid), float(qty)
+            price_f = parse_amount(price) if price.strip() else None
         except ValueError:
             flash(t("flash.error_prefix", g.lang) + "invalid_qty", "error")
             return redirect(url_for("sklad_page"))
-        if qty_f <= 0 or not db.get_bar_product(pid_i):
+        if qty_f <= 0 or (price_f is not None and price_f < 0) or not db.get_bar_product(pid_i):
             flash(t("flash.error_prefix", g.lang) + "invalid_line", "error")
             return redirect(url_for("sklad_page"))
-        lines.append((pid_i, qty_f))
+        lines.append((pid_i, qty_f, price_f))
     # Avval BARCHA qatorlar tekshirilib bo'lingandan keyingina saqlanadi —
     # aks holda savatdagi 3-qator xato bersa, 1- va 2-qator allaqachon
     # bazaga yozilib, zaxira/kassa qisman o'zgargan holda qolib ketardi.
-    for pid_i, qty_f in lines:
+    for pid_i, qty_f, price_f in lines:
         try:
             db.add_bar_transaction(
                 date=date_str, product_id=pid_i, ttype="restock",
-                qty=qty_f, source=source,
+                qty=qty_f, source=source, unit_price=price_f,
                 counterparty=counterparty, description="", status=status,
             )
         except ValueError as e:

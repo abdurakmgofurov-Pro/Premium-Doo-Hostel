@@ -88,6 +88,7 @@
       <form class="form-grid" method="post" action="/bar/product/add">
         <div class="field full barcode-field"><label>{{ t('bar.barcode_scan_label') }}</label>
           <input type="text" id="addProductBarcodeInput" autocomplete="off" placeholder="{{ t('bar.barcode_scan_placeholder') }}">
+          <div class="barcode-msg" id="addProductBarcodeMsg"></div>
         </div>
         <div class="field full"><label>{{ t('bar.product_name') }}</label><input type="text" name="name" required></div>
         <div class="field"><label>{{ t('bar.barcode') }}</label><input type="text" id="addProductBarcode" name="barcode" autocomplete="off"></div>
@@ -95,9 +96,9 @@
         <div class="field"><label>{{ t('bar.currency') }}</label>
           <select name="currency"><option value="UZS">UZS</option><option value="USD">USD</option></select>
         </div>
-        <div class="field"><label>{{ t('bar.cost_price') }}</label><input type="text" inputmode="decimal" class="money-input" name="cost_price" required></div>
+        <div class="field"><label>{{ t('bar.cost_price') }}</label><input type="text" inputmode="decimal" class="money-input" name="cost_price" placeholder="{{ t('sklad.price_set_at_intake') }}"></div>
         <div class="field"><label>{{ t('bar.margin_percent') }}</label><input type="text" inputmode="decimal" class="money-input margin-pct-input" placeholder="%"></div>
-        <div class="field"><label>{{ t('bar.sale_price') }}</label><input type="text" inputmode="decimal" class="money-input" name="sale_price" required></div>
+        <div class="field"><label>{{ t('bar.sale_price') }}</label><input type="text" inputmode="decimal" class="money-input" name="sale_price" placeholder="{{ t('sklad.price_set_at_intake') }}"></div>
         <div class="field"><button class="btn primary" type="submit">{{ t('bar.add_product_submit') }}</button></div>
       </form>
     </div>
@@ -224,6 +225,7 @@
               </select>
             </div>
             <div class="field qty"><label>{{ t('bar.qty') }}</label><input type="number" step="0.01" min="0.01" name="qty[]" value="1" required></div>
+            <div class="field price"><label>{{ t('bar.cost_price') }}</label><input type="text" inputmode="decimal" class="money-input intake-price-input" name="price[]" autocomplete="off"></div>
             <button type="button" class="intake-remove-btn" disabled>✕</button>
           </div>
         </div>

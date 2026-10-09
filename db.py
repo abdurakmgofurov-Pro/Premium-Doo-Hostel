@@ -1585,11 +1585,17 @@ def bar_stock_value():
     return value
 
 
-def add_bar_transaction(date, product_id, ttype, qty, source, counterparty="", description="", status="paid"):
+def add_bar_transaction(date, product_id, ttype, qty, source, counterparty="", description="", status="paid",
+                         unit_price=None):
     """`status='unpaid'` faqat 'restock' (kirim) uchun mantiqiy — tovar
     darhol omborga qo'shiladi, lekin Kassa/Bank'dan pul DARHOL chiqmaydi;
     o'rniga yetkazib beruvchiga qarz sifatida Дт/Кт'da ko'rinadi va
-    keyinroq (qisman yoki to'liq) to'lov qo'shish mumkin bo'ladi."""
+    keyinroq (qisman yoki to'liq) to'lov qo'shish mumkin bo'ladi.
+
+    `unit_price` — faqat 'restock' uchun: tovar narxi har safar kirimda
+    o'zgarishi mumkin bo'lgani uchun, kiritilsa shu kirim narxi ishlatiladi
+    va mahsulotning joriy tan narxi ham shunga yangilanadi (keyingi kirim va
+    ombor qiymati hisob-kitobi uchun)."""
     product = get_bar_product(product_id)
     if not product:
         raise ValueError("product_not_found")
@@ -1598,13 +1604,14 @@ def add_bar_transaction(date, product_id, ttype, qty, source, counterparty="", d
         raise ValueError("invalid_qty")
 
     if ttype == "sale":
+        unit_price = product["sale_price"]
         if product["stock_qty"] + 1e-9 < qty:
             raise ValueError("insufficient_stock")
-        unit_price = product["sale_price"]
         new_stock = product["stock_qty"] - qty
         cash_ttype, cash_category = "income", BAR_SALE_CATEGORY
     elif ttype == "restock":
-        unit_price = product["cost_price"]
+        if unit_price is None:
+            unit_price = product["cost_price"]
         new_stock = product["stock_qty"] + qty
         cash_ttype, cash_category = "expense", BAR_RESTOCK_CATEGORY
     else:
@@ -1634,7 +1641,10 @@ def add_bar_transaction(date, product_id, ttype, qty, source, counterparty="", d
             "INSERT INTO payments (source_type, source_id, date, amount, currency, note) VALUES ('bar_transaction',?,?,?,?,?)",
             (bt_cur.lastrowid, date, amount, currency, ""),
         )
-    conn.execute("UPDATE bar_products SET stock_qty=? WHERE id=?", (new_stock, product_id))
+    if ttype == "restock" and unit_price != product["cost_price"]:
+        conn.execute("UPDATE bar_products SET stock_qty=?, cost_price=? WHERE id=?", (new_stock, unit_price, product_id))
+    else:
+        conn.execute("UPDATE bar_products SET stock_qty=? WHERE id=?", (new_stock, product_id))
     conn.commit()
     conn.close()
 
