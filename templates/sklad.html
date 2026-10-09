@@ -86,8 +86,11 @@
     <div class="card">
       <h2>{{ t('bar.add_product_title') }}</h2>
       <form class="form-grid" method="post" action="/bar/product/add">
+        <div class="field full barcode-field"><label>{{ t('bar.barcode_scan_label') }}</label>
+          <input type="text" id="addProductBarcodeInput" autocomplete="off" placeholder="{{ t('bar.barcode_scan_placeholder') }}">
+        </div>
         <div class="field full"><label>{{ t('bar.product_name') }}</label><input type="text" name="name" required></div>
-        <div class="field"><label>{{ t('bar.barcode') }}</label><input type="text" name="barcode" autocomplete="off"></div>
+        <div class="field"><label>{{ t('bar.barcode') }}</label><input type="text" id="addProductBarcode" name="barcode" autocomplete="off"></div>
         <div class="field"><label>{{ t('bar.unit') }}</label><input type="text" name="unit" value="dona" required></div>
         <div class="field"><label>{{ t('bar.currency') }}</label>
           <select name="currency"><option value="UZS">UZS</option><option value="USD">USD</option></select>

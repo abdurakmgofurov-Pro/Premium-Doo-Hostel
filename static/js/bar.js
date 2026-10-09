@@ -1,6 +1,10 @@
 "use strict";
 (() => {
   // src/bar.ts
+  function extractGtin(raw) {
+    const m = raw.match(/^01(\d{14})/);
+    return m ? m[1] : raw;
+  }
   (function editModal() {
     const modal = document.getElementById("barEditModal");
     if (!modal) return;
@@ -128,7 +132,7 @@
       barcodeInput.addEventListener("keydown", (e) => {
         if (e.key !== "Enter") return;
         e.preventDefault();
-        const code = barcodeInput.value.trim();
+        const code = extractGtin(barcodeInput.value.trim());
         barcodeInput.value = "";
         if (!code) return;
         const id = byBarcode[code];

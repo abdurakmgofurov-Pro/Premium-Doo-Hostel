@@ -3,6 +3,15 @@
 // multi-row "intake" (restock) modal.
 import "./types";
 
+// GS1 DataMatrix (2D) kodlar "01" + 14 xonali GTIN bilan boshlanadi va undan
+// keyin har bir qadoqda boshqacha bo'ladigan seriya raqami keladi (masalan,
+// O'zbekistondagi "Asl belgisi" markirovkasi). Takroriy skanerlashda mahsulot
+// to'g'ri topilishi uchun faqat GTIN qismini shtrix-kod sifatida ishlatamiz.
+function extractGtin(raw: string): string {
+  const m = raw.match(/^01(\d{14})/);
+  return m ? m[1] : raw;
+}
+
 (function marginCalc() {
   function raw(el: HTMLInputElement | null): number {
     if (!el) return NaN;
@@ -38,6 +47,22 @@ import "./types";
       const s = raw(sale);
       if (isFinite(c) && c > 0 && isFinite(s)) pct.value = fmtPct(((s - c) / c) * 100);
     }
+  });
+})();
+
+// "Yangi mahsulot qo'shish" formasidagi skanerlash maydoni: kodni GTIN'ga
+// qisqartirib, to'g'ridan-to'g'ri SHTRIX-KOD maydoniga yozadi.
+(function addProductBarcodeScan() {
+  const scanInput = document.getElementById("addProductBarcodeInput") as HTMLInputElement | null;
+  const barcodeField = document.getElementById("addProductBarcode") as HTMLInputElement | null;
+  if (!scanInput || !barcodeField) return;
+  scanInput.addEventListener("keydown", (e: KeyboardEvent) => {
+    if (e.key !== "Enter") return;
+    e.preventDefault();
+    const code = extractGtin(scanInput.value.trim());
+    scanInput.value = "";
+    if (!code) return;
+    barcodeField.value = code;
   });
 })();
 
@@ -188,7 +213,7 @@ import "./types";
     barcodeInput.addEventListener("keydown", (e: KeyboardEvent) => {
       if (e.key !== "Enter") return;
       e.preventDefault();
-      const code = barcodeInput.value.trim();
+      const code = extractGtin(barcodeInput.value.trim());
       barcodeInput.value = "";
       if (!code) return;
       const productId = byBarcode[code];
